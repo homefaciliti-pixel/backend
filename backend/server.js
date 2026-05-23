@@ -51,6 +51,11 @@ const mongooseReferralAppliedSchema = new mongoose.Schema({
 });
 const MongoReferralApplied = mongoose.model('ReferralApplied', mongooseReferralAppliedSchema);
 
+const mongooseCategorySchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true }
+});
+const MongoCategory = mongoose.model('Category', mongooseCategorySchema);
+
 // ----------------------------------------
 // DATABASE ABSTRACTED DATA LAYER (MongoDB)
 // ----------------------------------------
@@ -115,6 +120,20 @@ const MongoDbLayer = {
     const newRef = new MongoReferralApplied(referralApplied);
     await newRef.save();
     return newRef.toObject();
+  },
+
+  // --- CATEGORY METHODS ---
+  async getCategories() {
+    const list = await MongoCategory.find().lean();
+    return list.map(c => c.name);
+  },
+
+  async addCategory(name) {
+    const existing = await MongoCategory.findOne({ name: name }).lean();
+    if (existing) return existing;
+    const newCat = new MongoCategory({ name: name });
+    await newCat.save();
+    return newCat.toObject();
   }
 };
 
@@ -123,9 +142,25 @@ const MongoDbLayer = {
 // ----------------------------------------
 const DB_FILE = path.join(__dirname, 'database.json');
 
+const DEFAULT_CATEGORIES = [
+  "Plumber", "Electrician", "Cleaning Services", "AcRepair",
+  "Salon And Spa", "Painter", "Carpenter", "Bike Services",
+  "Architecture", "Car Washing", "Contractor", "Mechanic",
+  "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halbai"
+];
+
 function initJsonDb() {
   if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {} }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES }, null, 2));
+  } else {
+    try {
+      const content = fs.readFileSync(DB_FILE, 'utf8');
+      const parsed = JSON.parse(content);
+      if (!parsed.categories) {
+        parsed.categories = DEFAULT_CATEGORIES;
+        fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
+      }
+    } catch (e) {}
   }
 }
 
@@ -239,6 +274,23 @@ const JsonDbLayer = {
     data.referralsApplied[referralApplied.userPhone] = referralApplied;
     this.writeData(data);
     return referralApplied;
+  },
+
+  // --- CATEGORY METHODS ---
+  async getCategories() {
+    const data = this.readData();
+    return data.categories || [];
+  },
+
+  async addCategory(name) {
+    const data = this.readData();
+    if (!data.categories) data.categories = [];
+    if (data.categories.includes(name)) {
+      return name;
+    }
+    data.categories.push(name);
+    this.writeData(data);
+    return name;
   }
 };
 
@@ -272,7 +324,9 @@ const DbLayer = {
   async getLastOrderId() { return this.getLayer().getLastOrderId(); },
   async countOrders() { return this.getLayer().countOrders(); },
   async getReferralApplied(phone) { return this.getLayer().getReferralApplied(phone); },
-  async createReferralApplied(referralApplied) { return this.getLayer().createReferralApplied(referralApplied); }
+  async createReferralApplied(referralApplied) { return this.getLayer().createReferralApplied(referralApplied); },
+  async getCategories() { return this.getLayer().getCategories(); },
+  async addCategory(name) { return this.getLayer().addCategory(name); }
 };
 
 // ----------------------------------------
@@ -663,8 +717,30 @@ app.put('/api/auth/profile', async (req, res) => {
 });
 
 // 5. Categories: List
-app.get('/api/categories', (req, res) => {
-  res.json({ success: true, categories: CATEGORIES_DATA });
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await DbLayer.getCategories();
+    res.json({ success: true, categories: categories });
+  } catch (err) {
+    console.error("Fetch categories failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Categories: Create/Add Category (Allows Infinite Categories)
+app.post('/api/categories', async (req, res) => {
+  const { name } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: "Category name is required" });
+  }
+  try {
+    const category = await DbLayer.addCategory(name);
+    console.log(`Added new category: ${name}`);
+    res.json({ success: true, category: name });
+  } catch (err) {
+    console.error("Add category failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 // 6. Services: Fetch with category / search filter

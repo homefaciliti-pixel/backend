@@ -61,6 +61,11 @@ PUT /api/auth/profile
 GET /api/categories
 - Response: { "success": true, "categories": ["Plumber", "Electrician", ...] }
 
+POST /api/categories
+- Body: { "name": "string" }
+- Response: { "success": true, "category": "string" }
+- Note: Adds a new category dynamically, allowing infinite categories.
+
 GET /api/services
 - Query Parameters: 
   - `category` (optional): Filter by category name
