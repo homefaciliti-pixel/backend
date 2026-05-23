@@ -604,6 +604,21 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   }
 });
 
+// Auth: Logout
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    console.log(`User ${user.phone} logged out successfully`);
+    res.json({ success: true, message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // 3. Auth: Fetch Profile
 app.get('/api/auth/profile', async (req, res) => {
   try {

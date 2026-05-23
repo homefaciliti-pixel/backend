@@ -40,6 +40,10 @@ POST /api/auth/verify-otp
     "token": "<jwt_token>"
   }
 
+POST /api/auth/logout
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "message": "Logged out successfully" }
+
 GET /api/auth/profile
 - Headers: Authorization: Bearer <jwt_token>
 - Response: { "success": true, "user": { ... } }
