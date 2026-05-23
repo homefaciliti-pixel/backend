@@ -753,7 +753,30 @@ app.post('/api/wallet/deduct', async (req, res) => {
   }
 });
 
-// 11. Referral: Apply Code
+// 11. Referral: Look up user by referral code
+app.get('/api/referrals/lookup/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const user = await DbLayer.getUserByReferralCode(code);
+    if (!user) {
+      return res.status(404).json({ error: "Invalid referral code" });
+    }
+    res.json({
+      success: true,
+      user: {
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        locality: user.locality
+      }
+    });
+  } catch (err) {
+    console.error("Referral lookup failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 12. Referral: Apply Code
 app.post('/api/referrals/apply', async (req, res) => {
   const { code } = req.body;
   if (!code) {

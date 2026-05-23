@@ -91,6 +91,10 @@ POST /api/wallet/deduct
 4. Referral Program APIs
 ---------------------------------------------------------
 
+GET /api/referrals/lookup/:code
+- Response: { "success": true, "user": { "name": "...", "phone": "...", "email": "...", "locality": "..." } }
+- Note: Looks up another user's basic details using their referral code.
+
 POST /api/referrals/apply
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "code": "string" }
