@@ -5,9 +5,9 @@ HOME SERVICES APPLICATION - API REFERENCE
 Base URL: https://backend-0cnj.onrender.com
 
 Database Configuration:
-- Uses MongoDB for database persistence.
-- By default, it connects to a local MongoDB instance at `mongodb://localhost:27017/home-services`.
-- You can override the connection URI by setting the `MONGODB_URI` environment variable.
+- Uses MongoDB Atlas for database persistence.
+- Connects using MONGODB_URI configured in your environment or .env file (uses your homefaciliti_db_user Atlas database).
+- Bypasses MongoDB and automatically falls back to database.json if connection fails or credentials use placeholders.
 
 Authentication Note:
 All private APIs require the custom header 'Authorization: Bearer <jwt_token>' 
