@@ -6,6 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static String get baseUrl {
+    // Production Render URL
+    return 'https://backend-0cnj.onrender.com';
+
+    // Local development configuration:
+    /*
     if (kIsWeb) {
       return 'http://localhost:3000';
     } else if (Platform.isAndroid) {
@@ -14,6 +19,7 @@ class ApiService {
     } else {
       return 'http://localhost:3000';
     }
+    */
   }
 
   static Future<Map<String, String>> _getHeaders() async {
