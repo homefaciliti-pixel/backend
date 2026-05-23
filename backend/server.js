@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,26 +51,9 @@ const mongooseReferralAppliedSchema = new mongoose.Schema({
 const MongoReferralApplied = mongoose.model('ReferralApplied', mongooseReferralAppliedSchema);
 
 // ----------------------------------------
-// DATABASE CONFIGURATION AND INITIALIZATION
-// ----------------------------------------
-
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/home-services';
-console.log(`Attempting connection to MongoDB at: ${MONGODB_URI}...`);
-
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('Successfully connected to MongoDB.');
-  })
-  .catch(err => {
-    console.error('CRITICAL ERROR: Failed to connect to MongoDB on localhost:27017.');
-    console.error('-> Ensure local MongoDB is running, or specify a valid MONGODB_URI.');
-    console.error(err.message);
-  });
-
-// ----------------------------------------
 // DATABASE ABSTRACTED DATA LAYER (MongoDB)
 // ----------------------------------------
-const DbLayer = {
+const MongoDbLayer = {
   // --- USER METHODS ---
   async getUserByPhone(phone) {
     return await MongoUser.findOne({ phone: phone }).lean();
@@ -131,6 +116,187 @@ const DbLayer = {
     return newRef.toObject();
   }
 };
+
+// ----------------------------------------
+// DATABASE ABSTRACTED DATA LAYER (JSON File Database fallback)
+// ----------------------------------------
+const DB_FILE = path.join(__dirname, 'database.json');
+
+function initJsonDb() {
+  if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {} }, null, 2));
+  }
+}
+
+const JsonDbLayer = {
+  readData() {
+    try {
+      initJsonDb();
+      const data = fs.readFileSync(DB_FILE, 'utf8');
+      return JSON.parse(data);
+    } catch (err) {
+      console.error("Error reading JSON database:", err.message);
+      return { users: {}, orders: [], referralsApplied: {} };
+    }
+  },
+
+  writeData(data) {
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    } catch (err) {
+      console.error("Error writing to JSON database:", err.message);
+    }
+  },
+
+  // --- USER METHODS ---
+  async getUserByPhone(phone) {
+    const data = this.readData();
+    return data.users[phone] || null;
+  },
+
+  async getUserByReferralCode(code) {
+    const data = this.readData();
+    return Object.values(data.users).find(u => u.referralCode === code) || null;
+  },
+
+  async createUser(user) {
+    const data = this.readData();
+    data.users[user.phone] = {
+      name: user.name || "Hira",
+      phone: user.phone,
+      email: user.email || "hira@hmail.com",
+      location: user.location || "",
+      locality: user.locality || "",
+      gender: user.gender || "Male",
+      referralCode: user.referralCode,
+      walletBalance: user.walletBalance || 0.0
+    };
+    this.writeData(data);
+    return data.users[user.phone];
+  },
+
+  async updateUser(phone, updates) {
+    const data = this.readData();
+    if (!data.users[phone]) return null;
+    data.users[phone] = { ...data.users[phone], ...updates };
+    this.writeData(data);
+    return data.users[phone];
+  },
+
+  async countUsers() {
+    const data = this.readData();
+    return Object.keys(data.users).length;
+  },
+
+  // --- ORDER METHODS ---
+  async getOrderById(id) {
+    const data = this.readData();
+    return data.orders.find(o => o.id === id) || null;
+  },
+
+  async getOrdersByUserPhone(phone) {
+    const data = this.readData();
+    return data.orders.filter(o => o.userPhone === phone).sort((a, b) => b.id - a.id);
+  },
+
+  async createOrder(order) {
+    const data = this.readData();
+    data.orders.push(order);
+    this.writeData(data);
+    return order;
+  },
+
+  async updateOrder(id, updates) {
+    const data = this.readData();
+    const index = data.orders.findIndex(o => o.id === id);
+    if (index === -1) return null;
+    data.orders[index] = { ...data.orders[index], ...updates };
+    this.writeData(data);
+    return data.orders[index];
+  },
+
+  async getLastOrderId() {
+    const data = this.readData();
+    if (data.orders.length === 0) return 0;
+    return Math.max(...data.orders.map(o => o.id));
+  },
+
+  async countOrders() {
+    const data = this.readData();
+    return data.orders.length;
+  },
+
+  // --- REFERRAL METHODS ---
+  async getReferralApplied(phone) {
+    const data = this.readData();
+    return data.referralsApplied[phone] || null;
+  },
+
+  async createReferralApplied(referralApplied) {
+    const data = this.readData();
+    data.referralsApplied[referralApplied.userPhone] = referralApplied;
+    this.writeData(data);
+    return referralApplied;
+  }
+};
+
+// ----------------------------------------
+// HYBRID DATABASE ROUTER
+// ----------------------------------------
+let dbMode = "mongo";
+
+const DbLayer = {
+  getLayer() {
+    if (MONGODB_URI.includes('<db_password>')) {
+      dbMode = "json";
+      return JsonDbLayer;
+    }
+    if (mongoose.connection.readyState === 1) {
+      dbMode = "mongo";
+      return MongoDbLayer;
+    }
+    dbMode = "json";
+    return JsonDbLayer;
+  },
+  async getUserByPhone(phone) { return this.getLayer().getUserByPhone(phone); },
+  async getUserByReferralCode(code) { return this.getLayer().getUserByReferralCode(code); },
+  async createUser(user) { return this.getLayer().createUser(user); },
+  async updateUser(phone, updates) { return this.getLayer().updateUser(phone, updates); },
+  async countUsers() { return this.getLayer().countUsers(); },
+  async getOrderById(id) { return this.getLayer().getOrderById(id); },
+  async getOrdersByUserPhone(phone) { return this.getLayer().getOrdersByUserPhone(phone); },
+  async createOrder(order) { return this.getLayer().createOrder(order); },
+  async updateOrder(id, updates) { return this.getLayer().updateOrder(id, updates); },
+  async getLastOrderId() { return this.getLayer().getLastOrderId(); },
+  async countOrders() { return this.getLayer().countOrders(); },
+  async getReferralApplied(phone) { return this.getLayer().getReferralApplied(phone); },
+  async createReferralApplied(referralApplied) { return this.getLayer().createReferralApplied(referralApplied); }
+};
+
+// ----------------------------------------
+// DATABASE CONFIGURATION AND INITIALIZATION
+// ----------------------------------------
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/home-services';
+
+if (MONGODB_URI.includes('<db_password>')) {
+  console.log("MONGODB_URI contains placeholder '<db_password>'. Bypassing MongoDB and running in JSON file database mode.");
+  dbMode = "json";
+  initJsonDb();
+} else {
+  console.log(`Attempting connection to MongoDB at: ${MONGODB_URI}...`);
+  mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 3000 })
+    .then(() => {
+      console.log('Successfully connected to MongoDB. Running in MongoDB mode.');
+      dbMode = "mongo";
+    })
+    .catch(err => {
+      console.error('Failed to connect to MongoDB on startup. Falling back to local JSON database mode.');
+      console.error(err.message);
+      dbMode = "json";
+      initJsonDb();
+    });
+}
 
 // Global Static Data for Services
 const CATEGORIES_DATA = [
@@ -242,7 +408,10 @@ app.get('/', async (req, res) => {
     const userCount = await DbLayer.countUsers();
     const orderCount = await DbLayer.countOrders();
     
-    const dbStatus = `MongoDB Localhost (${mongoose.connection.host || 'localhost'})`;
+    const activeLayer = DbLayer.getLayer();
+    const dbStatus = activeLayer === JsonDbLayer 
+      ? "JSON File Database (database.json)" 
+      : `MongoDB (${mongoose.connection.host || 'localhost'})`;
 
     res.send(`
       <!DOCTYPE html>
