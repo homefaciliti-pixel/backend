@@ -99,7 +99,7 @@ POST /api/wallet/deduct
 ---------------------------------------------------------
 
 GET /api/referrals/lookup/:code
-- Response: { "success": true, "user": { "name": "...", "phone": "...", "email": "...", "locality": "..." } }
+- Response: { "success": true, "user": { "name": "...", "phone": "...", "email": "...", "locality": "..." }, "message": "Referral user found successfully" }
 - Note: Looks up another user's basic details using their referral code.
 
 POST /api/referrals/apply

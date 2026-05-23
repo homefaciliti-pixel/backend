@@ -911,7 +911,8 @@ app.get('/api/referrals/lookup/:code', async (req, res) => {
         phone: user.phone,
         email: user.email,
         locality: user.locality
-      }
+      },
+      message: "Referral user found successfully"
     });
   } catch (err) {
     console.error("Referral lookup failed:", err);
