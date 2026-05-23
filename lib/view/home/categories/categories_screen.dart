@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:userapp/utils/app_colors.dart';
 import 'package:userapp/view/services/services_list_screen.dart';
 import 'package:userapp/widgets/category_card.dart';
+import 'package:userapp/model/categorymodel.dart';
 import 'package:userapp/viewmodel/service_viewmodel.dart';
 
 class CategoriesScreen extends StatefulWidget {
@@ -25,7 +26,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     final serviceVM = Provider.of<ServiceViewModel>(context);
-    final List<String> categories = serviceVM.categories;
+    final List<CategoryModel> categories = serviceVM.categories;
 
     return Scaffold(
       appBar: AppBar(
@@ -58,15 +59,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         ), itemBuilder: (context ,index){
               final category = categories[index];
 
-              return CategoryCard(title: category,
+              return CategoryCard(
+                title: category.title,
+                image: category.image.isNotEmpty ? category.image : null,
                 onTap: (){
-                Navigator.push(context, MaterialPageRoute(builder:
-                (_)=> ServicesListScreen(categoryName: category,)
-                ));
+                  Navigator.push(context, MaterialPageRoute(builder:
+                    (_)=> ServicesListScreen(categoryName: category.title,)
+                  ));
                 }
-
               );
-
         }
 
         ),

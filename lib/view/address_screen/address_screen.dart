@@ -19,9 +19,27 @@ class _AddressScreenState extends State<AddressScreen> {
   final societyController = TextEditingController();
   final floorController = TextEditingController();
   final landmarkController = TextEditingController();
-  final cityController = TextEditingController();
   final localityController = TextEditingController();
   final pinController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      Provider.of<AddressViewmodel>(context, listen: false).fetchStates();
+    });
+  }
+
+  @override
+  void dispose() {
+    houseController.dispose();
+    societyController.dispose();
+    floorController.dispose();
+    landmarkController.dispose();
+    localityController.dispose();
+    pinController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +94,53 @@ class _AddressScreenState extends State<AddressScreen> {
               _buildField(societyController, "Society / Apartment Name"),
               _buildField(floorController, "Floor"),
               _buildField(landmarkController, "Landmark"),
-              _buildField(cityController, "State, City"),
+              
+              // State Dropdown
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DropdownButtonFormField<String>(
+                  value: vm.selectedState,
+                  hint: const Text("Select State"),
+                  items: vm.states.map((state) {
+                    return DropdownMenuItem<String>(
+                      value: state,
+                      child: Text(state),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    vm.selectState(val);
+                  },
+                  validator: (val) => val == null ? "required state" : null,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: "State",
+                  ),
+                ),
+              ),
+
+              // City Dropdown
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DropdownButtonFormField<String>(
+                  value: vm.selectedCity,
+                  hint: const Text("Select City"),
+                  items: vm.cities.map((city) {
+                    return DropdownMenuItem<String>(
+                      value: city,
+                      child: Text(city),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    vm.selectCity(val);
+                  },
+                  validator: (val) => val == null ? "required city" : null,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: "City",
+                  ),
+                ),
+              ),
+
               _buildField(localityController, "Locality"),
               _buildField(pinController, "Pin code"),
 
@@ -102,7 +166,7 @@ class _AddressScreenState extends State<AddressScreen> {
                             society: societyController.text,
                             floor: floorController.text,
                             landmark: landmarkController.text,
-                            city: cityController.text,
+                            city: "${vm.selectedState}, ${vm.selectedCity}",
                             locality: localityController.text,
                             pincode: pinController.text,
                           ),

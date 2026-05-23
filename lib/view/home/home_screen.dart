@@ -9,6 +9,7 @@ import 'package:userapp/view/wallet_screen/wallet_screen.dart';
 import 'package:userapp/viewmodel/auth_viewmodel.dart';
 import 'package:userapp/viewmodel/drawer_viewmodel.dart';
 import 'package:userapp/widgets/category_card.dart';
+import '../../model/categorymodel.dart';
 import '../../utils/app_icons.dart';
 import '../../viewmodel/service_viewmodel.dart';
 import '../../widgets/serivce_card.dart';
@@ -331,13 +332,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisSpacing: 12,
                 children: serviceVM.categories.map((category) {
                   return CategoryCard(
-                    title: category,
+                    title: category.title,
+                    image: category.image.isNotEmpty ? category.image : null,
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ServicesListScreen(
-                            categoryName: category,
+                            categoryName: category.title,
                           ),
                         ),
                       );

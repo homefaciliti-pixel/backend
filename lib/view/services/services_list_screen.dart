@@ -72,7 +72,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
             child: ServiceBigCard(
               title: service.title,
               price: "₹ ${service.price}",
-              image: "https://via.placeholder.com/150",
+              image: (service.image != null && service.image!.isNotEmpty) ? service.image! : "https://via.placeholder.com/150",
             ),
           );
         },
