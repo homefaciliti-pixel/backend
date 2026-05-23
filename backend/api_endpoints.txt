@@ -2,7 +2,7 @@
 HOME SERVICES APPLICATION - API REFERENCE
 =========================================
 
-Base URL: http://localhost:3000
+Base URL: https://backend-0cnj.onrender.com
 
 Database Configuration:
 - Uses MongoDB for database persistence.
