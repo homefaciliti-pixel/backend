@@ -25,7 +25,8 @@ const mongooseUserSchema = new mongoose.Schema({
   locality: { type: String, default: "" },
   gender: { type: String, default: "Male" },
   referralCode: { type: String, required: true },
-  walletBalance: { type: Number, default: 0.0 }
+  walletBalance: { type: Number, default: 0.0 },
+  countryCode: { type: String, default: "+91" }
 });
 const MongoUser = mongoose.model('User', mongooseUserSchema);
 
@@ -169,7 +170,8 @@ const JsonDbLayer = {
       locality: user.locality || "",
       gender: user.gender || "Male",
       referralCode: user.referralCode,
-      walletBalance: user.walletBalance || 0.0
+      walletBalance: user.walletBalance || 0.0,
+      countryCode: user.countryCode || "+91"
     };
     this.writeData(data);
     return data.users[user.phone];
@@ -549,17 +551,18 @@ app.get('/', async (req, res) => {
 
 // 1. Auth: Send OTP
 app.post('/api/auth/send-otp', (req, res) => {
-  const { phone } = req.body;
+  const { phone, countryCode } = req.body;
   if (!phone) {
     return res.status(400).json({ error: "Phone number is required" });
   }
-  console.log(`Sending Mock OTP 1234 to phone: ${phone}`);
-  res.json({ success: true, message: "OTP sent successfully (Mock: 1234)" });
+  const prefix = countryCode || "+91";
+  console.log(`Sending Mock OTP 1234 to phone: ${prefix}${phone}`);
+  res.json({ success: true, message: `OTP sent successfully to ${prefix}${phone} (Mock: 1234)` });
 });
 
 // 2. Auth: Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, countryCode } = req.body;
   if (!phone || !otp) {
     return res.status(400).json({ error: "Phone and OTP are required" });
   }
@@ -584,10 +587,11 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         locality: "",
         gender: "Male",
         referralCode: refCode,
-        walletBalance: 0.0
+        walletBalance: 0.0,
+        countryCode: countryCode || "+91"
       };
       await DbLayer.createUser(user);
-      console.log(`Created new profile for user: ${phone} with referral: ${refCode}`);
+      console.log(`Created new profile for user: ${countryCode || "+91"}${phone} with referral: ${refCode}`);
     }
 
     const token = jwt.sign({ phone: user.phone }, JWT_SECRET, { expiresIn: '7d' });
@@ -635,7 +639,7 @@ app.get('/api/auth/profile', async (req, res) => {
 
 // 4. Auth: Update Profile
 app.put('/api/auth/profile', async (req, res) => {
-  const { name, email, location, locality, gender } = req.body;
+  const { name, email, location, locality, gender, countryCode } = req.body;
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
@@ -648,6 +652,7 @@ app.put('/api/auth/profile', async (req, res) => {
     if (location !== undefined) updates.location = location;
     if (locality !== undefined) updates.locality = locality;
     if (gender !== undefined) updates.gender = gender;
+    if (countryCode !== undefined) updates.countryCode = countryCode;
 
     const updatedUser = await DbLayer.updateUser(user.phone, updates);
     res.json({ success: true, user: updatedUser });

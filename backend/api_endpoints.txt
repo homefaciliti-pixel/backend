@@ -19,11 +19,11 @@ compatibility, sending a raw phone number in the Bearer token header is also sup
 ---------------------------------------------------------
 
 POST /api/auth/send-otp
-- Body: { "phone": "string" }
-- Response: { "success": true, "message": "OTP sent successfully" }
+- Body: { "phone": "string", "countryCode": "string" } (countryCode is optional, default: "+91")
+- Response: { "success": true, "message": "OTP sent successfully..." }
 
 POST /api/auth/verify-otp
-- Body: { "phone": "string", "otp": "string" } (Accepts universal mock OTP: "1234")
+- Body: { "phone": "string", "otp": "string", "countryCode": "string" } (Accepts universal mock OTP: "1234")
 - Response: {
     "success": true,
     "user": {
@@ -34,7 +34,8 @@ POST /api/auth/verify-otp
       "locality": "",
       "gender": "Male",
       "referralCode": "HIR123456",
-      "walletBalance": 0
+      "walletBalance": 0,
+      "countryCode": "+91"
     },
     "isNewUser": false,
     "token": "<jwt_token>"
@@ -50,7 +51,7 @@ GET /api/auth/profile
 
 PUT /api/auth/profile
 - Headers: Authorization: Bearer <jwt_token>
-- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string" }
+- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string", "countryCode": "string" }
 - Response: { "success": true, "user": { ... } }
 
 ---------------------------------------------------------
