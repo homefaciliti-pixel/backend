@@ -532,7 +532,7 @@ const SERVICES_DATA = {
     { title: "Bike", price: 700, description: "General washing, engine oil change & inspection", image: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?q=80&w=400&auto=format&fit=crop" }
   ],
   "Architecture": [
-    { title: "Design Draft", price: 4999, description: "Floor plans and basic architectural layout mapping", image: "https://images.unsplash.com/photo-1503387762-592dedbd82d2?q=80&w=400&auto=format&fit=crop" },
+    { title: "Design Draft", price: 4999, description: "Floor plans and basic architectural layout mapping", image: "/assets/services/design_draft.jpg" },
     { title: "Consultation", price: 999, description: "Professional architecture advice session", image: "https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=400&auto=format&fit=crop" }
   ],
   "Car Washing": [
@@ -543,11 +543,11 @@ const SERVICES_DATA = {
     { title: "Renovation Consultation", price: 1499, description: "Detailed cost analysis and project discussion", image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&auto=format&fit=crop" }
   ],
   "Mechanic": [
-    { title: "Engine Tuning", price: 1299, description: "Spark plugs clean, filter wash, and tuning", image: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=400&auto=format&fit=crop" },
+    { title: "Engine Tuning", price: 1299, description: "Spark plugs clean, filter wash, and tuning", image: "/assets/services/engine_tuning.jpg" },
     { title: "General Inspection", price: 399, description: "Brakes, fluids, suspension safety check", image: "https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?q=80&w=400&auto=format&fit=crop" }
   ],
   "Pandit ji": [
-    { title: "Pooja Service", price: 1100, description: "Pooja with traditional rituals and mantras", image: "https://images.unsplash.com/photo-1609137144813-2d2427702f23?q=80&w=400&auto=format&fit=crop" }
+    { title: "Pooja Service", price: 1100, description: "Pooja with traditional rituals and mantras", image: "/assets/services/pooja_service.png" }
   ],
   "Driver": [
     { title: "One-way Trip", price: 499, description: "Hourly driver service for safe in-city transit", image: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?q=80&w=400&auto=format&fit=crop" }
@@ -954,6 +954,11 @@ app.get('/api/categories/:category/services', (req, res) => {
   const { category } = req.params;
   const { search } = req.query;
 
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
   // Case-insensitive match against known categories in SERVICES_DATA
   const matchedCategory = Object.keys(SERVICES_DATA).find(
     key => key.toLowerCase() === category.toLowerCase()
@@ -980,7 +985,7 @@ app.get('/api/categories/:category/services', (req, res) => {
     success: true,
     category: matchedCategory,
     total: services.length,
-    services: services
+    services: resolveServiceUrls(services, serverBaseUrl)
   });
 });
 
@@ -995,10 +1000,29 @@ function shuffleArray(array) {
   return shuffled;
 }
 
+// Helper: Resolve relative service image URLs dynamically
+function resolveServiceUrls(services, serverBaseUrl) {
+  return services.map(s => {
+    let img = s.image;
+    if (img && img.startsWith('/assets/')) {
+      img = `${serverBaseUrl}${img}`;
+    }
+    return {
+      ...s,
+      image: img
+    };
+  });
+}
+
 // 6. Services: Fetch with category / search filter
 app.get('/api/services', (req, res) => {
   const { category, search } = req.query;
   let list = [];
+
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
   if (category) {
     list = shuffleArray(SERVICES_DATA[category] || []);
@@ -1012,20 +1036,30 @@ app.get('/api/services', (req, res) => {
     list = list.filter(s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query));
   }
 
-  res.json({ success: true, services: list });
+  res.json({ success: true, services: resolveServiceUrls(list, serverBaseUrl) });
 });
 
 // 8. Services: Trending (Returns 5 random shuffled items)
 app.get('/api/services/trending', (req, res) => {
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
   const allServices = Object.values(SERVICES_DATA).flat();
   const trending = shuffleArray(allServices).slice(0, 5);
-  res.json({ success: true, services: trending });
+  res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl) });
 });
 
 // 9. Search: Global search across services AND categories
 app.get('/api/search', (req, res) => {
   const { q, query } = req.query;
   const searchTerm = (q || query || '').toString().trim();
+
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
   if (!searchTerm) {
     return res.status(400).json({
@@ -1063,7 +1097,7 @@ app.get('/api/search', (req, res) => {
     query: searchTerm,
     results: {
       categories: matchedCategories,
-      services: matchedServices,
+      services: resolveServiceUrls(matchedServices, serverBaseUrl),
       totalCategories: matchedCategories.length,
       totalServices: matchedServices.length
     }
