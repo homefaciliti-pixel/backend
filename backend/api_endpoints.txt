@@ -5,9 +5,9 @@ HOME SERVICES APPLICATION - API REFERENCE
 Base URL: https://backend-0cnj.onrender.com
 
 Database Configuration:
-- Uses MongoDB for database persistence.
-- By default, it connects to a local MongoDB instance at `mongodb://localhost:27017/home-services`.
-- You can override the connection URI by setting the `MONGODB_URI` environment variable.
+- Uses MongoDB Atlas for database persistence.
+- Connects using MONGODB_URI configured in your environment or .env file (uses your homefaciliti_db_user Atlas database).
+- Bypasses MongoDB and automatically falls back to database.json if connection fails or credentials use placeholders.
 
 Authentication Note:
 All private APIs require the custom header 'Authorization: Bearer <jwt_token>' 
@@ -19,13 +19,14 @@ compatibility, sending a raw phone number in the Bearer token header is also sup
 ---------------------------------------------------------
 
 POST /api/auth/send-otp
-- Body: { "phone": "string" }
-- Response: { "success": true, "message": "OTP sent successfully" }
+- Body: { "phone": "string", "countryCode": "string" } (countryCode is optional, default: "+91")
+- Response: { "success": true, "message": "OTP sent successfully..." }
 
 POST /api/auth/verify-otp
-- Body: { "phone": "string", "otp": "string" } (Accepts universal mock OTP: "1234")
+- Body: { "phone": "string", "otp": "string", "countryCode": "string" } (Accepts universal mock OTP: "1234")
 - Response: {
     "success": true,
+    "message": "OTP verified successfully",
     "user": {
       "name": "Hira",
       "phone": "8504920167",
@@ -34,11 +35,16 @@ POST /api/auth/verify-otp
       "locality": "",
       "gender": "Male",
       "referralCode": "HIR123456",
-      "walletBalance": 0
+      "walletBalance": 0,
+      "countryCode": "+91"
     },
     "isNewUser": false,
     "token": "<jwt_token>"
   }
+
+POST /api/auth/logout
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "message": "Logged out successfully" }
 
 GET /api/auth/profile
 - Headers: Authorization: Bearer <jwt_token>
@@ -46,15 +52,20 @@ GET /api/auth/profile
 
 PUT /api/auth/profile
 - Headers: Authorization: Bearer <jwt_token>
-- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string" }
-- Response: { "success": true, "user": { ... } }
+- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string", "countryCode": "string" }
+- Response: { "success": true, "user": { ... }, "message": "Profile updated successfully" }
 
 ---------------------------------------------------------
 2. Services & Categories APIs
 ---------------------------------------------------------
 
 GET /api/categories
-- Response: { "success": true, "categories": ["Plumber", "Electrician", ...] }
+- Response: { "success": true, "categories": [ { "id": "plumber", "name": "Plumber", "image": "https://..." }, ... ] }
+
+POST /api/categories
+- Body: { "name": "string", "id": "string" (optional), "image": "string" (optional) }
+- Response: { "success": true, "category": { "id": "gardening", "name": "Gardening", "image": "https://..." }, "message": "Category created successfully" }
+- Note: Adds a new category dynamically, allowing infinite categories.
 
 GET /api/categories/:category/services
 - Path Parameter: category (e.g., "Plumber", "Electrician", "AcRepair")
@@ -74,10 +85,10 @@ GET /api/services
 - Query Parameters: 
   - `category` (optional): Filter by category name
   - `search` (optional): Query term search
-- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "..." }, ... ] }
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "https://..." }, ... ] }
 
 GET /api/services/trending
-- Response: { "success": true, "services": [ ... ] } (Returns top 5 popular services)
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "https://..." }, ... ] } (Returns top 5 popular services)
 
 ---------------------------------------------------------
 2a. Search API
@@ -110,21 +121,25 @@ GET /api/search
 
 GET /api/wallet/balance
 - Headers: Authorization: Bearer <jwt_token>
-- Response: { "success": true, "balance": 0.0 }
+- Response: { "success": true, "balance": 0.0, "message": "Wallet balance retrieved successfully" }
 
 POST /api/wallet/add
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "amount": number }
-- Response: { "success": true, "balance": number }
+- Response: { "success": true, "balance": number, "message": "Money added to wallet successfully" }
 
 POST /api/wallet/deduct
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "amount": number }
-- Response: { "success": true, "balance": number }
+- Response: { "success": true, "balance": number, "message": "Money deducted from wallet successfully" }
 
 ---------------------------------------------------------
 4. Referral Program APIs
 ---------------------------------------------------------
+
+GET /api/referrals/lookup/:code
+- Response: { "success": true, "user": { "name": "...", "phone": "...", "email": "...", "locality": "..." }, "message": "Referral user found successfully" }
+- Note: Looks up another user's basic details using their referral code.
 
 POST /api/referrals/apply
 - Headers: Authorization: Bearer <jwt_token>
@@ -138,17 +153,17 @@ POST /api/referrals/apply
 
 GET /api/orders
 - Headers: Authorization: Bearer <jwt_token>
-- Response: { "success": true, "orders": [ ... ] }
+- Response: { "success": true, "orders": [ ... ], "message": "Orders retrieved successfully" }
 
 POST /api/orders
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "serviceName": "string", "price": number, "date": "string" }
-- Response: { "success": true, "order": { "id": 1, ... } }
+- Response: { "success": true, "order": { "id": 1, ... }, "message": "Order placed successfully" }
 - Note: Creates the order and initializes the booking flow status to "searching".
 
 PUT /api/orders/:id/cancel
 - Headers: Authorization: Bearer <jwt_token>
-- Response: { "success": true, "order": { ... } }
+- Response: { "success": true, "order": { ... }, "message": "Order cancelled successfully" }
 
 ---------------------------------------------------------
 6. Booking Flow Tracking (Real-time Simulation)
@@ -156,10 +171,40 @@ PUT /api/orders/:id/cancel
 
 GET /api/orders/:id/booking-flow
 - Headers: Authorization: Bearer <jwt_token>
-- Response: { "success": true, "status": "searching|assigned|accepted|onTheWay|completed", "partnerName": "...", "partnerDistance": "..." }
+- Response: { "success": true, "status": "searching|assigned|accepted|onTheWay|completed", "partnerName": "...", "partnerDistance": "...", "message": "Booking flow status retrieved successfully" }
 - Note: Automatically assigns a driver ("Ravi Kumar", 3.2km away) after 4 seconds of order creation if it is still searching.
 
 PUT /api/orders/:id/booking-flow
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "status": "string", "partnerName": "string", "partnerDistance": "string" }
-- Response: { "success": true, "status": "...", ... }
+- Response: { "success": true, "status": "...", "partnerName": "...", "partnerDistance": "...", "message": "Booking flow status updated successfully" }
+
+---------------------------------------------------------
+7. Dropdown Selection APIs
+---------------------------------------------------------
+
+GET /api/states
+- Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully" }
+
+GET /api/cities
+- Query Parameters:
+  - `state` (optional): Filter cities by state name (e.g. Maharashtra)
+- Response: { "success": true, "cities": ["Mumbai", "Pune", ...], "message": "Cities retrieved successfully" }
+
+---------------------------------------------------------
+8. Banners API
+---------------------------------------------------------
+
+GET /api/banners
+- Response: {
+    "success": true,
+    "banners": [
+      {
+        "id": "string",
+        "image": "string (URL)",
+        "title": "string",
+        "category": "string (Target Category Name)"
+      }
+    ],
+    "message": "Banners retrieved successfully"
+  }

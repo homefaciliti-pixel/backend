@@ -183,11 +183,32 @@ class ServiceDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
 
-                Container(
-                  height: 220,
-                  width: double.infinity,
-                  color: Colors.grey[300],
-                ),
+                service.image != null && service.image!.isNotEmpty
+                    ? (service.image!.startsWith('http')
+                        ? Image.network(
+                            service.image!,
+                            height: 220,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              height: 220,
+                              width: double.infinity,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                            ),
+                          )
+                        : Image.asset(
+                            service.image!,
+                            height: 220,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ))
+                    : Container(
+                        height: 220,
+                        width: double.infinity,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                      ),
 
                 SizedBox(height: 16),
 

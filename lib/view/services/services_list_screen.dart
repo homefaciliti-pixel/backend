@@ -6,10 +6,12 @@ import '../home/servicesdetail screen/services_detail_screen.dart';
 
 class ServicesListScreen extends StatefulWidget {
   final String categoryName;
+  final String? categoryImage;
 
   const ServicesListScreen({
     super.key,
     required this.categoryName,
+    this.categoryImage,
   });
 
   @override
@@ -39,7 +41,42 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
       backgroundColor: Colors.grey.shade100,
 
       appBar: AppBar(
-        title: Text(widget.categoryName),
+        title: Row(
+          children: [
+            if (widget.categoryImage != null && widget.categoryImage!.isNotEmpty)
+              Container(
+                width: 32,
+                height: 32,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0,      0,      0,      1, 0,
+                  ]),
+                  child: Image.network(
+                    widget.categoryImage!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.category_outlined,
+                      size: 20,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ),
+              ),
+            Text(
+              widget.categoryName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
 
       body: GridView.builder(
@@ -72,7 +109,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
             child: ServiceBigCard(
               title: service.title,
               price: "₹ ${service.price}",
-              image: "https://via.placeholder.com/150",
+              image: (service.image != null && service.image!.isNotEmpty) ? service.image! : "https://via.placeholder.com/150",
             ),
           );
         },

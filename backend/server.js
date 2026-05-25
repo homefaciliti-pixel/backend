@@ -25,7 +25,8 @@ const mongooseUserSchema = new mongoose.Schema({
   locality: { type: String, default: "" },
   gender: { type: String, default: "Male" },
   referralCode: { type: String, required: true },
-  walletBalance: { type: Number, default: 0.0 }
+  walletBalance: { type: Number, default: 0.0 },
+  countryCode: { type: String, default: "+91" }
 });
 const MongoUser = mongoose.model('User', mongooseUserSchema);
 
@@ -49,6 +50,13 @@ const mongooseReferralAppliedSchema = new mongoose.Schema({
   appliedAt: { type: Date, default: Date.now }
 });
 const MongoReferralApplied = mongoose.model('ReferralApplied', mongooseReferralAppliedSchema);
+
+const mongooseCategorySchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true, unique: true },
+  image: { type: String, default: "" }
+});
+const MongoCategory = mongoose.model('Category', mongooseCategorySchema);
 
 // ----------------------------------------
 // DATABASE ABSTRACTED DATA LAYER (MongoDB)
@@ -114,6 +122,26 @@ const MongoDbLayer = {
     const newRef = new MongoReferralApplied(referralApplied);
     await newRef.save();
     return newRef.toObject();
+  },
+
+  // --- CATEGORY METHODS ---
+  async getCategories() {
+    const list = await MongoCategory.find().lean();
+    return list.map(c => ({
+      id: c.id,
+      name: c.name,
+      image: c.image || ""
+    }));
+  },
+
+  async addCategory(categoryData) {
+    const { name, id, image } = categoryData;
+    const finalId = id || name.toLowerCase().replace(/\s+/g, '_');
+    const existing = await MongoCategory.findOne({ $or: [{ name: name }, { id: finalId }] }).lean();
+    if (existing) return existing;
+    const newCat = new MongoCategory({ id: finalId, name: name, image: image || "" });
+    await newCat.save();
+    return newCat.toObject();
   }
 };
 
@@ -122,9 +150,39 @@ const MongoDbLayer = {
 // ----------------------------------------
 const DB_FILE = path.join(__dirname, 'database.json');
 
+const DEFAULT_CATEGORIES = [
+  { id: "plumber", name: "Plumber", image: "https://cdn-icons-png.flaticon.com/512/3095/3095147.png" },
+  { id: "electrician", name: "Electrician", image: "https://cdn-icons-png.flaticon.com/512/1904/1904065.png" },
+  { id: "cleaning_services", name: "Cleaning Services", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
+  { id: "ac_repair", name: "AcRepair", image: "https://cdn-icons-png.flaticon.com/512/911/911409.png" },
+  { id: "salon_and_spa", name: "Salon And Spa", image: "https://cdn-icons-png.flaticon.com/512/2842/2842912.png" },
+  { id: "painter", name: "Painter", image: "https://cdn-icons-png.flaticon.com/512/3125/3125749.png" },
+  { id: "carpenter", name: "Carpenter", image: "https://cdn-icons-png.flaticon.com/512/2313/2313580.png" },
+  { id: "bike_services", name: "Bike Services", image: "https://cdn-icons-png.flaticon.com/512/3198/3198344.png" },
+  { id: "architecture", name: "Architecture", image: "https://cdn-icons-png.flaticon.com/512/3652/3652399.png" },
+  { id: "car_washing", name: "Car Washing", image: "https://cdn-icons-png.flaticon.com/512/2402/2402377.png" },
+  { id: "contractor", name: "Contractor", image: "https://cdn-icons-png.flaticon.com/512/4232/4232145.png" },
+  { id: "mechanic", name: "Mechanic", image: "https://cdn-icons-png.flaticon.com/512/1995/1995470.png" },
+  { id: "pandit_ji", name: "Pandit ji", image: "https://cdn-icons-png.flaticon.com/512/3306/3306612.png" },
+  { id: "driver", name: "Driver", image: "https://cdn-icons-png.flaticon.com/512/3066/3066115.png" },
+  { id: "photographer", name: "Photographer", image: "https://cdn-icons-png.flaticon.com/512/3159/3159844.png" },
+  { id: "doctors", name: "Doctors", image: "https://cdn-icons-png.flaticon.com/512/3304/3304567.png" },
+  { id: "compounder", name: "Compounder", image: "https://cdn-icons-png.flaticon.com/512/2869/2869719.png" },
+  { id: "halbai", name: "Halbai", image: "https://cdn-icons-png.flaticon.com/512/2922/2922572.png" }
+];
+
 function initJsonDb() {
   if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {} }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES }, null, 2));
+  } else {
+    try {
+      const content = fs.readFileSync(DB_FILE, 'utf8');
+      const parsed = JSON.parse(content);
+      if (!parsed.categories) {
+        parsed.categories = DEFAULT_CATEGORIES;
+        fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
+      }
+    } catch (e) {}
   }
 }
 
@@ -169,7 +227,8 @@ const JsonDbLayer = {
       locality: user.locality || "",
       gender: user.gender || "Male",
       referralCode: user.referralCode,
-      walletBalance: user.walletBalance || 0.0
+      walletBalance: user.walletBalance || 0.0,
+      countryCode: user.countryCode || "+91"
     };
     this.writeData(data);
     return data.users[user.phone];
@@ -237,6 +296,51 @@ const JsonDbLayer = {
     data.referralsApplied[referralApplied.userPhone] = referralApplied;
     this.writeData(data);
     return referralApplied;
+  },
+
+  // --- CATEGORY METHODS ---
+  async getCategories() {
+    const data = this.readData();
+    const categories = data.categories || [];
+    return categories.map(c => {
+      if (typeof c === 'string') {
+        return {
+          id: c.toLowerCase().replace(/\s+/g, '_'),
+          name: c,
+          image: ""
+        };
+      }
+      return {
+        id: c.id || c.name.toLowerCase().replace(/\s+/g, '_'),
+        name: c.name,
+        image: c.image || ""
+      };
+    });
+  },
+
+  async addCategory(categoryData) {
+    const data = this.readData();
+    if (!data.categories) data.categories = [];
+    const { name, id, image } = categoryData;
+    const finalId = id || name.toLowerCase().replace(/\s+/g, '_');
+    
+    const existing = data.categories.find(c => {
+      if (typeof c === 'string') {
+        return c.toLowerCase() === name.toLowerCase();
+      }
+      return c.name.toLowerCase() === name.toLowerCase() || c.id === finalId;
+    });
+
+    if (existing) {
+      return typeof existing === 'string'
+        ? { id: existing.toLowerCase().replace(/\s+/g, '_'), name: existing, image: "" }
+        : existing;
+    }
+
+    const newCat = { id: finalId, name, image: image || "" };
+    data.categories.push(newCat);
+    this.writeData(data);
+    return newCat;
   }
 };
 
@@ -270,7 +374,9 @@ const DbLayer = {
   async getLastOrderId() { return this.getLayer().getLastOrderId(); },
   async countOrders() { return this.getLayer().countOrders(); },
   async getReferralApplied(phone) { return this.getLayer().getReferralApplied(phone); },
-  async createReferralApplied(referralApplied) { return this.getLayer().createReferralApplied(referralApplied); }
+  async createReferralApplied(referralApplied) { return this.getLayer().createReferralApplied(referralApplied); },
+  async getCategories() { return this.getLayer().getCategories(); },
+  async addCategory(categoryData) { return this.getLayer().addCategory(categoryData); }
 };
 
 // ----------------------------------------
@@ -286,9 +392,20 @@ if (MONGODB_URI.includes('<db_password>')) {
 } else {
   console.log(`Attempting connection to MongoDB at: ${MONGODB_URI}...`);
   mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 3000 })
-    .then(() => {
+    .then(async () => {
       console.log('Successfully connected to MongoDB. Running in MongoDB mode.');
       dbMode = "mongo";
+      
+      // Seed default categories if MongoDB collection is empty
+      try {
+        const count = await MongoCategory.countDocuments();
+        if (count === 0) {
+          await MongoCategory.insertMany(DEFAULT_CATEGORIES);
+          console.log("Seeded default categories in MongoDB.");
+        }
+      } catch (err) {
+        console.error("Error seeding default categories in MongoDB:", err.message);
+      }
     })
     .catch(err => {
       console.error('Failed to connect to MongoDB on startup. Falling back to local JSON database mode.');
@@ -308,66 +425,66 @@ const CATEGORIES_DATA = [
 
 const SERVICES_DATA = {
   "Plumber": [
-    { title: "Tap Repair", price: 299, description: "Fix leaking taps and water issues" },
-    { title: "Pipe Fix", price: 499, description: "Repair damaged pipes" },
-    { title: "Leakage Repair", price: 399, description: "Solve leakage problems" }
+    { title: "Tap Repair", price: 299, description: "Fix leaking taps and water issues", image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=400&auto=format&fit=crop" },
+    { title: "Pipe Fix", price: 499, description: "Repair damaged pipes", image: "https://images.unsplash.com/photo-1542013936693-8848e5740a7a?q=80&w=400&auto=format&fit=crop" },
+    { title: "Leakage Repair", price: 399, description: "Solve leakage problems", image: "https://images.unsplash.com/photo-1585538897497-3f852549e357?q=80&w=400&auto=format&fit=crop" }
   ],
   "Electrician": [
-    { title: "Fan Repair", price: 199, description: "Fix fan issues" },
-    { title: "Switch Repair", price: 149, description: "Repair switches and boards" },
-    { title: "Wiring Work", price: 799, description: "Complete wiring setup" }
+    { title: "Fan Repair", price: 199, description: "Fix fan issues", image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=400&auto=format&fit=crop" },
+    { title: "Switch Repair", price: 149, description: "Repair switches and boards", image: "https://images.unsplash.com/photo-1558224494-ef8b41880db0?q=80&w=400&auto=format&fit=crop" },
+    { title: "Wiring Work", price: 799, description: "Complete wiring setup", image: "https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?q=80&w=400&auto=format&fit=crop" }
   ],
   "Cleaning Services": [
-    { title: "Home Cleaning", price: 999, description: "Full house cleaning service" },
-    { title: "Bathroom Cleaning", price: 499, description: "Deep bathroom cleaning" }
+    { title: "Home Cleaning", price: 999, description: "Full house cleaning service", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop" },
+    { title: "Bathroom Cleaning", price: 499, description: "Deep bathroom cleaning", image: "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop" }
   ],
   "AcRepair": [
-    { title: "Ac Service", price: 500, description: "Full filter and coil cleaning" }
+    { title: "Ac Service", price: 500, description: "Full filter and coil cleaning", image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=400&auto=format&fit=crop" }
   ],
   "Salon And Spa": [
-    { title: "Hair Cut", price: 299, description: "Modern hair styling and trimming" }
+    { title: "Hair Cut", price: 299, description: "Modern hair styling and trimming", image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop" }
   ],
   "Painter": [
-    { title: "Wall Paint", price: 1999, description: "Single room wall painting with premium finishes" }
+    { title: "Wall Paint", price: 1999, description: "Single room wall painting with premium finishes", image: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400&auto=format&fit=crop" }
   ],
   "Carpenter": [
-    { title: "Furniture Repair", price: 499, description: "Door alignment and wood repair work" }
+    { title: "Furniture Repair", price: 499, description: "Door alignment and wood repair work", image: "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=400&auto=format&fit=crop" }
   ],
   "Bike Services": [
-    { title: "Bike", price: 700, description: "General washing, engine oil change & inspection" }
+    { title: "Bike", price: 700, description: "General washing, engine oil change & inspection", image: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?q=80&w=400&auto=format&fit=crop" }
   ],
   "Architecture": [
-    { title: "Design Draft", price: 4999, description: "Floor plans and basic architectural layout mapping" },
-    { title: "Consultation", price: 999, description: "Professional architecture advice session" }
+    { title: "Design Draft", price: 4999, description: "Floor plans and basic architectural layout mapping", image: "https://images.unsplash.com/photo-1503387762-592dedbd82d2?q=80&w=400&auto=format&fit=crop" },
+    { title: "Consultation", price: 999, description: "Professional architecture advice session", image: "https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=400&auto=format&fit=crop" }
   ],
   "Car Washing": [
-    { title: "Car Wash Deep", price: 599, description: "Interior vacuuming and exterior premium pressure wash" },
-    { title: "Exterior Shine", price: 299, description: "Quick foam wash and tire polish" }
+    { title: "Car Wash Deep", price: 599, description: "Interior vacuuming and exterior premium pressure wash", image: "https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?q=80&w=400&auto=format&fit=crop" },
+    { title: "Exterior Shine", price: 299, description: "Quick foam wash and tire polish", image: "https://images.unsplash.com/photo-1607860108855-64acf2078ed9?q=80&w=400&auto=format&fit=crop" }
   ],
   "Contractor": [
-    { title: "Renovation Consultation", price: 1499, description: "Detailed cost analysis and project discussion" }
+    { title: "Renovation Consultation", price: 1499, description: "Detailed cost analysis and project discussion", image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&auto=format&fit=crop" }
   ],
   "Mechanic": [
-    { title: "Engine Tuning", price: 1299, description: "Spark plugs clean, filter wash, and tuning" },
-    { title: "General Inspection", price: 399, description: "Brakes, fluids, suspension safety check" }
+    { title: "Engine Tuning", price: 1299, description: "Spark plugs clean, filter wash, and tuning", image: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=400&auto=format&fit=crop" },
+    { title: "General Inspection", price: 399, description: "Brakes, fluids, suspension safety check", image: "https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?q=80&w=400&auto=format&fit=crop" }
   ],
   "Pandit ji": [
-    { title: "Pooja Service", price: 1100, description: "Pooja with traditional rituals and mantras" }
+    { title: "Pooja Service", price: 1100, description: "Pooja with traditional rituals and mantras", image: "https://images.unsplash.com/photo-1609137144813-2d2427702f23?q=80&w=400&auto=format&fit=crop" }
   ],
   "Driver": [
-    { title: "One-way Trip", price: 499, description: "Hourly driver service for safe in-city transit" }
+    { title: "One-way Trip", price: 499, description: "Hourly driver service for safe in-city transit", image: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?q=80&w=400&auto=format&fit=crop" }
   ],
   "Photographer": [
-    { title: "Event Shoot", price: 2999, description: "2 hours high-res photography package for local events" }
+    { title: "Event Shoot", price: 2999, description: "2 hours high-res photography package for local events", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=400&auto=format&fit=crop" }
   ],
   "Doctors": [
-    { title: "General Consultation", price: 500, description: "GP health consultation and prescription writing" }
+    { title: "General Consultation", price: 500, description: "GP health consultation and prescription writing", image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=400&auto=format&fit=crop" }
   ],
   "Compounder": [
-    { title: "Dressing & Injection", price: 150, description: "Basic nursing assistance, wound cleaning, dressings" }
+    { title: "Dressing & Injection", price: 150, description: "Basic nursing assistance, wound cleaning, dressings", image: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=400&auto=format&fit=crop" }
   ],
   "Halbai": [
-    { title: "Catering Service", price: 3500, description: "Private chef/catering help for medium family dinners" }
+    { title: "Catering Service", price: 3500, description: "Private chef/catering help for medium family dinners", image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=400&auto=format&fit=crop" }
   ]
 };
 
@@ -549,17 +666,18 @@ app.get('/', async (req, res) => {
 
 // 1. Auth: Send OTP
 app.post('/api/auth/send-otp', (req, res) => {
-  const { phone } = req.body;
+  const { phone, countryCode } = req.body;
   if (!phone) {
     return res.status(400).json({ error: "Phone number is required" });
   }
-  console.log(`Sending Mock OTP 1234 to phone: ${phone}`);
-  res.json({ success: true, message: "OTP sent successfully (Mock: 1234)" });
+  const prefix = countryCode || "+91";
+  console.log(`Sending Mock OTP 1234 to phone: ${prefix}${phone}`);
+  res.json({ success: true, message: `OTP sent successfully to ${prefix}${phone} (Mock: 1234)` });
 });
 
 // 2. Auth: Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, countryCode } = req.body;
   if (!phone || !otp) {
     return res.status(400).json({ error: "Phone and OTP are required" });
   }
@@ -584,22 +702,39 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         locality: "",
         gender: "Male",
         referralCode: refCode,
-        walletBalance: 0.0
+        walletBalance: 0.0,
+        countryCode: countryCode || "+91"
       };
       await DbLayer.createUser(user);
-      console.log(`Created new profile for user: ${phone} with referral: ${refCode}`);
+      console.log(`Created new profile for user: ${countryCode || "+91"}${phone} with referral: ${refCode}`);
     }
 
     const token = jwt.sign({ phone: user.phone }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
       success: true,
+      message: "OTP verified successfully",
       user: user,
       isNewUser: isNewUser,
       token: token
     });
   } catch (err) {
     console.error("Verify OTP failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Auth: Logout
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    console.log(`User ${user.phone} logged out successfully`);
+    res.json({ success: true, message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -620,7 +755,7 @@ app.get('/api/auth/profile', async (req, res) => {
 
 // 4. Auth: Update Profile
 app.put('/api/auth/profile', async (req, res) => {
-  const { name, email, location, locality, gender } = req.body;
+  const { name, email, location, locality, gender, countryCode } = req.body;
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
@@ -633,9 +768,10 @@ app.put('/api/auth/profile', async (req, res) => {
     if (location !== undefined) updates.location = location;
     if (locality !== undefined) updates.locality = locality;
     if (gender !== undefined) updates.gender = gender;
+    if (countryCode !== undefined) updates.countryCode = countryCode;
 
     const updatedUser = await DbLayer.updateUser(user.phone, updates);
-    res.json({ success: true, user: updatedUser });
+    res.json({ success: true, user: updatedUser, message: "Profile updated successfully" });
   } catch (err) {
     console.error("Update profile failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -643,46 +779,65 @@ app.put('/api/auth/profile', async (req, res) => {
 });
 
 // 5. Categories: List
-app.get('/api/categories', (req, res) => {
-  res.json({ success: true, categories: CATEGORIES_DATA });
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await DbLayer.getCategories();
+    res.json({ success: true, categories: categories });
+  } catch (err) {
+    console.error("Fetch categories failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
-// 6. Categories: Get Services by Category name
-app.get('/api/categories/:category/services', (req, res) => {
-  const { category } = req.params;
-  const { search } = req.query;
-
-  // Case-insensitive match against known categories
-  const matchedCategory = Object.keys(SERVICES_DATA).find(
-    key => key.toLowerCase() === category.toLowerCase()
-  );
-
-  if (!matchedCategory) {
-    return res.status(404).json({
-      success: false,
-      error: `Category '${category}' not found`,
-      availableCategories: CATEGORIES_DATA
-    });
+// Categories: Create/Add Category (Allows Infinite Categories)
+app.post('/api/categories', async (req, res) => {
+  const { name, id, image } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: "Category name is required" });
   }
-
-  let services = SERVICES_DATA[matchedCategory] || [];
-
-  if (search) {
-    const query = search.toString().toLowerCase();
-    services = services.filter(
-      s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query)
-    );
+  try {
+    const category = await DbLayer.addCategory({ name, id, image });
+    console.log(`Added new category: ${category.name}`);
+    res.json({ success: true, category: category, message: "Category created successfully" });
+  } catch (err) {
+    console.error("Add category failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
   }
+});
 
+// Banners: Static Data
+const BANNERS_DATA = [
+  {
+    id: "banner1",
+    image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=800&auto=format&fit=crop",
+    title: "50% Off AC Services",
+    category: "AcRepair"
+  },
+  {
+    id: "banner2",
+    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop",
+    title: "Home Deep Cleaning",
+    category: "Cleaning Services"
+  },
+  {
+    id: "banner3",
+    image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=800&auto=format&fit=crop",
+    title: "Expert Plumbing Support",
+    category: "Plumber"
+  }
+];
+
+// Dropdown: Get Banners
+app.get('/api/banners', (req, res) => {
   res.json({
     success: true,
-    category: matchedCategory,
-    total: services.length,
-    services: services
+    banners: BANNERS_DATA,
+    message: "Banners retrieved successfully"
   });
 });
 
-// 7. Services: Fetch with category / search filter
+
+// 6. Services: Fetch with category / search filter
 app.get('/api/services', (req, res) => {
   const { category, search } = req.query;
   let list = [];
@@ -764,7 +919,7 @@ app.get('/api/wallet/balance', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    res.json({ success: true, balance: user.walletBalance || 0 });
+    res.json({ success: true, balance: user.walletBalance || 0, message: "Wallet balance retrieved successfully" });
   } catch (err) {
     console.error("Fetch wallet balance failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -787,7 +942,7 @@ app.post('/api/wallet/add', async (req, res) => {
     const newBalance = (user.walletBalance || 0) + Number(amount);
     await DbLayer.updateUser(user.phone, { walletBalance: newBalance });
 
-    res.json({ success: true, balance: newBalance });
+    res.json({ success: true, balance: newBalance, message: "Money added to wallet successfully" });
   } catch (err) {
     console.error("Add wallet money failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -814,14 +969,38 @@ app.post('/api/wallet/deduct', async (req, res) => {
     const newBalance = (user.walletBalance || 0) - Number(amount);
     await DbLayer.updateUser(user.phone, { walletBalance: newBalance });
 
-    res.json({ success: true, balance: newBalance });
+    res.json({ success: true, balance: newBalance, message: "Money deducted from wallet successfully" });
   } catch (err) {
     console.error("Deduct wallet money failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// 13. Referral: Apply Code
+// 11. Referral: Look up user by referral code
+app.get('/api/referrals/lookup/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const user = await DbLayer.getUserByReferralCode(code);
+    if (!user) {
+      return res.status(404).json({ error: "Invalid referral code" });
+    }
+    res.json({
+      success: true,
+      user: {
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        locality: user.locality
+      },
+      message: "Referral user found successfully"
+    });
+  } catch (err) {
+    console.error("Referral lookup failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 12. Referral: Apply Code
 app.post('/api/referrals/apply', async (req, res) => {
   const { code } = req.body;
   if (!code) {
@@ -887,7 +1066,7 @@ app.get('/api/orders', async (req, res) => {
     }
 
     const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
-    res.json({ success: true, orders: userOrders });
+    res.json({ success: true, orders: userOrders, message: "Orders retrieved successfully" });
   } catch (err) {
     console.error("Fetch orders failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -927,7 +1106,7 @@ app.post('/api/orders', async (req, res) => {
     await DbLayer.createOrder(newOrder);
 
     console.log(`Placed new order #${orderId} - ${serviceName} for phone ${user.phone}`);
-    res.json({ success: true, order: newOrder });
+    res.json({ success: true, order: newOrder, message: "Order placed successfully" });
   } catch (err) {
     console.error("Place order failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -953,7 +1132,7 @@ app.put('/api/orders/:id/cancel', async (req, res) => {
       bookingStatus: "idle"
     });
 
-    res.json({ success: true, order: updatedOrder });
+    res.json({ success: true, order: updatedOrder, message: "Order cancelled successfully" });
   } catch (err) {
     console.error("Cancel order failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -989,7 +1168,8 @@ app.get('/api/orders/:id/booking-flow', async (req, res) => {
       success: true,
       status: order.bookingStatus,
       partnerName: order.partnerName,
-      partnerDistance: order.partnerDistance
+      partnerDistance: order.partnerDistance,
+      message: "Booking flow status retrieved successfully"
     });
   } catch (err) {
     console.error("Get booking flow failed:", err);
@@ -1030,12 +1210,61 @@ app.put('/api/orders/:id/booking-flow', async (req, res) => {
       success: true,
       status: updatedOrder.bookingStatus,
       partnerName: updatedOrder.partnerName,
-      partnerDistance: updatedOrder.partnerDistance
+      partnerDistance: updatedOrder.partnerDistance,
+      message: "Booking flow status updated successfully"
     });
   } catch (err) {
     console.error("Update booking flow failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
+const STATES_CITIES = {
+  "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik"],
+  "Delhi": ["New Delhi", "Dwarka", "Rohini", "Vasant Kunj"],
+  "Karnataka": ["Bengaluru", "Mysuru", "Hubli", "Mangaluru"],
+  "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Trichy"],
+  "Uttar Pradesh": ["Lucknow", "Kanpur", "Noida", "Agra", "Varanasi"],
+  "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+  "West Bengal": ["Kolkata", "Howrah", "Darjeeling", "Asansol"]
+};
+
+// Dropdown: Get States
+app.get('/api/states', (req, res) => {
+  const states = Object.keys(STATES_CITIES);
+  res.json({
+    success: true,
+    states: states,
+    message: "States retrieved successfully"
+  });
+});
+
+// Dropdown: Get Cities
+app.get('/api/cities', (req, res) => {
+  const { state } = req.query;
+  if (state) {
+    const cities = STATES_CITIES[state];
+    if (!cities) {
+      return res.status(404).json({
+        success: false,
+        error: "State not found",
+        message: "State not found"
+      });
+    }
+    return res.json({
+      success: true,
+      cities: cities,
+      message: `Cities for state ${state} retrieved successfully`
+    });
+  }
+  
+  const allCities = Object.values(STATES_CITIES).flat();
+  res.json({
+    success: true,
+    cities: allCities,
+    message: "All cities retrieved successfully"
+  });
 });
 
 app.listen(PORT, () => {

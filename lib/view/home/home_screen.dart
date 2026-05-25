@@ -9,6 +9,7 @@ import 'package:userapp/view/wallet_screen/wallet_screen.dart';
 import 'package:userapp/viewmodel/auth_viewmodel.dart';
 import 'package:userapp/viewmodel/drawer_viewmodel.dart';
 import 'package:userapp/widgets/category_card.dart';
+import '../../model/categorymodel.dart';
 import '../../utils/app_icons.dart';
 import '../../viewmodel/service_viewmodel.dart';
 import '../../widgets/serivce_card.dart';
@@ -266,39 +267,83 @@ class _HomeScreenState extends State<HomeScreen> {
             CarouselSlider(
               options: CarouselOptions(
                 height: 160,
-                autoPlay: true,
+                autoPlay: serviceVM.banners.isNotEmpty,
                 enlargeCenterPage: true,
                 viewportFraction: 0.9,
               ),
-              items: [
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                    ),
-                  ),
-                ),
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                    ),
-                  ),
-                ),
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                    ),
-                  ),
-                ),
-              ],
+              items: serviceVM.banners.isNotEmpty
+                  ? serviceVM.banners.map((banner) {
+                      return GestureDetector(
+                        onTap: () {
+                          if (banner.category.isNotEmpty) {
+                            final matchedCategory = serviceVM.categories.firstWhere(
+                              (c) => c.title == banner.category,
+                              orElse: () => CategoryModel(id: '', title: banner.category, image: ''),
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ServicesListScreen(
+                                  categoryName: banner.category,
+                                  categoryImage: matchedCategory.image.isNotEmpty ? matchedCategory.image : null,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            image: DecorationImage(
+                              image: NetworkImage(banner.image),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withOpacity(0.6),
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 12,
+                                left: 16,
+                                right: 16,
+                                child: Text(
+                                  banner.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList()
+                  : [
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
+                          ),
+                        ),
+                      )
+                    ],
             ),
 
             SizedBox(height: 24),
@@ -331,13 +376,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisSpacing: 12,
                 children: serviceVM.categories.map((category) {
                   return CategoryCard(
-                    title: category,
+                    title: category.title,
+                    image: category.image.isNotEmpty ? category.image : null,
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ServicesListScreen(
-                            categoryName: category,
+                            categoryName: category.title,
+                            categoryImage: category.image.isNotEmpty ? category.image : null,
                           ),
                         ),
                       );

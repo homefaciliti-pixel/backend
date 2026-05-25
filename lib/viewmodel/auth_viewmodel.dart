@@ -79,6 +79,11 @@ class AuthViewmodel extends ChangeNotifier {
 
   /// LOGOUT
   Future<void> logout() async {
+    try {
+      await ApiService.post('/api/auth/logout', {});
+    } catch (e) {
+      debugPrint("Failed to execute backend logout: $e");
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool("isLogin", false);
     await prefs.remove("phone");

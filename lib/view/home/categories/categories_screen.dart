@@ -1,8 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:userapp/utils/app_colors.dart';
 import 'package:userapp/view/services/services_list_screen.dart';
 import 'package:userapp/widgets/category_card.dart';
+import 'package:userapp/model/categorymodel.dart';
+import 'package:userapp/viewmodel/service_viewmodel.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -13,25 +16,17 @@ class CategoriesScreen extends StatefulWidget {
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ServiceViewModel>(context, listen: false).loadCategories();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> categories = <Map<String, dynamic>>[
-      {"title": "Plumber"},
-      {"title": "Electrician"},
-      {"title": "Salon And Spa"},
-      {"title": "Cleaning Services"},
-      {"title": "Architecture"},
-      {"title": "Carpenter"},
-      {"title": "Contractor"},
-      {"title": "Pandit ji"},
-      {"title": "Driver"},
-      {"title": "Photographer"},
-      {"title": "Doctors"},
-      {"title": "Compounder"},
-      {"title": "Halbai"},
-      {"title": "Car Washing"},
-      {"title": "Mechanic"},
-      {"title": "Bike Services"},
-    ];
+    final serviceVM = Provider.of<ServiceViewModel>(context);
+    final List<CategoryModel> categories = serviceVM.categories;
 
     return Scaffold(
       appBar: AppBar(
@@ -64,15 +59,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         ), itemBuilder: (context ,index){
               final category = categories[index];
 
-              return CategoryCard(title: category["title"],
+              return CategoryCard(
+                title: category.title,
+                image: category.image.isNotEmpty ? category.image : null,
                 onTap: (){
-                Navigator.push(context, MaterialPageRoute(builder:
-                (_)=> ServicesListScreen(categoryName: category["title"],)
-                ));
+                  Navigator.push(context, MaterialPageRoute(builder:
+                    (_)=> ServicesListScreen(categoryName: category.title,)
+                  ));
                 }
-
               );
-
         }
 
         ),
