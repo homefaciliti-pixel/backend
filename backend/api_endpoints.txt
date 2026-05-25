@@ -56,6 +56,20 @@ PUT /api/auth/profile
 GET /api/categories
 - Response: { "success": true, "categories": ["Plumber", "Electrician", ...] }
 
+GET /api/categories/:category/services
+- Path Parameter: category (e.g., "Plumber", "Electrician", "AcRepair")
+- Query Parameters:
+  - `search` (optional): Filter services within this category by title or description
+- Response: {
+    "success": true,
+    "category": "Plumber",
+    "total": 3,
+    "services": [ { "title": "...", "price": 299, "description": "..." }, ... ]
+  }
+- Note: Category matching is case-insensitive. Returns 404 if category not found.
+- Example: GET /api/categories/Plumber/services
+- Example: GET /api/categories/electrician/services?search=switch
+
 GET /api/services
 - Query Parameters: 
   - `category` (optional): Filter by category name
@@ -64,6 +78,31 @@ GET /api/services
 
 GET /api/services/trending
 - Response: { "success": true, "services": [ ... ] } (Returns top 5 popular services)
+
+---------------------------------------------------------
+2a. Search API
+---------------------------------------------------------
+
+GET /api/search
+- Query Parameters:
+  - `q` or `query`: The search term (required)
+- Response: {
+    "success": true,
+    "query": "clean",
+    "results": {
+      "categories": ["Cleaning Services"],
+      "services": [
+        { "title": "Home Cleaning", "price": 999, "description": "...", "category": "Cleaning Services" },
+        ...
+      ],
+      "totalCategories": 1,
+      "totalServices": 2
+    }
+  }
+- Note: Searches across all service titles, descriptions, and category names simultaneously.
+        Each matched service includes a `category` field for context.
+- Example: GET /api/search?q=repair
+- Example: GET /api/search?query=cleaning
 
 ---------------------------------------------------------
 3. Wallet Management APIs

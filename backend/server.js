@@ -647,7 +647,42 @@ app.get('/api/categories', (req, res) => {
   res.json({ success: true, categories: CATEGORIES_DATA });
 });
 
-// 6. Services: Fetch with category / search filter
+// 6. Categories: Get Services by Category name
+app.get('/api/categories/:category/services', (req, res) => {
+  const { category } = req.params;
+  const { search } = req.query;
+
+  // Case-insensitive match against known categories
+  const matchedCategory = Object.keys(SERVICES_DATA).find(
+    key => key.toLowerCase() === category.toLowerCase()
+  );
+
+  if (!matchedCategory) {
+    return res.status(404).json({
+      success: false,
+      error: `Category '${category}' not found`,
+      availableCategories: CATEGORIES_DATA
+    });
+  }
+
+  let services = SERVICES_DATA[matchedCategory] || [];
+
+  if (search) {
+    const query = search.toString().toLowerCase();
+    services = services.filter(
+      s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query)
+    );
+  }
+
+  res.json({
+    success: true,
+    category: matchedCategory,
+    total: services.length,
+    services: services
+  });
+});
+
+// 7. Services: Fetch with category / search filter
 app.get('/api/services', (req, res) => {
   const { category, search } = req.query;
   let list = [];
@@ -667,14 +702,62 @@ app.get('/api/services', (req, res) => {
   res.json({ success: true, services: list });
 });
 
-// 7. Services: Trending (Returns first 5 items)
+// 8. Services: Trending (Returns first 5 items)
 app.get('/api/services/trending', (req, res) => {
   const allServices = Object.values(SERVICES_DATA).flat();
   const trending = allServices.slice(0, 5);
   res.json({ success: true, services: trending });
 });
 
-// 8. Wallet: Get Balance
+// 9. Search: Global search across services AND categories
+app.get('/api/search', (req, res) => {
+  const { q, query } = req.query;
+  const searchTerm = (q || query || '').toString().trim();
+
+  if (!searchTerm) {
+    return res.status(400).json({
+      success: false,
+      error: "Search query is required. Use ?q=<term> or ?query=<term>"
+    });
+  }
+
+  const lowerTerm = searchTerm.toLowerCase();
+
+  // Search across categories
+  const matchedCategories = CATEGORIES_DATA.filter(
+    cat => cat.toLowerCase().includes(lowerTerm)
+  );
+
+  // Search across all services (include category context)
+  const matchedServices = [];
+  for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+    for (const service of services) {
+      if (
+        service.title.toLowerCase().includes(lowerTerm) ||
+        service.description.toLowerCase().includes(lowerTerm) ||
+        categoryName.toLowerCase().includes(lowerTerm)
+      ) {
+        matchedServices.push({
+          ...service,
+          category: categoryName
+        });
+      }
+    }
+  }
+
+  res.json({
+    success: true,
+    query: searchTerm,
+    results: {
+      categories: matchedCategories,
+      services: matchedServices,
+      totalCategories: matchedCategories.length,
+      totalServices: matchedServices.length
+    }
+  });
+});
+
+// 10. Wallet: Get Balance
 app.get('/api/wallet/balance', async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
@@ -688,7 +771,7 @@ app.get('/api/wallet/balance', async (req, res) => {
   }
 });
 
-// 9. Wallet: Add Money
+// 11. Wallet: Add Money
 app.post('/api/wallet/add', async (req, res) => {
   const { amount } = req.body;
   if (amount === undefined || amount <= 0) {
@@ -711,7 +794,7 @@ app.post('/api/wallet/add', async (req, res) => {
   }
 });
 
-// 10. Wallet: Deduct Money
+// 12. Wallet: Deduct Money
 app.post('/api/wallet/deduct', async (req, res) => {
   const { amount } = req.body;
   if (amount === undefined || amount <= 0) {
@@ -738,7 +821,7 @@ app.post('/api/wallet/deduct', async (req, res) => {
   }
 });
 
-// 11. Referral: Apply Code
+// 13. Referral: Apply Code
 app.post('/api/referrals/apply', async (req, res) => {
   const { code } = req.body;
   if (!code) {
@@ -795,7 +878,7 @@ app.post('/api/referrals/apply', async (req, res) => {
   }
 });
 
-// 12. Orders: Get All
+// 14. Orders: Get All
 app.get('/api/orders', async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
@@ -811,7 +894,7 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// 13. Orders: Place Order
+// 15. Orders: Place Order
 app.post('/api/orders', async (req, res) => {
   const { serviceName, price, date } = req.body;
   if (!serviceName || !price) {
@@ -851,7 +934,7 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// 14. Orders: Cancel Order
+// 16. Orders: Cancel Order
 app.put('/api/orders/:id/cancel', async (req, res) => {
   const orderId = parseInt(req.params.id);
   try {
@@ -877,7 +960,7 @@ app.put('/api/orders/:id/cancel', async (req, res) => {
   }
 });
 
-// 15. Active Booking: Get Status
+// 17. Active Booking: Get Status
 app.get('/api/orders/:id/booking-flow', async (req, res) => {
   const orderId = parseInt(req.params.id);
   try {
@@ -914,7 +997,7 @@ app.get('/api/orders/:id/booking-flow', async (req, res) => {
   }
 });
 
-// 16. Active Booking: Update Status
+// 18. Active Booking: Update Status
 app.put('/api/orders/:id/booking-flow', async (req, res) => {
   const orderId = parseInt(req.params.id);
   const { status, partnerName, partnerDistance } = req.body;
