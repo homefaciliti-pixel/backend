@@ -45,7 +45,7 @@ class ServiceViewModel extends ChangeNotifier {
       _categories = [
         CategoryModel(id: "plumber", title: "Plumber", image: ""),
         CategoryModel(id: "electrician", title: "Electrician", image: ""),
-        CategoryModel(id: "cleaning", title: "Cleaning", image: ""),
+        CategoryModel(id: "clening", title: "clening", image: ""),
         CategoryModel(id: "ac_repair", title: "AcRepair", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png"),
         CategoryModel(id: "salon_and_spa", title: "Salon And Spa", image: ""),
         CategoryModel(id: "painter", title: "Painter", image: ""),

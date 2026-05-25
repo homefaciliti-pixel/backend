@@ -154,7 +154,7 @@ const DB_FILE = path.join(__dirname, 'database.json');
 const DEFAULT_CATEGORIES = [
   { id: "plumber", name: "Plumber", image: "https://cdn-icons-png.flaticon.com/512/3095/3095147.png" },
   { id: "electrician", name: "Electrician", image: "https://cdn-icons-png.flaticon.com/512/1904/1904065.png" },
-  { id: "cleaning", name: "Cleaning", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
+  { id: "clening", name: "clening", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
   { id: "ac_repair", name: "AcRepair", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png" },
   { id: "salon_and_spa", name: "Salon And Spa", image: "https://cdn-icons-png.flaticon.com/512/2842/2842912.png" },
   { id: "painter", name: "Painter", image: "https://cdn-icons-png.flaticon.com/512/3125/3125749.png" },
@@ -186,9 +186,9 @@ function initJsonDb() {
       } else {
         // Migration: Update names and images if they are outdated in JSON db
         parsed.categories = parsed.categories.map(c => {
-          if (c.name === "Cleaning Services") {
-            c.name = "Cleaning";
-            c.id = "cleaning";
+          if (c.name === "Cleaning Services" || c.name === "Cleaning") {
+            c.name = "clening";
+            c.id = "clening";
             changed = true;
           }
           if (c.id === "ac_repair" && !c.image.includes("raw.githubusercontent.com")) {
@@ -433,10 +433,10 @@ if (MONGODB_URI.includes('<db_password>')) {
       
       // Seed default categories if MongoDB collection is empty
       try {
-        // Migration: Rename 'Cleaning Services' to 'Cleaning' in existing MongoDB documents
-        await MongoCategory.updateOne(
-          { name: "Cleaning Services" },
-          { $set: { name: "Cleaning", id: "cleaning" } }
+        // Migration: Rename 'Cleaning Services' or 'Cleaning' to 'clening' in existing MongoDB documents
+        await MongoCategory.updateMany(
+          { name: { $in: ["Cleaning Services", "Cleaning"] } },
+          { $set: { name: "clening", id: "clening" } }
         );
         // Migration: Update category images in existing MongoDB documents
         await MongoCategory.updateOne(
@@ -479,7 +479,7 @@ if (MONGODB_URI.includes('<db_password>')) {
 
 // Global Static Data for Services
 const CATEGORIES_DATA = [
-  "Plumber", "Electrician", "Cleaning", "AcRepair",
+  "Plumber", "Electrician", "clening", "AcRepair",
   "Salon And Spa", "Painter", "Carpenter", "Bike Services",
   "Architecture", "Car Washing", "Contractor", "Mechanic",
   "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halbai"
@@ -496,7 +496,7 @@ const SERVICES_DATA = {
     { title: "Switch Repair", price: 149, description: "Repair switches and boards", image: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?q=80&w=400&auto=format&fit=crop" },
     { title: "Wiring Work", price: 799, description: "Complete wiring setup", image: "https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?q=80&w=400&auto=format&fit=crop" }
   ],
-  "Cleaning": [
+  "clening": [
     { title: "Home Cleaning", price: 999, description: "Full house cleaning service", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop" },
     { title: "Bathroom Cleaning", price: 499, description: "Deep bathroom cleaning", image: "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop" }
   ],
@@ -896,7 +896,7 @@ const BANNERS_DATA = [
     id: "banner2",
     image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop",
     title: "Home Deep Cleaning",
-    category: "Cleaning"
+    category: "clening"
   },
   {
     id: "banner3",

@@ -10,7 +10,7 @@ class CategoryViewModel extends ChangeNotifier {
     CategoryModel(title: "Bike Service"),
     CategoryModel(title: "Car Washing"),
     CategoryModel(title: "Carpenter"),
-    CategoryModel(title: "Cleaning"),
+    CategoryModel(title: "clening"),
     CategoryModel(title: "Contractor"),
     CategoryModel(title: "Electrician"),
     CategoryModel(title: "Mechanic"),
