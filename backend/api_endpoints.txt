@@ -101,9 +101,9 @@ GET /api/search
     "success": true,
     "query": "clean",
     "results": {
-      "categories": ["Cleaning Services"],
+      "categories": ["Cleaning"],
       "services": [
-        { "title": "Home Cleaning", "price": 999, "description": "...", "category": "Cleaning Services" },
+        { "title": "Home Cleaning", "price": 999, "description": "...", "category": "Cleaning" },
         ...
       ],
       "totalCategories": 1,

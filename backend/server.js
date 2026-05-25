@@ -153,7 +153,7 @@ const DB_FILE = path.join(__dirname, 'database.json');
 const DEFAULT_CATEGORIES = [
   { id: "plumber", name: "Plumber", image: "https://cdn-icons-png.flaticon.com/512/3095/3095147.png" },
   { id: "electrician", name: "Electrician", image: "https://cdn-icons-png.flaticon.com/512/1904/1904065.png" },
-  { id: "cleaning_services", name: "Cleaning Services", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
+  { id: "cleaning", name: "Cleaning", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
   { id: "ac_repair", name: "AcRepair", image: "https://cdn-icons-png.flaticon.com/512/911/911409.png" },
   { id: "salon_and_spa", name: "Salon And Spa", image: "https://cdn-icons-png.flaticon.com/512/2842/2842912.png" },
   { id: "painter", name: "Painter", image: "https://cdn-icons-png.flaticon.com/512/3125/3125749.png" },
@@ -417,7 +417,7 @@ if (MONGODB_URI.includes('<db_password>')) {
 
 // Global Static Data for Services
 const CATEGORIES_DATA = [
-  "Plumber", "Electrician", "Cleaning Services", "AcRepair",
+  "Plumber", "Electrician", "Cleaning", "AcRepair",
   "Salon And Spa", "Painter", "Carpenter", "Bike Services",
   "Architecture", "Car Washing", "Contractor", "Mechanic",
   "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halbai"
@@ -434,12 +434,12 @@ const SERVICES_DATA = {
     { title: "Switch Repair", price: 149, description: "Repair switches and boards", image: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?q=80&w=400&auto=format&fit=crop" },
     { title: "Wiring Work", price: 799, description: "Complete wiring setup", image: "https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?q=80&w=400&auto=format&fit=crop" }
   ],
-  "Cleaning Services": [
+  "Cleaning": [
     { title: "Home Cleaning", price: 999, description: "Full house cleaning service", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop" },
     { title: "Bathroom Cleaning", price: 499, description: "Deep bathroom cleaning", image: "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop" }
   ],
   "AcRepair": [
-    { title: "Ac Service", price: 500, description: "Full filter and coil cleaning", image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=400&auto=format&fit=crop" }
+    { title: "Ac Service", price: 500, description: "Full filter and coil cleaning", image: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400&auto=format&fit=crop" }
   ],
   "Salon And Spa": [
     { title: "Hair Cut", price: 299, description: "Modern hair styling and trimming", image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop" }
@@ -809,7 +809,7 @@ app.post('/api/categories', async (req, res) => {
 const BANNERS_DATA = [
   {
     id: "banner1",
-    image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=800&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=800&auto=format&fit=crop",
     title: "50% Off AC Services",
     category: "AcRepair"
   },
@@ -817,7 +817,7 @@ const BANNERS_DATA = [
     id: "banner2",
     image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop",
     title: "Home Deep Cleaning",
-    category: "Cleaning Services"
+    category: "Cleaning"
   },
   {
     id: "banner3",
