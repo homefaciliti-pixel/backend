@@ -179,8 +179,42 @@ function initJsonDb() {
     try {
       const content = fs.readFileSync(DB_FILE, 'utf8');
       const parsed = JSON.parse(content);
+      let changed = false;
       if (!parsed.categories) {
         parsed.categories = DEFAULT_CATEGORIES;
+        changed = true;
+      } else {
+        // Migration: Update names and images if they are outdated in JSON db
+        parsed.categories = parsed.categories.map(c => {
+          if (c.name === "Cleaning Services") {
+            c.name = "Cleaning";
+            c.id = "cleaning";
+            changed = true;
+          }
+          if (c.id === "ac_repair" && !c.image.includes("raw.githubusercontent.com")) {
+            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png";
+            changed = true;
+          }
+          if (c.id === "bike_services" && !c.image.includes("raw.githubusercontent.com")) {
+            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/bike_services.png";
+            changed = true;
+          }
+          if (c.id === "architecture" && !c.image.includes("raw.githubusercontent.com")) {
+            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/architecture.jpg";
+            changed = true;
+          }
+          if (c.id === "car_washing" && !c.image.includes("raw.githubusercontent.com")) {
+            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/car_washing.png";
+            changed = true;
+          }
+          if (c.id === "mechanic" && !c.image.includes("raw.githubusercontent.com")) {
+            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/mechanic.jpg";
+            changed = true;
+          }
+          return c;
+        });
+      }
+      if (changed) {
         fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
       }
     } catch (e) {}
@@ -399,13 +433,40 @@ if (MONGODB_URI.includes('<db_password>')) {
       
       // Seed default categories if MongoDB collection is empty
       try {
+        // Migration: Rename 'Cleaning Services' to 'Cleaning' in existing MongoDB documents
+        await MongoCategory.updateOne(
+          { name: "Cleaning Services" },
+          { $set: { name: "Cleaning", id: "cleaning" } }
+        );
+        // Migration: Update category images in existing MongoDB documents
+        await MongoCategory.updateOne(
+          { id: "ac_repair" },
+          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png" } }
+        );
+        await MongoCategory.updateOne(
+          { id: "bike_services" },
+          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/bike_services.png" } }
+        );
+        await MongoCategory.updateOne(
+          { id: "architecture" },
+          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/architecture.jpg" } }
+        );
+        await MongoCategory.updateOne(
+          { id: "car_washing" },
+          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/car_washing.png" } }
+        );
+        await MongoCategory.updateOne(
+          { id: "mechanic" },
+          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/mechanic.jpg" } }
+        );
+
         const count = await MongoCategory.countDocuments();
         if (count === 0) {
           await MongoCategory.insertMany(DEFAULT_CATEGORIES);
           console.log("Seeded default categories in MongoDB.");
         }
       } catch (err) {
-        console.error("Error seeding default categories in MongoDB:", err.message);
+        console.error("Error seeding or updating categories in MongoDB:", err.message);
       }
     })
     .catch(err => {
