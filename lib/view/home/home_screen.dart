@@ -276,11 +276,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       return GestureDetector(
                         onTap: () {
                           if (banner.category.isNotEmpty) {
+                            final matchedCategory = serviceVM.categories.firstWhere(
+                              (c) => c.title == banner.category,
+                              orElse: () => CategoryModel(id: '', title: banner.category, image: ''),
+                            );
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ServicesListScreen(
                                   categoryName: banner.category,
+                                  categoryImage: matchedCategory.image.isNotEmpty ? matchedCategory.image : null,
                                 ),
                               ),
                             );
@@ -379,6 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         MaterialPageRoute(
                           builder: (_) => ServicesListScreen(
                             categoryName: category.title,
+                            categoryImage: category.image.isNotEmpty ? category.image : null,
                           ),
                         ),
                       );

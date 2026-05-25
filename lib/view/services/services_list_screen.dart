@@ -6,10 +6,12 @@ import '../home/servicesdetail screen/services_detail_screen.dart';
 
 class ServicesListScreen extends StatefulWidget {
   final String categoryName;
+  final String? categoryImage;
 
   const ServicesListScreen({
     super.key,
     required this.categoryName,
+    this.categoryImage,
   });
 
   @override
@@ -39,7 +41,34 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
       backgroundColor: Colors.grey.shade100,
 
       appBar: AppBar(
-        title: Text(widget.categoryName),
+        title: Row(
+          children: [
+            if (widget.categoryImage != null && widget.categoryImage!.isNotEmpty)
+              Container(
+                width: 32,
+                height: 32,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Image.network(
+                  widget.categoryImage!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.category,
+                    size: 20,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            Text(
+              widget.categoryName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
 
       body: GridView.builder(
