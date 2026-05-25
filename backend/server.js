@@ -12,6 +12,7 @@ const JWT_SECRET = 'super_secret_jwt_key_123';
 
 app.use(cors());
 app.use(express.json());
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // ----------------------------------------
 // MONGOOSE SCHEMAS & MODELS
@@ -154,15 +155,15 @@ const DEFAULT_CATEGORIES = [
   { id: "plumber", name: "Plumber", image: "https://cdn-icons-png.flaticon.com/512/3095/3095147.png" },
   { id: "electrician", name: "Electrician", image: "https://cdn-icons-png.flaticon.com/512/1904/1904065.png" },
   { id: "cleaning", name: "Cleaning", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
-  { id: "ac_repair", name: "AcRepair", image: "https://cdn-icons-png.flaticon.com/512/911/911409.png" },
+  { id: "ac_repair", name: "AcRepair", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png" },
   { id: "salon_and_spa", name: "Salon And Spa", image: "https://cdn-icons-png.flaticon.com/512/2842/2842912.png" },
   { id: "painter", name: "Painter", image: "https://cdn-icons-png.flaticon.com/512/3125/3125749.png" },
   { id: "carpenter", name: "Carpenter", image: "https://cdn-icons-png.flaticon.com/512/2313/2313580.png" },
-  { id: "bike_services", name: "Bike Services", image: "https://cdn-icons-png.flaticon.com/512/3198/3198344.png" },
-  { id: "architecture", name: "Architecture", image: "https://cdn-icons-png.flaticon.com/512/3652/3652399.png" },
-  { id: "car_washing", name: "Car Washing", image: "https://cdn-icons-png.flaticon.com/512/2402/2402377.png" },
+  { id: "bike_services", name: "Bike Services", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/bike_services.png" },
+  { id: "architecture", name: "Architecture", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/architecture.jpg" },
+  { id: "car_washing", name: "Car Washing", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/car_washing.png" },
   { id: "contractor", name: "Contractor", image: "https://cdn-icons-png.flaticon.com/512/4232/4232145.png" },
-  { id: "mechanic", name: "Mechanic", image: "https://cdn-icons-png.flaticon.com/512/1995/1995470.png" },
+  { id: "mechanic", name: "Mechanic", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/mechanic.jpg" },
   { id: "pandit_ji", name: "Pandit ji", image: "https://cdn-icons-png.flaticon.com/512/3306/3306612.png" },
   { id: "driver", name: "Driver", image: "https://cdn-icons-png.flaticon.com/512/3066/3066115.png" },
   { id: "photographer", name: "Photographer", image: "https://cdn-icons-png.flaticon.com/512/3159/3159844.png" },
