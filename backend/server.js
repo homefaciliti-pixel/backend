@@ -843,7 +843,24 @@ app.put('/api/auth/profile', async (req, res) => {
 // 5. Categories: List
 app.get('/api/categories', async (req, res) => {
   try {
-    const categories = await DbLayer.getCategories();
+    const dbCategories = await DbLayer.getCategories();
+    
+    // Map / Merge with DEFAULT_CATEGORIES to override static properties (names and images)
+    const categories = dbCategories.map(c => {
+      const defaultMatch = DEFAULT_CATEGORIES.find(
+        dc => dc.id === c.id || dc.name.toLowerCase() === c.name.toLowerCase()
+      );
+      if (defaultMatch) {
+        return {
+          ...c,
+          id: defaultMatch.id,
+          name: defaultMatch.name,
+          image: defaultMatch.image
+        };
+      }
+      return c;
+    });
+
     res.json({ success: true, categories: categories });
   } catch (err) {
     console.error("Fetch categories failed:", err);
@@ -917,7 +934,7 @@ app.get('/api/categories/:category/services', (req, res) => {
     });
   }
 
-  let services = SERVICES_DATA[matchedCategory] || [];
+  let services = shuffleArray(SERVICES_DATA[matchedCategory] || []);
 
   if (search) {
     const query = search.toString().toLowerCase();
@@ -935,16 +952,26 @@ app.get('/api/categories/:category/services', (req, res) => {
 });
 
 
+// Helper: Shuffle array
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 // 6. Services: Fetch with category / search filter
 app.get('/api/services', (req, res) => {
   const { category, search } = req.query;
   let list = [];
 
   if (category) {
-    list = SERVICES_DATA[category] || [];
+    list = shuffleArray(SERVICES_DATA[category] || []);
   } else {
-    // Return all flat list
-    list = Object.values(SERVICES_DATA).flat();
+    // Return all flat list shuffled
+    list = shuffleArray(Object.values(SERVICES_DATA).flat());
   }
 
   if (search) {
@@ -955,10 +982,10 @@ app.get('/api/services', (req, res) => {
   res.json({ success: true, services: list });
 });
 
-// 8. Services: Trending (Returns first 5 items)
+// 8. Services: Trending (Returns 5 random shuffled items)
 app.get('/api/services/trending', (req, res) => {
   const allServices = Object.values(SERVICES_DATA).flat();
-  const trending = allServices.slice(0, 5);
+  const trending = shuffleArray(allServices).slice(0, 5);
   res.json({ success: true, services: trending });
 });
 
