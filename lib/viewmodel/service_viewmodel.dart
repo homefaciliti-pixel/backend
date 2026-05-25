@@ -49,7 +49,7 @@ class ServiceViewModel extends ChangeNotifier {
         CategoryModel(id: "ac_repair", title: "AcRepair", image: "${ApiService.baseUrl}/assets/categories/ac_repair.png"),
         CategoryModel(id: "salon_and_spa", title: "Salon And Spa", image: ""),
         CategoryModel(id: "painter", title: "Painter", image: ""),
-        CategoryModel(id: "carpenter", title: "Carpenter", image: ""),
+        CategoryModel(id: "carpenter", title: "Carpenter", image: "${ApiService.baseUrl}/assets/categories/carpenter.png"),
         CategoryModel(id: "bike_services", title: "Bike Services", image: "${ApiService.baseUrl}/assets/categories/bike_services.png"),
         CategoryModel(id: "architecture", title: "Architecture", image: "${ApiService.baseUrl}/assets/categories/architecture.jpg"),
         CategoryModel(id: "car_washing", title: "Car Washing", image: "${ApiService.baseUrl}/assets/categories/car_washing.png"),
@@ -58,7 +58,7 @@ class ServiceViewModel extends ChangeNotifier {
         CategoryModel(id: "pandit_ji", title: "Pandit ji", image: ""),
         CategoryModel(id: "driver", title: "Driver", image: ""),
         CategoryModel(id: "photographer", title: "Photographer", image: ""),
-        CategoryModel(id: "doctors", title: "Doctors", image: ""),
+        CategoryModel(id: "doctors", title: "Doctors", image: "${ApiService.baseUrl}/assets/categories/doctors.png"),
         CategoryModel(id: "compounder", title: "Compounder", image: ""),
         CategoryModel(id: "halbai", title: "Halbai", image: "")
       ];
