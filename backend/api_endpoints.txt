@@ -151,3 +151,21 @@ GET /api/cities
 - Query Parameters:
   - `state` (optional): Filter cities by state name (e.g. Maharashtra)
 - Response: { "success": true, "cities": ["Mumbai", "Pune", ...], "message": "Cities retrieved successfully" }
+
+---------------------------------------------------------
+8. Banners API
+---------------------------------------------------------
+
+GET /api/banners
+- Response: {
+    "success": true,
+    "banners": [
+      {
+        "id": "string",
+        "image": "string (URL)",
+        "title": "string",
+        "category": "string (Target Category Name)"
+      }
+    ],
+    "message": "Banners retrieved successfully"
+  }

@@ -803,7 +803,37 @@ app.post('/api/categories', async (req, res) => {
     console.error("Add category failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
+// Banners: Static Data
+const BANNERS_DATA = [
+  {
+    id: "banner1",
+    image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=800&auto=format&fit=crop",
+    title: "50% Off AC Services",
+    category: "AcRepair"
+  },
+  {
+    id: "banner2",
+    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop",
+    title: "Home Deep Cleaning",
+    category: "Cleaning Services"
+  },
+  {
+    id: "banner3",
+    image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=800&auto=format&fit=crop",
+    title: "Expert Plumbing Support",
+    category: "Plumber"
+  }
+];
+
+// Dropdown: Get Banners
+app.get('/api/banners', (req, res) => {
+  res.json({
+    success: true,
+    banners: BANNERS_DATA,
+    message: "Banners retrieved successfully"
+  });
 });
+
 
 // 6. Services: Fetch with category / search filter
 app.get('/api/services', (req, res) => {

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../model/categorymodel.dart';
 import '../model/service_model.dart';
+import '../model/banner_model.dart';
 import '../services/api_service.dart';
 
 class ServiceViewModel extends ChangeNotifier {
@@ -9,6 +10,7 @@ class ServiceViewModel extends ChangeNotifier {
     // Preload categories and trending services on creation
     loadCategories();
     loadTrendingServices();
+    loadBanners();
   }
 
   String _searchQuery = "";
@@ -16,11 +18,13 @@ class ServiceViewModel extends ChangeNotifier {
   List<ServiceModel> _services = [];
   List<ServiceModel> _trendingServices = [];
   List<ServiceModel> _filteredAllServices = [];
+  List<BannerModel> _banners = [];
 
   List<CategoryModel> get categories => _categories;
   List<ServiceModel> get services => _services;
   List<ServiceModel> get trendingServices => _trendingServices;
   List<ServiceModel> get filteredAllServices => _filteredAllServices;
+  List<BannerModel> get banners => _banners;
 
   ServiceModel? selectedService;
   DateTime? selectedDate;
@@ -113,6 +117,22 @@ class ServiceViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint("Search API failed: $e");
       _filteredAllServices = [];
+      notifyListeners();
+    }
+  }
+
+  /// Load Banners
+  Future<void> loadBanners() async {
+    try {
+      final res = await ApiService.get('/api/banners');
+      if (res['success'] == true) {
+        final list = res['banners'] as List;
+        _banners = list.map((item) => BannerModel.fromJson(item)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Failed to load banners: $e");
+      _banners = [];
       notifyListeners();
     }
   }

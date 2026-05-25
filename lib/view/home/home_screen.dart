@@ -267,39 +267,78 @@ class _HomeScreenState extends State<HomeScreen> {
             CarouselSlider(
               options: CarouselOptions(
                 height: 160,
-                autoPlay: true,
+                autoPlay: serviceVM.banners.isNotEmpty,
                 enlargeCenterPage: true,
                 viewportFraction: 0.9,
               ),
-              items: [
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                    ),
-                  ),
-                ),
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                    ),
-                  ),
-                ),
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                    ),
-                  ),
-                ),
-              ],
+              items: serviceVM.banners.isNotEmpty
+                  ? serviceVM.banners.map((banner) {
+                      return GestureDetector(
+                        onTap: () {
+                          if (banner.category.isNotEmpty) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ServicesListScreen(
+                                  categoryName: banner.category,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            image: DecorationImage(
+                              image: NetworkImage(banner.image),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withOpacity(0.6),
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 12,
+                                left: 16,
+                                right: 16,
+                                child: Text(
+                                  banner.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList()
+                  : [
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
+                          ),
+                        ),
+                      )
+                    ],
             ),
 
             SizedBox(height: 24),
