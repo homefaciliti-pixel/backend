@@ -803,6 +803,8 @@ app.post('/api/categories', async (req, res) => {
     console.error("Add category failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
 // Banners: Static Data
 const BANNERS_DATA = [
   {
