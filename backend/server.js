@@ -155,15 +155,15 @@ const DEFAULT_CATEGORIES = [
   { id: "plumber", name: "Plumber", image: "https://cdn-icons-png.flaticon.com/512/3095/3095147.png" },
   { id: "electrician", name: "Electrician", image: "https://cdn-icons-png.flaticon.com/512/1904/1904065.png" },
   { id: "clening", name: "clening", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
-  { id: "ac_repair", name: "AcRepair", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png" },
+  { id: "ac_repair", name: "AcRepair", image: "/assets/categories/ac_repair.png" },
   { id: "salon_and_spa", name: "Salon And Spa", image: "https://cdn-icons-png.flaticon.com/512/2842/2842912.png" },
   { id: "painter", name: "Painter", image: "https://cdn-icons-png.flaticon.com/512/3125/3125749.png" },
   { id: "carpenter", name: "Carpenter", image: "https://cdn-icons-png.flaticon.com/512/2313/2313580.png" },
-  { id: "bike_services", name: "Bike Services", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/bike_services.png" },
-  { id: "architecture", name: "Architecture", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/architecture.jpg" },
-  { id: "car_washing", name: "Car Washing", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/car_washing.png" },
+  { id: "bike_services", name: "Bike Services", image: "/assets/categories/bike_services.png" },
+  { id: "architecture", name: "Architecture", image: "/assets/categories/architecture.jpg" },
+  { id: "car_washing", name: "Car Washing", image: "/assets/categories/car_washing.png" },
   { id: "contractor", name: "Contractor", image: "https://cdn-icons-png.flaticon.com/512/4232/4232145.png" },
-  { id: "mechanic", name: "Mechanic", image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/mechanic.jpg" },
+  { id: "mechanic", name: "Mechanic", image: "/assets/categories/mechanic.jpg" },
   { id: "pandit_ji", name: "Pandit ji", image: "https://cdn-icons-png.flaticon.com/512/3306/3306612.png" },
   { id: "driver", name: "Driver", image: "https://cdn-icons-png.flaticon.com/512/3066/3066115.png" },
   { id: "photographer", name: "Photographer", image: "https://cdn-icons-png.flaticon.com/512/3159/3159844.png" },
@@ -191,24 +191,24 @@ function initJsonDb() {
             c.id = "clening";
             changed = true;
           }
-          if (c.id === "ac_repair" && !c.image.includes("raw.githubusercontent.com")) {
-            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png";
+          if (c.id === "ac_repair" && c.image !== "/assets/categories/ac_repair.png") {
+            c.image = "/assets/categories/ac_repair.png";
             changed = true;
           }
-          if (c.id === "bike_services" && !c.image.includes("raw.githubusercontent.com")) {
-            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/bike_services.png";
+          if (c.id === "bike_services" && c.image !== "/assets/categories/bike_services.png") {
+            c.image = "/assets/categories/bike_services.png";
             changed = true;
           }
-          if (c.id === "architecture" && !c.image.includes("raw.githubusercontent.com")) {
-            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/architecture.jpg";
+          if (c.id === "architecture" && c.image !== "/assets/categories/architecture.jpg") {
+            c.image = "/assets/categories/architecture.jpg";
             changed = true;
           }
-          if (c.id === "car_washing" && !c.image.includes("raw.githubusercontent.com")) {
-            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/car_washing.png";
+          if (c.id === "car_washing" && c.image !== "/assets/categories/car_washing.png") {
+            c.image = "/assets/categories/car_washing.png";
             changed = true;
           }
-          if (c.id === "mechanic" && !c.image.includes("raw.githubusercontent.com")) {
-            c.image = "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/mechanic.jpg";
+          if (c.id === "mechanic" && c.image !== "/assets/categories/mechanic.jpg") {
+            c.image = "/assets/categories/mechanic.jpg";
             changed = true;
           }
           return c;
@@ -441,23 +441,23 @@ if (MONGODB_URI.includes('<db_password>')) {
         // Migration: Update category images in existing MongoDB documents
         await MongoCategory.updateOne(
           { id: "ac_repair" },
-          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/ac_repair.png" } }
+          { $set: { image: "/assets/categories/ac_repair.png" } }
         );
         await MongoCategory.updateOne(
           { id: "bike_services" },
-          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/bike_services.png" } }
+          { $set: { image: "/assets/categories/bike_services.png" } }
         );
         await MongoCategory.updateOne(
           { id: "architecture" },
-          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/architecture.jpg" } }
+          { $set: { image: "/assets/categories/architecture.jpg" } }
         );
         await MongoCategory.updateOne(
           { id: "car_washing" },
-          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/car_washing.png" } }
+          { $set: { image: "/assets/categories/car_washing.png" } }
         );
         await MongoCategory.updateOne(
           { id: "mechanic" },
-          { $set: { image: "https://raw.githubusercontent.com/homefaciliti-pixel/backend/main/backend/assets/categories/mechanic.jpg" } }
+          { $set: { image: "/assets/categories/mechanic.jpg" } }
         );
 
         const count = await MongoCategory.countDocuments();
@@ -840,25 +840,42 @@ app.put('/api/auth/profile', async (req, res) => {
   }
 });
 
-// 5. Categories: List
 app.get('/api/categories', async (req, res) => {
   try {
     const dbCategories = await DbLayer.getCategories();
     
+    // Determine the base URL dynamically based on the incoming request headers
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+    const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
     // Map / Merge with DEFAULT_CATEGORIES to override static properties (names and images)
     const categories = dbCategories.map(c => {
       const defaultMatch = DEFAULT_CATEGORIES.find(
         dc => dc.id === c.id || dc.name.toLowerCase() === c.name.toLowerCase()
       );
+      let img = c.image;
+      let name = c.name;
+      let id = c.id;
+
       if (defaultMatch) {
-        return {
-          ...c,
-          id: defaultMatch.id,
-          name: defaultMatch.name,
-          image: defaultMatch.image
-        };
+        id = defaultMatch.id;
+        name = defaultMatch.name;
+        img = defaultMatch.image;
       }
-      return c;
+
+      // If the image path is relative, prepend the server's base URL dynamically
+      if (img && img.startsWith('/assets/')) {
+        img = `${serverBaseUrl}${img}`;
+      }
+
+      return {
+        ...c,
+        id: id,
+        name: name,
+        image: img
+      };
     });
 
     res.json({ success: true, categories: categories });
