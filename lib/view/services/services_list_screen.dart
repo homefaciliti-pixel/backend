@@ -53,13 +53,21 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.all(4),
-                child: Image.network(
-                  widget.categoryImage!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.category,
-                    size: 20,
-                    color: Colors.blue,
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0.2126, 0.7152, 0.0722, 0, 0,
+                    0,      0,      0,      1, 0,
+                  ]),
+                  child: Image.network(
+                    widget.categoryImage!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.category_outlined,
+                      size: 20,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
               ),
