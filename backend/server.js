@@ -837,6 +837,42 @@ app.get('/api/banners', (req, res) => {
 });
 
 
+// Categories: Get Services by Category name
+app.get('/api/categories/:category/services', (req, res) => {
+  const { category } = req.params;
+  const { search } = req.query;
+
+  // Case-insensitive match against known categories in SERVICES_DATA
+  const matchedCategory = Object.keys(SERVICES_DATA).find(
+    key => key.toLowerCase() === category.toLowerCase()
+  );
+
+  if (!matchedCategory) {
+    return res.status(404).json({
+      success: false,
+      error: `Category '${category}' not found`,
+      availableCategories: CATEGORIES_DATA
+    });
+  }
+
+  let services = SERVICES_DATA[matchedCategory] || [];
+
+  if (search) {
+    const query = search.toString().toLowerCase();
+    services = services.filter(
+      s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query)
+    );
+  }
+
+  res.json({
+    success: true,
+    category: matchedCategory,
+    total: services.length,
+    services: services
+  });
+});
+
+
 // 6. Services: Fetch with category / search filter
 app.get('/api/services', (req, res) => {
   const { category, search } = req.query;
