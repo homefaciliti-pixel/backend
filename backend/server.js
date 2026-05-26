@@ -878,19 +878,28 @@ const BANNERS_DATA = [
     id: "banner1",
     image: "/assets/banners/ac_services_banner.png",
     title: "50% Off AC Services",
-    category: "AcRepair"
+    category: "AcRepair",
+    badge: "SPECIAL OFFER",
+    subtitle: "Get professional AC filter cleaning & repairs",
+    buttonText: "Book Now"
   },
   {
     id: "banner2",
     image: "/assets/banners/refer_earn_banner.png",
     title: "Refer & Earn Rewards",
-    category: "refer"
+    category: "refer",
+    badge: "REFER & EARN",
+    subtitle: "Earn rewards by inviting your friends",
+    buttonText: "Refer Now"
   },
   {
     id: "banner3",
     image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=800&auto=format&fit=crop",
     title: "AMC service coming on next update",
-    category: ""
+    category: "",
+    badge: "COMING SOON",
+    subtitle: "Annual home maintenance contracts on next update",
+    buttonText: "Learn More"
   }
 ];
 

@@ -312,30 +312,118 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           child: Stack(
                             children: [
+                              // Dark rich gradient overlay
                               Container(
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   gradient: LinearGradient(
                                     colors: [
+                                      Colors.black.withOpacity(0.85),
+                                      Colors.black.withOpacity(0.2),
                                       Colors.transparent,
-                                      Colors.black.withOpacity(0.6),
                                     ],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
+                                    begin: Alignment.bottomLeft,
+                                    end: Alignment.topRight,
                                   ),
                                 ),
                               ),
+                              // Styled Badge (Top Left)
+                              if (banner.badge.isNotEmpty)
+                                Positioned(
+                                  top: 12,
+                                  left: 16,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: banner.badge.toLowerCase().contains("soon") 
+                                          ? Colors.orangeAccent 
+                                          : Colors.blueAccent,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        )
+                                      ],
+                                    ),
+                                    child: Text(
+                                      banner.badge,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              // Title, Subtitle, and Button (Bottom Left)
                               Positioned(
                                 bottom: 12,
                                 left: 16,
                                 right: 16,
-                                child: Text(
-                                  banner.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      banner.title,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.extrabold,
+                                        letterSpacing: 0.2,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 4,
+                                            offset: Offset(0, 1),
+                                          )
+                                        ]
+                                      ),
+                                    ),
+                                    if (banner.subtitle.isNotEmpty) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        banner.subtitle,
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ],
+                                    if (banner.buttonText.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              banner.buttonText,
+                                              style: const TextStyle(
+                                                color: Colors.black87,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(
+                                              Icons.arrow_forward_ios,
+                                              size: 8,
+                                              color: Colors.black87,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ],

@@ -3,12 +3,18 @@ class BannerModel {
   final String image;
   final String title;
   final String category;
+  final String badge;
+  final String subtitle;
+  final String buttonText;
 
   BannerModel({
     required this.id,
     required this.image,
     required this.title,
     required this.category,
+    this.badge = '',
+    this.subtitle = '',
+    this.buttonText = '',
   });
 
   factory BannerModel.fromJson(Map<String, dynamic> json) {
@@ -17,6 +23,9 @@ class BannerModel {
       image: json['image'] ?? '',
       title: json['title'] ?? '',
       category: json['category'] ?? '',
+      badge: json['badge'] ?? '',
+      subtitle: json['subtitle'] ?? '',
+      buttonText: json['buttonText'] ?? '',
     );
   }
 
@@ -26,6 +35,9 @@ class BannerModel {
       'image': image,
       'title': title,
       'category': category,
+      'badge': badge,
+      'subtitle': subtitle,
+      'buttonText': buttonText,
     };
   }
 }
