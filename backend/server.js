@@ -1043,6 +1043,68 @@ app.get('/api/services/trending', (req, res) => {
   res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl) });
 });
 
+// 8a. Services: Get detailed specifications of a service
+const handleServiceDetail = (req, res) => {
+  const title = req.params.title || req.query.title;
+  if (!title) {
+    return res.status(400).json({ success: false, error: "Service title is required" });
+  }
+
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+  let foundService = null;
+  let foundCategory = null;
+
+  for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+    const match = services.find(s => s.title.toLowerCase() === title.toLowerCase());
+    if (match) {
+      foundService = match;
+      foundCategory = categoryName;
+      break;
+    }
+  }
+
+  if (!foundService) {
+    return res.status(404).json({ success: false, error: `Service '${title}' not found` });
+  }
+
+  // Resolve relative URLs if needed
+  let resolvedImage = foundService.image;
+  if (resolvedImage && resolvedImage.startsWith('/assets/')) {
+    resolvedImage = `${serverBaseUrl}${resolvedImage}`;
+  }
+
+  // Add rich mock metadata for details
+  const enrichedService = {
+    title: foundService.title,
+    price: foundService.price,
+    description: foundService.description,
+    image: resolvedImage,
+    category: foundCategory,
+    duration: foundService.title.toLowerCase().includes("cleaning") || foundService.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
+    rating: 4.8,
+    reviewsCount: 124,
+    highlights: [
+      "Includes background-checked & certified partner",
+      "30-day post-service warranty cover included",
+      "Equipped with premium professional-grade tools",
+      "100% safe, hygienic, and high-quality service execution"
+    ]
+  };
+
+  res.json({
+    success: true,
+    service: enrichedService,
+    message: "Service details retrieved successfully"
+  });
+};
+
+app.get('/api/services/detail/:title', handleServiceDetail);
+app.get('/api/services/detail', handleServiceDetail);
+
 // 9. Search: Global search across services AND categories
 app.get('/api/search', (req, res) => {
   const { q, query } = req.query;
@@ -1401,6 +1463,45 @@ app.put('/api/orders/:id/booking-flow', async (req, res) => {
     console.error("Update booking flow failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
+// 18a. Booking Availability: Available Dates
+app.get('/api/booking/available-dates', (req, res) => {
+  const dates = [];
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    dates.push({
+      formattedDate: d.toISOString().split('T')[0], // "2026-05-26"
+      dayName: i === 0 ? "Today" : (i === 1 ? "Tomorrow" : daysOfWeek[d.getDay()]),
+      displayDate: `${d.getDate()} ${months[d.getMonth()]}` // "26 May"
+    });
+  }
+
+  res.json({
+    success: true,
+    dates: dates,
+    message: "Available booking dates retrieved successfully"
+  });
+});
+
+// 18b. Booking Availability: Available Time Slots
+app.get('/api/booking/available-slots', (req, res) => {
+  const slots = [
+    { id: "slot_1", time: "9 AM - 11 AM", available: true },
+    { id: "slot_2", time: "11 AM - 1 PM", available: true },
+    { id: "slot_3", time: "2 PM - 4 PM", available: true },
+    { id: "slot_4", time: "4 PM - 6 PM", available: true }
+  ];
+
+  res.json({
+    success: true,
+    slots: slots,
+    message: "Available booking time slots retrieved successfully"
+  });
 });
 
 const STATES_CITIES = {

@@ -120,3 +120,67 @@ Response Payload / Product Listing:
     "image": "https://images.unsplash.com/photo-1604654894610-df490651e56c?q=80&w=400&auto=format&fit=crop"
   }
 ]
+
+---------------------------------------------------------
+4. Product/Service Detail API
+---------------------------------------------------------
+
+Endpoint: GET /api/services/detail/:title or GET /api/services/detail?title=<title>
+Response Payload / Service Detail:
+{
+  "success": true,
+  "service": {
+    "title": "Tap Repair",
+    "price": 299,
+    "description": "Fix leaking taps and water issues",
+    "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=400&auto=format&fit=crop",
+    "category": "Plumber",
+    "duration": "1-2 Hours",
+    "rating": 4.8,
+    "reviewsCount": 124,
+    "highlights": [
+      "Includes background-checked & certified partner",
+      "30-day post-service warranty cover included",
+      "Equipped with premium professional-grade tools",
+      "100% safe, hygienic, and high-quality service execution"
+    ]
+  },
+  "message": "Service details retrieved successfully"
+}
+
+---------------------------------------------------------
+5. Available Booking Dates & Slots APIs
+---------------------------------------------------------
+
+Endpoint: GET /api/booking/available-dates
+Response Payload / Available Dates (next 7 days):
+{
+  "success": true,
+  "dates": [
+    {
+      "formattedDate": "2026-05-26",
+      "dayName": "Today",
+      "displayDate": "26 May"
+    },
+    {
+      "formattedDate": "2026-05-27",
+      "dayName": "Tomorrow",
+      "displayDate": "27 May"
+    }
+  ],
+  "message": "Available booking dates retrieved successfully"
+}
+
+Endpoint: GET /api/booking/available-slots
+Response Payload / Available Time Slots:
+{
+  "success": true,
+  "slots": [
+    { "id": "slot_1", "time": "9 AM - 11 AM", "available": true },
+    { "id": "slot_2", "time": "11 AM - 1 PM", "available": true },
+    { "id": "slot_3", "time": "2 PM - 4 PM", "available": true },
+    { "id": "slot_4", "time": "4 PM - 6 PM", "available": true }
+  ],
+  "message": "Available booking time slots retrieved successfully"
+}
+
