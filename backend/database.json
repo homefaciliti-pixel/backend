@@ -1,0 +1,181 @@
+{
+  "users": {
+    "9876543210": {
+      "name": "Hira Lal",
+      "phone": "9876543210",
+      "email": "hiralal@hmail.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "HIR707687",
+      "walletBalance": 500
+    }
+  },
+  "orders": [
+    {
+      "id": 1,
+      "userPhone": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-22T04:38:28.054Z",
+      "status": "Pending",
+      "bookingStatus": "assigned",
+      "partnerName": "Ravi Kumar",
+      "partnerDistance": "3.2 km away",
+      "createdAt": 1779424708054
+    },
+    {
+      "id": 2,
+      "userPhone": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-22T05:47:14.589Z",
+      "status": "Pending",
+      "bookingStatus": "assigned",
+      "partnerName": "Ravi Kumar",
+      "partnerDistance": "3.2 km away",
+      "createdAt": 1779428834589
+    },
+    {
+      "id": 3,
+      "userPhone": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-23T04:29:41.550Z",
+      "status": "Pending",
+      "bookingStatus": "accepted",
+      "partnerName": null,
+      "partnerDistance": null,
+      "createdAt": 1779510581550
+    },
+    {
+      "id": 4,
+      "userPhone": "9876543210",
+      "serviceName": "1st AC Repair",
+      "price": 499,
+      "date": "2026-05-25T10:00:00.000Z",
+      "status": "Completed",
+      "bookingStatus": "completed",
+      "partnerName": "Amit Sharma",
+      "partnerDistance": "2.5 km away",
+      "createdAt": 1779712800000
+    },
+    {
+      "id": 5,
+      "userPhone": "9876543210",
+      "serviceName": "Car Washing",
+      "price": 350,
+      "date": "2026-05-26T12:00:00.000Z",
+      "status": "Cancelled",
+      "bookingStatus": "idle",
+      "partnerName": null,
+      "partnerDistance": null,
+      "createdAt": 1779806400000
+    },
+    {
+      "id": 6,
+      "userPhone": "9876543210",
+      "serviceName": "Plumbing Service",
+      "price": 199,
+      "date": "2026-05-26T16:00:00.000Z",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "createdAt": 1779813600000
+    }
+  ],
+  "referralsApplied": {},
+  "categories": [
+    {
+      "id": "ac_repair",
+      "name": "AcRepair",
+      "image": "/assets/categories/ac_repair.png"
+    },
+    {
+      "id": "car_washing",
+      "name": "Car Washing",
+      "image": "/assets/categories/car_washing.png"
+    },
+    {
+      "id": "plumber",
+      "name": "Plumber",
+      "image": "/assets/categories/plumber.png"
+    },
+    {
+      "id": "cleaning",
+      "name": "Cleaning",
+      "image": "/assets/categories/cleaning.png"
+    },
+    {
+      "id": "electrician",
+      "name": "Electrician",
+      "image": "/assets/categories/electrician.png"
+    },
+    {
+      "id": "salon_and_spa",
+      "name": "Salon And Spa",
+      "image": "/assets/categories/salon_and_spa.png"
+    },
+    {
+      "id": "painter",
+      "name": "Painter",
+      "image": "/assets/categories/painter.png"
+    },
+    {
+      "id": "carpenter",
+      "name": "Carpenter",
+      "image": "/assets/categories/carpenter.png"
+    },
+    {
+      "id": "bike_services",
+      "name": "Bike Services",
+      "image": "/assets/categories/bike_services.png"
+    },
+    {
+      "id": "architecture",
+      "name": "Architecture",
+      "image": "/assets/categories/architecture.png"
+    },
+    {
+      "id": "contractor",
+      "name": "Contractor",
+      "image": "/assets/categories/contractor.png"
+    },
+    {
+      "id": "mechanic",
+      "name": "Mechanic",
+      "image": "/assets/categories/mechanic.png"
+    },
+    {
+      "id": "pandit_ji",
+      "name": "Pandit ji",
+      "image": "/assets/categories/pandit_ji.png"
+    },
+    {
+      "id": "driver",
+      "name": "Driver",
+      "image": "/assets/categories/driver.png"
+    },
+    {
+      "id": "photographer",
+      "name": "Photographer",
+      "image": "/assets/categories/photographer.png"
+    },
+    {
+      "id": "doctors",
+      "name": "Doctors",
+      "image": "/assets/categories/doctors.png"
+    },
+    {
+      "id": "compounder",
+      "name": "Compounder",
+      "image": "/assets/categories/compounder.png"
+    },
+    {
+      "id": "halwai",
+      "name": "Halwai",
+      "image": "/assets/categories/halwai.png"
+    }
+  ]
+}
