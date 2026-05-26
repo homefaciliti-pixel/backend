@@ -24,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentBannerIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +271,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 160,
                 autoPlay: serviceVM.banners.isNotEmpty,
                 enlargeCenterPage: true,
-                viewportFraction: 0.9,
+                viewportFraction: 0.93,
+                onPageChanged: (index, reason) {
+                  setState(() {
+                    _currentBannerIndex = index;
+                  });
+                },
               ),
               items: serviceVM.banners.isNotEmpty
                   ? serviceVM.banners.map((banner) {
@@ -305,128 +311,202 @@ class _HomeScreenState extends State<HomeScreen> {
                           margin: const EdgeInsets.symmetric(horizontal: 5),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
-                            image: DecorationImage(
-                              image: NetworkImage(banner.image),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          child: Stack(
-                            children: [
-                              // Dark rich gradient overlay
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.black.withOpacity(0.85),
-                                      Colors.black.withOpacity(0.2),
-                                      Colors.transparent,
-                                    ],
-                                    begin: Alignment.bottomLeft,
-                                    end: Alignment.topRight,
-                                  ),
-                                ),
-                              ),
-                              // Styled Badge (Top Left)
-                              if (banner.badge.isNotEmpty)
-                                Positioned(
-                                  top: 12,
-                                  left: 16,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: banner.badge.toLowerCase().contains("soon") 
-                                          ? Colors.orangeAccent 
-                                          : Colors.blueAccent,
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black26,
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        )
-                                      ],
-                                    ),
-                                    child: Text(
-                                      banner.badge,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              // Title, Subtitle, and Button (Bottom Left)
-                              Positioned(
-                                bottom: 12,
-                                left: 16,
-                                right: 16,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      banner.title,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.extrabold,
-                                        letterSpacing: 0.2,
-                                        shadows: [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 4,
-                                            offset: Offset(0, 1),
-                                          )
-                                        ]
-                                      ),
-                                    ),
-                                    if (banner.subtitle.isNotEmpty) ...[
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        banner.subtitle,
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.9),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ],
-                                    if (banner.buttonText.isNotEmpty) ...[
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              banner.buttonText,
-                                              style: const TextStyle(
-                                                color: Colors.black87,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            const Icon(
-                                              Icons.arrow_forward_ios,
-                                              size: 8,
-                                              color: Colors.black87,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.12),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
                             ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(
+                              children: [
+                                // Placeholder / Background gradient if image fails or is loading
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [Colors.grey.shade900, Colors.grey.shade800],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // The main image
+                                Positioned.fill(
+                                  child: Image.network(
+                                    banner.image,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey.shade900,
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: Colors.white24,
+                                            size: 40,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        color: Colors.grey.shade900,
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress.expectedTotalBytes != null
+                                                ? loadingProgress.cumulativeBytesLoaded /
+                                                    loadingProgress.expectedTotalBytes!
+                                                : null,
+                                            strokeWidth: 2,
+                                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white30),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                // Full-card dark wash + bottom-heavy gradient overlay for supreme legibility
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.black.withOpacity(0.85),
+                                          Colors.black.withOpacity(0.4),
+                                          Colors.black.withOpacity(0.1),
+                                        ],
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Styled Badge (Top Left)
+                                if (banner.badge.isNotEmpty)
+                                  Positioned(
+                                    top: 12,
+                                    left: 16,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: banner.badge.toLowerCase().contains("soon")
+                                              ? [Colors.deepOrange, Colors.orangeAccent]
+                                              : banner.badge.toLowerCase().contains("offer")
+                                                  ? [Colors.blueAccent, Colors.indigoAccent]
+                                                  : [Colors.purpleAccent, Colors.pinkAccent],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 4,
+                                            offset: Offset(0, 2),
+                                          )
+                                        ],
+                                      ),
+                                      child: Text(
+                                        banner.badge,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                // Title, Subtitle, and Button (Bottom Left)
+                                Positioned(
+                                  bottom: 12,
+                                  left: 16,
+                                  right: 16,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        banner.title,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.extrabold,
+                                          letterSpacing: 0.2,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black,
+                                              blurRadius: 8,
+                                              offset: Offset(0, 2),
+                                            )
+                                          ]
+                                        ),
+                                      ),
+                                      if (banner.subtitle.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          banner.subtitle,
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.95),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                            shadows: const [
+                                              Shadow(
+                                                color: Colors.black87,
+                                                blurRadius: 4,
+                                                offset: Offset(0, 1),
+                                              )
+                                            ]
+                                          ),
+                                        ),
+                                      ],
+                                      if (banner.buttonText.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(30),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Colors.black26,
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              )
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                banner.buttonText,
+                                                style: const TextStyle(
+                                                  color: Colors.black87,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.arrow_forward_ios,
+                                                size: 8,
+                                                color: Colors.black87,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -443,6 +523,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       )
                     ],
             ),
+            if (serviceVM.banners.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: serviceVM.banners.asMap().entries.map((entry) {
+                  bool isActive = _currentBannerIndex == entry.key;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    width: isActive ? 20.0 : 8.0,
+                    height: 8.0,
+                    margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4.0),
+                      gradient: isActive
+                          ? LinearGradient(
+                              colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: isActive ? null : Colors.grey.withOpacity(0.3),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
 
             SizedBox(height: 24),
 
