@@ -9,6 +9,7 @@ import 'package:userapp/view/wallet_screen/wallet_screen.dart';
 import 'package:userapp/viewmodel/auth_viewmodel.dart';
 import 'package:userapp/viewmodel/drawer_viewmodel.dart';
 import 'package:userapp/widgets/category_card.dart';
+import 'package:userapp/services/api_service.dart';
 import '../../model/categorymodel.dart';
 import '../../utils/app_icons.dart';
 import '../../viewmodel/service_viewmodel.dart';
@@ -276,19 +277,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       return GestureDetector(
                         onTap: () {
                           if (banner.category.isNotEmpty) {
-                            final matchedCategory = serviceVM.categories.firstWhere(
-                              (c) => c.title == banner.category,
-                              orElse: () => CategoryModel(id: '', title: banner.category, image: ''),
-                            );
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ServicesListScreen(
-                                  categoryName: banner.category,
-                                  categoryImage: matchedCategory.image.isNotEmpty ? matchedCategory.image : null,
+                            if (banner.category.toLowerCase() == 'refer' || banner.category.toLowerCase() == 'referral') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ReferScreen(),
                                 ),
-                              ),
-                            );
+                              );
+                            } else {
+                              final matchedCategory = serviceVM.categories.firstWhere(
+                                (c) => c.title == banner.category,
+                                orElse: () => CategoryModel(id: '', title: banner.category, image: ''),
+                              );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ServicesListScreen(
+                                    categoryName: banner.category,
+                                    categoryImage: matchedCategory.image.isNotEmpty ? matchedCategory.image : null,
+                                  ),
+                                ),
+                              );
+                            }
                           }
                         },
                         child: Container(
@@ -519,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         right: Radius.circular(16),
                       ),
                       child: Image.network(
-                        "https://via.placeholder.com/150", // Api image badd me
+                        "${ApiService.baseUrl}/assets/banners/refer_earn_banner.png",
                         height: double.infinity,
                         fit: BoxFit.cover,
                       ),

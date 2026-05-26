@@ -882,9 +882,9 @@ const BANNERS_DATA = [
   },
   {
     id: "banner2",
-    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop",
-    title: "Home Deep Cleaning",
-    category: "clening"
+    image: "/assets/banners/refer_earn_banner.png",
+    title: "Refer & Earn Rewards",
+    category: "refer"
   },
   {
     id: "banner3",
