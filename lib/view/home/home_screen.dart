@@ -13,7 +13,7 @@ import 'package:userapp/services/api_service.dart';
 import '../../model/categorymodel.dart';
 import '../../utils/app_icons.dart';
 import '../../viewmodel/service_viewmodel.dart';
-import '../../widgets/serivce_card.dart';
+import '../../widgets/service_card.dart';
 import '../Refer/refer_screen.dart';
 
 class HomeScreen extends StatefulWidget {

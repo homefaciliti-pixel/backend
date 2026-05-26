@@ -49,7 +49,7 @@ class ServiceDetailScreen extends StatelessWidget {
                       );
 
                       if (pickedDate != null) {
-                        vm.setDtae(pickedDate);
+                        vm.setDate(pickedDate);
                         setState(() {});
                       }
                     },

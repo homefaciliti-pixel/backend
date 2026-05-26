@@ -154,7 +154,7 @@ const DB_FILE = path.join(__dirname, 'database.json');
 const DEFAULT_CATEGORIES = [
   { id: "plumber", name: "Plumber", image: "/assets/categories/plumber.png" },
   { id: "electrician", name: "Electrician", image: "/assets/categories/electrician.png" },
-  { id: "clening", name: "clening", image: "/assets/categories/clening.png" },
+  { id: "cleaning", name: "Cleaning", image: "/assets/categories/cleaning.png" },
   { id: "ac_repair", name: "AcRepair", image: "/assets/categories/ac_repair.png" },
   { id: "salon_and_spa", name: "Salon And Spa", image: "/assets/categories/salon_and_spa.png" },
   { id: "painter", name: "Painter", image: "/assets/categories/painter.png" },
@@ -169,7 +169,7 @@ const DEFAULT_CATEGORIES = [
   { id: "photographer", name: "Photographer", image: "/assets/categories/photographer.png" },
   { id: "doctors", name: "Doctors", image: "/assets/categories/doctors.png" },
   { id: "compounder", name: "Compounder", image: "/assets/categories/compounder.png" },
-  { id: "halbai", name: "Halbai", image: "/assets/categories/halbai.png" }
+  { id: "halwai", name: "Halwai", image: "/assets/categories/halwai.png" }
 ];
 
 function initJsonDb() {
@@ -186,9 +186,10 @@ function initJsonDb() {
       } else {
         // Migration: Update names and images if they are outdated in JSON db
         parsed.categories = parsed.categories.map(c => {
-          if (c.name === "Cleaning Services" || c.name === "Cleaning") {
-            c.name = "clening";
-            c.id = "clening";
+          if (c.name === "Cleaning Services" || c.name === "clening" || c.id === "clening") {
+            c.name = "Cleaning";
+            c.id = "cleaning";
+            c.image = "/assets/categories/cleaning.png";
             changed = true;
           }
           const defaultMatch = DEFAULT_CATEGORIES.find(dc => dc.id === c.id);
@@ -418,10 +419,10 @@ if (MONGODB_URI.includes('<db_password>')) {
       
       // Seed default categories if MongoDB collection is empty
       try {
-        // Migration: Rename 'Cleaning Services' or 'Cleaning' to 'clening' in existing MongoDB documents
+        // Migration: Rename 'Cleaning Services', 'Cleaning' or 'clening' to 'Cleaning' in existing MongoDB documents
         await MongoCategory.updateMany(
-          { name: { $in: ["Cleaning Services", "Cleaning"] } },
-          { $set: { name: "clening", id: "clening" } }
+          { name: { $in: ["Cleaning Services", "Cleaning", "clening"] } },
+          { $set: { name: "Cleaning", id: "cleaning" } }
         );
         // Migration: Update category images in existing MongoDB documents to local relative asset paths
         for (const cat of DEFAULT_CATEGORIES) {
@@ -450,10 +451,10 @@ if (MONGODB_URI.includes('<db_password>')) {
 
 // Global Static Data for Services
 const CATEGORIES_DATA = [
-  "Plumber", "Electrician", "clening", "AcRepair",
+  "Plumber", "Electrician", "Cleaning", "AcRepair",
   "Salon And Spa", "Painter", "Carpenter", "Bike Services",
   "Architecture", "Car Washing", "Contractor", "Mechanic",
-  "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halbai"
+  "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halwai"
 ];
 
 const SERVICES_DATA = {
@@ -467,7 +468,7 @@ const SERVICES_DATA = {
     { title: "Switch Repair", price: 149, description: "Repair switches and boards", image: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?q=80&w=400&auto=format&fit=crop" },
     { title: "Wiring Work", price: 799, description: "Complete wiring setup", image: "https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?q=80&w=400&auto=format&fit=crop" }
   ],
-  "clening": [
+  "Cleaning": [
     { title: "Home Cleaning", price: 999, description: "Full house cleaning service", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop" },
     { title: "Bathroom Cleaning", price: 499, description: "Deep bathroom cleaning", image: "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop" },
     { title: "Kitchen Cleaning", price: 699, description: "Degreasing cabinets, countertops, and appliances", image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=400&auto=format&fit=crop" },
@@ -527,7 +528,7 @@ const SERVICES_DATA = {
   "Compounder": [
     { title: "Dressing & Injection", price: 150, description: "Basic nursing assistance, wound cleaning, dressings", image: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=400&auto=format&fit=crop" }
   ],
-  "Halbai": [
+  "Halwai": [
     { title: "Catering Service", price: 3500, description: "Private chef/catering help for medium family dinners", image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=400&auto=format&fit=crop" }
   ]
 };

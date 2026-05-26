@@ -5,10 +5,10 @@ HOME SERVICES API - NEW PRODUCTS & CATEGORIES
 The following categories have been expanded with 4 to 5 products (services) each in the backend API.
 
 ---------------------------------------------------------
-1. Category: clening (Cleaning)
+1. Category: cleaning (Cleaning)
 ---------------------------------------------------------
 
-Endpoint: GET /api/categories/clening/services
+Endpoint: GET /api/categories/cleaning/services
 Response Payload / Product Listing:
 [
   {

@@ -45,7 +45,7 @@ class ServiceViewModel extends ChangeNotifier {
       _categories = [
         CategoryModel(id: "plumber", title: "Plumber", image: "${ApiService.baseUrl}/assets/categories/plumber.png"),
         CategoryModel(id: "electrician", title: "Electrician", image: "${ApiService.baseUrl}/assets/categories/electrician.png"),
-        CategoryModel(id: "clening", title: "clening", image: "${ApiService.baseUrl}/assets/categories/clening.png"),
+        CategoryModel(id: "cleaning", title: "Cleaning", image: "${ApiService.baseUrl}/assets/categories/cleaning.png"),
         CategoryModel(id: "ac_repair", title: "AcRepair", image: "${ApiService.baseUrl}/assets/categories/ac_repair.png"),
         CategoryModel(id: "salon_and_spa", title: "Salon And Spa", image: "${ApiService.baseUrl}/assets/categories/salon_and_spa.png"),
         CategoryModel(id: "painter", title: "Painter", image: "${ApiService.baseUrl}/assets/categories/painter.png"),
@@ -60,7 +60,7 @@ class ServiceViewModel extends ChangeNotifier {
         CategoryModel(id: "photographer", title: "Photographer", image: "${ApiService.baseUrl}/assets/categories/photographer.png"),
         CategoryModel(id: "doctors", title: "Doctors", image: "${ApiService.baseUrl}/assets/categories/doctors.png"),
         CategoryModel(id: "compounder", title: "Compounder", image: "${ApiService.baseUrl}/assets/categories/compounder.png"),
-        CategoryModel(id: "halbai", title: "Halbai", image: "${ApiService.baseUrl}/assets/categories/halbai.png")
+        CategoryModel(id: "halwai", title: "Halwai", image: "${ApiService.baseUrl}/assets/categories/halwai.png")
       ];
       notifyListeners();
     }
@@ -142,7 +142,7 @@ class ServiceViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setDtae(DateTime date) {
+  void setDate(DateTime date) {
     selectedDate = date;
     notifyListeners();
   }
