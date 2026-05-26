@@ -43,16 +43,16 @@ class ServiceViewModel extends ChangeNotifier {
       debugPrint("Failed to load categories: $e");
       // Fallback local list
       _categories = [
-        CategoryModel(id: "plumber", title: "Plumber", image: "${ApiService.baseUrl}/assets/categories/plumber.png"),
-        CategoryModel(id: "electrician", title: "Electrician", image: "${ApiService.baseUrl}/assets/categories/electrician.png"),
-        CategoryModel(id: "cleaning", title: "Cleaning", image: "${ApiService.baseUrl}/assets/categories/cleaning.png"),
         CategoryModel(id: "ac_repair", title: "AcRepair", image: "${ApiService.baseUrl}/assets/categories/ac_repair.png"),
+        CategoryModel(id: "car_washing", title: "Car Washing", image: "${ApiService.baseUrl}/assets/categories/car_washing.png"),
+        CategoryModel(id: "plumber", title: "Plumber", image: "${ApiService.baseUrl}/assets/categories/plumber.png"),
+        CategoryModel(id: "cleaning", title: "Cleaning", image: "${ApiService.baseUrl}/assets/categories/cleaning.png"),
+        CategoryModel(id: "electrician", title: "Electrician", image: "${ApiService.baseUrl}/assets/categories/electrician.png"),
         CategoryModel(id: "salon_and_spa", title: "Salon And Spa", image: "${ApiService.baseUrl}/assets/categories/salon_and_spa.png"),
         CategoryModel(id: "painter", title: "Painter", image: "${ApiService.baseUrl}/assets/categories/painter.png"),
         CategoryModel(id: "carpenter", title: "Carpenter", image: "${ApiService.baseUrl}/assets/categories/carpenter.png"),
         CategoryModel(id: "bike_services", title: "Bike Services", image: "${ApiService.baseUrl}/assets/categories/bike_services.png"),
         CategoryModel(id: "architecture", title: "Architecture", image: "${ApiService.baseUrl}/assets/categories/architecture.png"),
-        CategoryModel(id: "car_washing", title: "Car Washing", image: "${ApiService.baseUrl}/assets/categories/car_washing.png"),
         CategoryModel(id: "contractor", title: "Contractor", image: "${ApiService.baseUrl}/assets/categories/contractor.png"),
         CategoryModel(id: "mechanic", title: "Mechanic", image: "${ApiService.baseUrl}/assets/categories/mechanic.png"),
         CategoryModel(id: "pandit_ji", title: "Pandit ji", image: "${ApiService.baseUrl}/assets/categories/pandit_ji.png"),

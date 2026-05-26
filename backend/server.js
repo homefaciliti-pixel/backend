@@ -152,16 +152,16 @@ const MongoDbLayer = {
 const DB_FILE = path.join(__dirname, 'database.json');
 
 const DEFAULT_CATEGORIES = [
-  { id: "plumber", name: "Plumber", image: "/assets/categories/plumber.png" },
-  { id: "electrician", name: "Electrician", image: "/assets/categories/electrician.png" },
-  { id: "cleaning", name: "Cleaning", image: "/assets/categories/cleaning.png" },
   { id: "ac_repair", name: "AcRepair", image: "/assets/categories/ac_repair.png" },
+  { id: "car_washing", name: "Car Washing", image: "/assets/categories/car_washing.png" },
+  { id: "plumber", name: "Plumber", image: "/assets/categories/plumber.png" },
+  { id: "cleaning", name: "Cleaning", image: "/assets/categories/cleaning.png" },
+  { id: "electrician", name: "Electrician", image: "/assets/categories/electrician.png" },
   { id: "salon_and_spa", name: "Salon And Spa", image: "/assets/categories/salon_and_spa.png" },
   { id: "painter", name: "Painter", image: "/assets/categories/painter.png" },
   { id: "carpenter", name: "Carpenter", image: "/assets/categories/carpenter.png" },
   { id: "bike_services", name: "Bike Services", image: "/assets/categories/bike_services.png" },
   { id: "architecture", name: "Architecture", image: "/assets/categories/architecture.png" },
-  { id: "car_washing", name: "Car Washing", image: "/assets/categories/car_washing.png" },
   { id: "contractor", name: "Contractor", image: "/assets/categories/contractor.png" },
   { id: "mechanic", name: "Mechanic", image: "/assets/categories/mechanic.png" },
   { id: "pandit_ji", name: "Pandit ji", image: "/assets/categories/pandit_ji.png" },
@@ -451,9 +451,9 @@ if (MONGODB_URI.includes('<db_password>')) {
 
 // Global Static Data for Services
 const CATEGORIES_DATA = [
-  "Plumber", "Electrician", "Cleaning", "AcRepair",
-  "Salon And Spa", "Painter", "Carpenter", "Bike Services",
-  "Architecture", "Car Washing", "Contractor", "Mechanic",
+  "AcRepair", "Car Washing", "Plumber", "Cleaning",
+  "Electrician", "Salon And Spa", "Painter", "Carpenter",
+  "Bike Services", "Architecture", "Contractor", "Mechanic",
   "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halwai"
 ];
 
