@@ -16,5 +16,8 @@
     "mongoose": "^8.24.0"
   },
   "author": "Antigravity",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "puppeteer": "^25.0.4"
+  }
 }
