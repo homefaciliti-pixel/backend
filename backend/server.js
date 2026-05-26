@@ -876,7 +876,7 @@ app.post('/api/categories', async (req, res) => {
 const BANNERS_DATA = [
   {
     id: "banner1",
-    image: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=800&auto=format&fit=crop",
+    image: "/assets/banners/ac_services_banner.png",
     title: "50% Off AC Services",
     category: "AcRepair"
   },
@@ -896,9 +896,25 @@ const BANNERS_DATA = [
 
 // Dropdown: Get Banners
 app.get('/api/banners', (req, res) => {
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+  const resolvedBanners = BANNERS_DATA.map(b => {
+    let img = b.image;
+    if (img && img.startsWith('/assets/')) {
+      img = `${serverBaseUrl}${img}`;
+    }
+    return {
+      ...b,
+      image: img
+    };
+  });
+
   res.json({
     success: true,
-    banners: BANNERS_DATA,
+    banners: resolvedBanners,
     message: "Banners retrieved successfully"
   });
 });
