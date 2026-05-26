@@ -322,67 +322,60 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
                             child: Stack(
+                              fit: StackFit.expand,
                               children: [
                                 // Placeholder / Background gradient if image fails or is loading
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [Colors.grey.shade900, Colors.grey.shade800],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                    ),
-                                  ),
+                                Container(
+                                  color: Colors.grey.shade900,
                                 ),
-                                // The main image
-                                Positioned.fill(
-                                  child: Image.network(
-                                    banner.image,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Colors.grey.shade900,
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.image_not_supported_outlined,
-                                            color: Colors.white24,
-                                            size: 40,
-                                          ),
+                                // The main image with slight dark color blend to mute brightness
+                                Image.network(
+                                  banner.image,
+                                  fit: BoxFit.cover,
+                                  color: Colors.black.withOpacity(0.15),
+                                  colorBlendMode: BlendMode.darken,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Colors.grey.shade900,
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.image_not_supported_outlined,
+                                          color: Colors.white24,
+                                          size: 40,
                                         ),
-                                      );
-                                    },
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Container(
-                                        color: Colors.grey.shade900,
-                                        child: Center(
-                                          child: CircularProgressIndicator(
-                                            value: loadingProgress.expectedTotalBytes != null
-                                                ? loadingProgress.cumulativeBytesLoaded /
-                                                    loadingProgress.expectedTotalBytes!
-                                                : null,
-                                            strokeWidth: 2,
-                                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white30),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                // Full-card dark wash + bottom-heavy gradient overlay for supreme legibility
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.black.withOpacity(0.85),
-                                          Colors.black.withOpacity(0.4),
-                                          Colors.black.withOpacity(0.1),
-                                        ],
-                                        begin: Alignment.bottomCenter,
-                                        end: Alignment.topCenter,
                                       ),
+                                    );
+                                  },
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color: Colors.grey.shade900,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded /
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
+                                          strokeWidth: 2,
+                                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white54),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                // Heavy dark gradient — bottom 60% is very dark so text is always readable
+                                Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.black.withOpacity(0.92),
+                                        Colors.black.withOpacity(0.80),
+                                        Colors.black.withOpacity(0.35),
+                                        Colors.black.withOpacity(0.05),
+                                      ],
+                                      stops: const [0.0, 0.45, 0.75, 1.0],
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
                                     ),
                                   ),
                                 ),
