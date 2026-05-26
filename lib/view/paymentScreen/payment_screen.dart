@@ -176,14 +176,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   Provider.of<OrderViewmodel>(context, listen: false);
 
                   final service = serviceVM.selectedService;
+                  
+                  final String dateStr = serviceVM.selectedDate != null
+                      ? serviceVM.selectedDate.toString().split(' ')[0]
+                      : DateTime.now().toString().split(' ')[0];
+                  final String timeSlotStr = serviceVM.selectedSlot ?? "9 AM - 11 AM";
 
                   /// ORDER SAVE
                   final orderId = await orderVM.addOrder(
                     OrderModel(
                       serviceName: service?.title ?? "",
                       price: service?.price ?? 0,
-                      date: DateTime.now().toString(),
+                      date: dateStr,
                       status: "Pending",
+                      productId: service?.title,
+                      description: service?.description,
+                      timeSlot: timeSlotStr,
                     ),
                   );
 

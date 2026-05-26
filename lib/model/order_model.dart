@@ -7,6 +7,9 @@ class OrderModel {
   final String? bookingStatus;
   final String? partnerName;
   final String? partnerDistance;
+  final String? productId;
+  final String? description;
+  final String? timeSlot;
 
   OrderModel({
     this.id,
@@ -17,6 +20,9 @@ class OrderModel {
     this.bookingStatus,
     this.partnerName,
     this.partnerDistance,
+    this.productId,
+    this.description,
+    this.timeSlot,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,9 @@ class OrderModel {
       bookingStatus: json['bookingStatus'],
       partnerName: json['partnerName'],
       partnerDistance: json['partnerDistance'],
+      productId: json['productId'],
+      description: json['description'],
+      timeSlot: json['timeSlot'],
     );
   }
 
@@ -42,6 +51,9 @@ class OrderModel {
       if (bookingStatus != null) 'bookingStatus': bookingStatus,
       if (partnerName != null) 'partnerName': partnerName,
       if (partnerDistance != null) 'partnerDistance': partnerDistance,
+      if (productId != null) 'productId': productId,
+      if (description != null) 'description': description,
+      if (timeSlot != null) 'timeSlot': timeSlot,
     };
   }
 }

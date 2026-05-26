@@ -439,6 +439,47 @@ class _OrderScreenState extends State<OrderScreen> {
                     const SizedBox(height: 20),
                   ],
 
+                  // Booking Details Card
+                  const Text(
+                    "Booking Schedule",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailRow("Selected Date", _currentOrder.date.split(' ')[0]),
+                        const SizedBox(height: 10),
+                        _buildDetailRow("Time Slot", _currentOrder.timeSlot ?? "9 AM - 11 AM"),
+                        const SizedBox(height: 10),
+                        _buildDetailRow("Product ID", _currentOrder.productId ?? _currentOrder.serviceName),
+                        if (_currentOrder.description != null && _currentOrder.description!.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildDetailRow("Description", _currentOrder.description!),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
                   // Billing Receipt / Pricing Summary Card
                   const Text(
                     "Payment Details",
@@ -700,6 +741,36 @@ class _OrderScreenState extends State<OrderScreen> {
                 : isTotal
                     ? AppColors.secondaryBlue
                     : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

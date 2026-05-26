@@ -27,6 +27,9 @@ class OrderViewmodel extends ChangeNotifier {
         'serviceName': order.serviceName,
         'price': order.price,
         'date': order.date,
+        'productId': order.productId,
+        'description': order.description,
+        'timeSlot': order.timeSlot,
       });
 
       if (res['success'] == true) {

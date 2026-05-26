@@ -1321,7 +1321,7 @@ app.get('/api/orders', async (req, res) => {
 
 // 15. Orders: Place Order
 app.post('/api/orders', async (req, res) => {
-  const { serviceName, price, date } = req.body;
+  const { serviceName, price, date, productId, description, timeSlot } = req.body;
   if (!serviceName || !price) {
     return res.status(400).json({ error: "Service Name and Price are required" });
   }
@@ -1346,6 +1346,9 @@ app.post('/api/orders', async (req, res) => {
       bookingStatus: "searching",
       partnerName: null,
       partnerDistance: null,
+      productId: productId || null,
+      description: description || null,
+      timeSlot: timeSlot || null,
       createdAt: Date.now()
     };
 
