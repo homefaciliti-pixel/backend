@@ -265,22 +265,29 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             SizedBox(height: 16),
 
-            // Banner
-            CarouselSlider(
-              options: CarouselOptions(
-                height: 160,
-                autoPlay: serviceVM.banners.isNotEmpty,
-                enlargeCenterPage: true,
-                viewportFraction: 0.93,
-                onPageChanged: (index, reason) {
-                  setState(() {
-                    _currentBannerIndex = index;
-                  });
-                },
-              ),
-              items: serviceVM.banners.isNotEmpty
-                  ? serviceVM.banners.map((banner) {
-                      return GestureDetector(
+            // Banner — 1080×540 px ratio (2:1)
+            Builder(
+              builder: (context) {
+                final bannerWidth = MediaQuery.of(context).size.width * 0.95;
+                final bannerHeight = bannerWidth / 2.0; // 1080:540 = 2:1
+                return SizedBox(
+                  height: bannerHeight,
+                  child: CarouselSlider(
+                    options: CarouselOptions(
+                      height: bannerHeight,
+                      autoPlay: serviceVM.banners.isNotEmpty,
+                      autoPlayInterval: const Duration(seconds: 4),
+                      enlargeCenterPage: true,
+                      viewportFraction: 0.95,
+                      onPageChanged: (index, reason) {
+                        setState(() {
+                          _currentBannerIndex = index;
+                        });
+                      },
+                    ),
+                    items: serviceVM.banners.isNotEmpty
+                        ? serviceVM.banners.map((banner) {
+                            return GestureDetector(
                         onTap: () {
                           if (banner.category.isNotEmpty) {
                             if (banner.category.toLowerCase() == 'refer' || banner.category.toLowerCase() == 'referral') {
@@ -503,18 +510,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       );
-                    }).toList()
-                  : [
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 5),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: LinearGradient(
-                            colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                          ),
-                        ),
-                      )
-                    ],
+                        }).toList()
+                        : [
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                gradient: LinearGradient(
+                                  colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
+                                ),
+                              ),
+                            )
+                          ],
+                  ),
+                );
+              },
             ),
             if (serviceVM.banners.isNotEmpty) ...[
               const SizedBox(height: 8),
