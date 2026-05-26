@@ -894,7 +894,7 @@ const BANNERS_DATA = [
   },
   {
     id: "banner3",
-    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop",
+    image: "/assets/banners/amc_services_banner.png",
     title: "Annual Maintenance Cover",
     category: "",
     badge: "COMING SOON",
