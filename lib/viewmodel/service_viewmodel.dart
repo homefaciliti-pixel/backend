@@ -43,24 +43,24 @@ class ServiceViewModel extends ChangeNotifier {
       debugPrint("Failed to load categories: $e");
       // Fallback local list
       _categories = [
-        CategoryModel(id: "plumber", title: "Plumber", image: ""),
-        CategoryModel(id: "electrician", title: "Electrician", image: ""),
-        CategoryModel(id: "clening", title: "clening", image: ""),
+        CategoryModel(id: "plumber", title: "Plumber", image: "${ApiService.baseUrl}/assets/categories/plumber.png"),
+        CategoryModel(id: "electrician", title: "Electrician", image: "${ApiService.baseUrl}/assets/categories/electrician.png"),
+        CategoryModel(id: "clening", title: "clening", image: "${ApiService.baseUrl}/assets/categories/clening.png"),
         CategoryModel(id: "ac_repair", title: "AcRepair", image: "${ApiService.baseUrl}/assets/categories/ac_repair.png"),
-        CategoryModel(id: "salon_and_spa", title: "Salon And Spa", image: ""),
-        CategoryModel(id: "painter", title: "Painter", image: ""),
+        CategoryModel(id: "salon_and_spa", title: "Salon And Spa", image: "${ApiService.baseUrl}/assets/categories/salon_and_spa.png"),
+        CategoryModel(id: "painter", title: "Painter", image: "${ApiService.baseUrl}/assets/categories/painter.png"),
         CategoryModel(id: "carpenter", title: "Carpenter", image: "${ApiService.baseUrl}/assets/categories/carpenter.png"),
         CategoryModel(id: "bike_services", title: "Bike Services", image: "${ApiService.baseUrl}/assets/categories/bike_services.png"),
         CategoryModel(id: "architecture", title: "Architecture", image: "${ApiService.baseUrl}/assets/categories/architecture.jpg"),
         CategoryModel(id: "car_washing", title: "Car Washing", image: "${ApiService.baseUrl}/assets/categories/car_washing.png"),
-        CategoryModel(id: "contractor", title: "Contractor", image: ""),
+        CategoryModel(id: "contractor", title: "Contractor", image: "${ApiService.baseUrl}/assets/categories/contractor.png"),
         CategoryModel(id: "mechanic", title: "Mechanic", image: "${ApiService.baseUrl}/assets/categories/mechanic.jpg"),
-        CategoryModel(id: "pandit_ji", title: "Pandit ji", image: ""),
-        CategoryModel(id: "driver", title: "Driver", image: ""),
-        CategoryModel(id: "photographer", title: "Photographer", image: ""),
+        CategoryModel(id: "pandit_ji", title: "Pandit ji", image: "${ApiService.baseUrl}/assets/categories/pandit_ji.png"),
+        CategoryModel(id: "driver", title: "Driver", image: "${ApiService.baseUrl}/assets/categories/driver.png"),
+        CategoryModel(id: "photographer", title: "Photographer", image: "${ApiService.baseUrl}/assets/categories/photographer.png"),
         CategoryModel(id: "doctors", title: "Doctors", image: "${ApiService.baseUrl}/assets/categories/doctors.png"),
-        CategoryModel(id: "compounder", title: "Compounder", image: ""),
-        CategoryModel(id: "halbai", title: "Halbai", image: "")
+        CategoryModel(id: "compounder", title: "Compounder", image: "${ApiService.baseUrl}/assets/categories/compounder.png"),
+        CategoryModel(id: "halbai", title: "Halbai", image: "${ApiService.baseUrl}/assets/categories/halbai.png")
       ];
       notifyListeners();
     }

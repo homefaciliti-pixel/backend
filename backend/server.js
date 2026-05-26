@@ -152,24 +152,24 @@ const MongoDbLayer = {
 const DB_FILE = path.join(__dirname, 'database.json');
 
 const DEFAULT_CATEGORIES = [
-  { id: "plumber", name: "Plumber", image: "https://cdn-icons-png.flaticon.com/512/3095/3095147.png" },
-  { id: "electrician", name: "Electrician", image: "https://cdn-icons-png.flaticon.com/512/1904/1904065.png" },
-  { id: "clening", name: "clening", image: "https://cdn-icons-png.flaticon.com/512/995/995053.png" },
+  { id: "plumber", name: "Plumber", image: "/assets/categories/plumber.png" },
+  { id: "electrician", name: "Electrician", image: "/assets/categories/electrician.png" },
+  { id: "clening", name: "clening", image: "/assets/categories/clening.png" },
   { id: "ac_repair", name: "AcRepair", image: "/assets/categories/ac_repair.png" },
-  { id: "salon_and_spa", name: "Salon And Spa", image: "https://cdn-icons-png.flaticon.com/512/2842/2842912.png" },
-  { id: "painter", name: "Painter", image: "https://cdn-icons-png.flaticon.com/512/3125/3125749.png" },
+  { id: "salon_and_spa", name: "Salon And Spa", image: "/assets/categories/salon_and_spa.png" },
+  { id: "painter", name: "Painter", image: "/assets/categories/painter.png" },
   { id: "carpenter", name: "Carpenter", image: "/assets/categories/carpenter.png" },
   { id: "bike_services", name: "Bike Services", image: "/assets/categories/bike_services.png" },
   { id: "architecture", name: "Architecture", image: "/assets/categories/architecture.jpg" },
   { id: "car_washing", name: "Car Washing", image: "/assets/categories/car_washing.png" },
-  { id: "contractor", name: "Contractor", image: "https://cdn-icons-png.flaticon.com/512/4232/4232145.png" },
+  { id: "contractor", name: "Contractor", image: "/assets/categories/contractor.png" },
   { id: "mechanic", name: "Mechanic", image: "/assets/categories/mechanic.jpg" },
-  { id: "pandit_ji", name: "Pandit ji", image: "https://cdn-icons-png.flaticon.com/512/3306/3306612.png" },
-  { id: "driver", name: "Driver", image: "https://cdn-icons-png.flaticon.com/512/3066/3066115.png" },
-  { id: "photographer", name: "Photographer", image: "https://cdn-icons-png.flaticon.com/512/3159/3159844.png" },
+  { id: "pandit_ji", name: "Pandit ji", image: "/assets/categories/pandit_ji.png" },
+  { id: "driver", name: "Driver", image: "/assets/categories/driver.png" },
+  { id: "photographer", name: "Photographer", image: "/assets/categories/photographer.png" },
   { id: "doctors", name: "Doctors", image: "/assets/categories/doctors.png" },
-  { id: "compounder", name: "Compounder", image: "https://cdn-icons-png.flaticon.com/512/2869/2869719.png" },
-  { id: "halbai", name: "Halbai", image: "https://cdn-icons-png.flaticon.com/512/2922/2922572.png" }
+  { id: "compounder", name: "Compounder", image: "/assets/categories/compounder.png" },
+  { id: "halbai", name: "Halbai", image: "/assets/categories/halbai.png" }
 ];
 
 function initJsonDb() {
@@ -191,32 +191,9 @@ function initJsonDb() {
             c.id = "clening";
             changed = true;
           }
-          if (c.id === "ac_repair" && c.image !== "/assets/categories/ac_repair.png") {
-            c.image = "/assets/categories/ac_repair.png";
-            changed = true;
-          }
-          if (c.id === "bike_services" && c.image !== "/assets/categories/bike_services.png") {
-            c.image = "/assets/categories/bike_services.png";
-            changed = true;
-          }
-          if (c.id === "architecture" && c.image !== "/assets/categories/architecture.jpg") {
-            c.image = "/assets/categories/architecture.jpg";
-            changed = true;
-          }
-          if (c.id === "car_washing" && c.image !== "/assets/categories/car_washing.png") {
-            c.image = "/assets/categories/car_washing.png";
-            changed = true;
-          }
-          if (c.id === "mechanic" && c.image !== "/assets/categories/mechanic.jpg") {
-            c.image = "/assets/categories/mechanic.jpg";
-            changed = true;
-          }
-          if (c.id === "carpenter" && c.image !== "/assets/categories/carpenter.png") {
-            c.image = "/assets/categories/carpenter.png";
-            changed = true;
-          }
-          if (c.id === "doctors" && c.image !== "/assets/categories/doctors.png") {
-            c.image = "/assets/categories/doctors.png";
+          const defaultMatch = DEFAULT_CATEGORIES.find(dc => dc.id === c.id);
+          if (defaultMatch && c.image !== defaultMatch.image) {
+            c.image = defaultMatch.image;
             changed = true;
           }
           return c;
@@ -446,35 +423,13 @@ if (MONGODB_URI.includes('<db_password>')) {
           { name: { $in: ["Cleaning Services", "Cleaning"] } },
           { $set: { name: "clening", id: "clening" } }
         );
-        // Migration: Update category images in existing MongoDB documents
-        await MongoCategory.updateOne(
-          { id: "ac_repair" },
-          { $set: { image: "/assets/categories/ac_repair.png" } }
-        );
-        await MongoCategory.updateOne(
-          { id: "bike_services" },
-          { $set: { image: "/assets/categories/bike_services.png" } }
-        );
-        await MongoCategory.updateOne(
-          { id: "architecture" },
-          { $set: { image: "/assets/categories/architecture.jpg" } }
-        );
-        await MongoCategory.updateOne(
-          { id: "car_washing" },
-          { $set: { image: "/assets/categories/car_washing.png" } }
-        );
-        await MongoCategory.updateOne(
-          { id: "mechanic" },
-          { $set: { image: "/assets/categories/mechanic.jpg" } }
-        );
-        await MongoCategory.updateOne(
-          { id: "carpenter" },
-          { $set: { image: "/assets/categories/carpenter.png" } }
-        );
-        await MongoCategory.updateOne(
-          { id: "doctors" },
-          { $set: { image: "/assets/categories/doctors.png" } }
-        );
+        // Migration: Update category images in existing MongoDB documents to local relative asset paths
+        for (const cat of DEFAULT_CATEGORIES) {
+          await MongoCategory.updateOne(
+            { id: cat.id },
+            { $set: { image: cat.image } }
+          );
+        }
 
         const count = await MongoCategory.countDocuments();
         if (count === 0) {
