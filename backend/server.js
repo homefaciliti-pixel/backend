@@ -1130,6 +1130,7 @@ const handleServiceDetail = (req, res) => {
 
   // Add rich mock metadata for details
   const enrichedService = {
+    productId: foundService.title,
     title: foundService.title,
     price: foundService.price,
     description: foundService.description,

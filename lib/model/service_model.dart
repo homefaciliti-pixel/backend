@@ -7,6 +7,7 @@ class ServiceModel {
   final double? rating;
   final int? reviewsCount;
   final int? cutPrice;
+  final String? productId;
 
   ServiceModel({
     required this.title,
@@ -17,6 +18,7 @@ class ServiceModel {
     this.rating,
     this.reviewsCount,
     this.cutPrice,
+    this.productId,
   });
 
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class ServiceModel {
       rating: json['rating'] is double ? json['rating'] : (json['rating'] as num?)?.toDouble(),
       reviewsCount: json['reviewsCount'] is int ? json['reviewsCount'] : (json['reviewsCount'] as num?)?.toInt(),
       cutPrice: json['cutPrice'] is int ? json['cutPrice'] : (json['cutPrice'] as num?)?.toInt(),
+      productId: json['productId'] ?? json['title'] ?? '',
     );
   }
 
@@ -42,6 +45,7 @@ class ServiceModel {
       'rating': rating,
       'reviewsCount': reviewsCount,
       'cutPrice': cutPrice,
+      'productId': productId,
     };
   }
 }

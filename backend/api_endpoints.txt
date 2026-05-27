@@ -219,6 +219,7 @@ GET /api/services/detail?title=<title>
 - Response: {
     "success": true,
     "service": {
+      "productId": "Tap Repair",
       "title": "Tap Repair",
       "price": 299,
       "description": "Fix leaking taps and water issues",
