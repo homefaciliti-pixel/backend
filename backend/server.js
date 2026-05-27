@@ -1301,6 +1301,31 @@ app.get('/api/policies/refund', (req, res) => {
   });
 });
 
+// 9b. Razorpay Payment Verification Simulation
+app.get('/api/payments/verify/:orderId', (req, res) => {
+  const orderId = parseInt(req.params.orderId);
+  
+  // Simulate fetching payment details from Razorpay for this order
+  const paymentDetails = {
+    razorpay_payment_id: `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+    razorpay_order_id: `order_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+    status: "captured", // Razorpay status: created, authorized, captured, refunded, failed
+    amount: 29900, // in paisa
+    currency: "INR",
+    method: "card",
+    email: "user@example.com",
+    contact: "+919876543210"
+  };
+
+  res.json({
+    success: true,
+    orderId: orderId,
+    paymentStatus: paymentDetails.status,
+    paymentDetails: paymentDetails,
+    message: `Payment checked successfully from Razorpay. Status: ${paymentDetails.status}`
+  });
+});
+
 // 10. Wallet: Get Balance
 app.get('/api/wallet/balance', async (req, res) => {
   try {

@@ -342,3 +342,27 @@ Response Payload:
   ]
 }
 
+---------------------------------------------------------
+7. Razorpay Payment Verification API
+---------------------------------------------------------
+
+Endpoint: GET /api/payments/verify/:orderId
+Response Payload:
+{
+  "success": true,
+  "orderId": 4,
+  "paymentStatus": "captured",
+  "paymentDetails": {
+    "razorpay_payment_id": "pay_mock_ABC123XYZ",
+    "razorpay_order_id": "order_mock_DEF456UVW",
+    "status": "captured",
+    "amount": 29900,
+    "currency": "INR",
+    "method": "card",
+    "email": "user@example.com",
+    "contact": "+919876543210"
+  },
+  "message": "Payment checked successfully from Razorpay. Status: captured"
+}
+
+
