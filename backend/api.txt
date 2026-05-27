@@ -348,6 +348,7 @@ Response Payload:
 ---------------------------------------------------------
 
 Endpoint: GET /api/payments/verify/:orderId
+Query Parameters: ?paymentId=pay_xxx (optional; directly verifies a specific payment ID)
 Response Payload:
 {
   "success": true,
@@ -365,5 +366,6 @@ Response Payload:
   },
   "message": "Payment checked successfully from Razorpay. Status: captured"
 }
+Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
 
 

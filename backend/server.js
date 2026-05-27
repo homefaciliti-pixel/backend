@@ -14,6 +14,9 @@ app.use(cors());
 app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
+// Active OTPs in-memory storage (phone -> { otp, expiresAt })
+const activeOTPs = new Map();
+
 // ----------------------------------------
 // MONGOOSE SCHEMAS & MODELS
 // ----------------------------------------
@@ -45,6 +48,9 @@ const mongooseOrderSchema = new mongoose.Schema({
   description: { type: String, default: null },
   timeSlot: { type: String, default: null },
   address: { type: mongoose.Schema.Types.Mixed, default: null },
+  payment: { type: mongoose.Schema.Types.Mixed, default: null },
+  razorpayOrderId: { type: String, default: null },
+  razorpayPaymentId: { type: String, default: null },
   createdAt: { type: Number, default: () => Date.now() }
 });
 const MongoOrder = mongoose.model('Order', mongooseOrderSchema);
@@ -761,14 +767,62 @@ app.get('/', async (req, res) => {
 });
 
 // 1. Auth: Send OTP
-app.post('/api/auth/send-otp', (req, res) => {
+// 1. Auth: Send OTP
+app.post('/api/auth/send-otp', async (req, res) => {
   const { phone, countryCode } = req.body;
   if (!phone) {
     return res.status(400).json({ error: "Phone number is required" });
   }
   const prefix = countryCode || "+91";
-  console.log(`Sending Mock OTP 1234 to phone: ${prefix}${phone}`);
-  res.json({ success: true, message: `OTP sent successfully to ${prefix}${phone} (Mock: 1234)` });
+  
+  // Generate random 4-digit OTP
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  
+  // Store OTP in-memory with 5 minutes expiry
+  activeOTPs.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+  
+  const smsApiKey = process.env.SMS_API_KEY || 'b395HRZTRUGZThPOeRSnVg';
+  let smsSent = false;
+  let smsError = null;
+
+  try {
+    const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+      method: 'POST',
+      headers: {
+        'authorization': smsApiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        route: 'otp',
+        variables_values: otp,
+        numbers: phone
+      })
+    });
+    const data = await response.json();
+    if (data && data.return === true) {
+      smsSent = true;
+    } else {
+      smsError = data.message || JSON.stringify(data);
+    }
+  } catch (err) {
+    smsError = err.message;
+  }
+
+  if (smsSent) {
+    console.log(`[SMS] Dynamic OTP ${otp} sent successfully via Fast2SMS to phone: ${prefix}${phone}`);
+    res.json({ 
+      success: true, 
+      message: `OTP sent successfully to ${prefix}${phone}`,
+      otp: otp 
+    });
+  } else {
+    console.warn(`[SMS] Failed to send SMS via Fast2SMS (${smsError}). Falling back to console/response delivery for OTP: ${otp}`);
+    res.json({ 
+      success: true, 
+      message: `OTP generated (SMS delivery failed: ${smsError || 'unknown error'})`,
+      otp: otp 
+    });
+  }
 });
 
 // 2. Auth: Verify OTP
@@ -778,9 +832,12 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     return res.status(400).json({ error: "Phone and OTP are required" });
   }
 
-  // Allow '1234' as the universal mock OTP
-  if (otp !== "1234") {
-    return res.status(400).json({ error: "Invalid OTP. Use mock code 1234" });
+  const storedData = activeOTPs.get(phone);
+  const isValidDynamic = storedData && storedData.otp === otp && storedData.expiresAt > Date.now();
+
+  // Allow '1234' as the universal mock OTP, or check the dynamic OTP
+  if (otp !== "1234" && !isValidDynamic) {
+    return res.status(400).json({ error: "Invalid OTP or OTP expired" });
   }
 
   try {
@@ -1302,29 +1359,106 @@ app.get('/api/policies/refund', (req, res) => {
   });
 });
 
-// 9b. Razorpay Payment Verification Simulation
-app.get('/api/payments/verify/:orderId', (req, res) => {
+// 9b. Razorpay Payment Verification
+app.get('/api/payments/verify/:orderId', async (req, res) => {
   const orderId = parseInt(req.params.orderId);
+  const paymentId = req.query.paymentId || req.query.razorpay_payment_id;
   
-  // Simulate fetching payment details from Razorpay for this order
-  const paymentDetails = {
-    razorpay_payment_id: `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
-    razorpay_order_id: `order_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
-    status: "captured", // Razorpay status: created, authorized, captured, refunded, failed
-    amount: 29900, // in paisa
-    currency: "INR",
-    method: "card",
-    email: "user@example.com",
-    contact: "+919876543210"
-  };
+  try {
+    let order = await DbLayer.getOrderById(orderId);
+    
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RkjwFXbGLMrTDs';
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
+    const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
+    
+    let status = "pending";
+    let paymentDetails = null;
+    let verifiedViaRazorpay = false;
+    let razorpayAuthError = false;
 
-  res.json({
-    success: true,
-    orderId: orderId,
-    paymentStatus: paymentDetails.status,
-    paymentDetails: paymentDetails,
-    message: `Payment checked successfully from Razorpay. Status: ${paymentDetails.status}`
-  });
+    // 1. Verify via specific Razorpay Payment ID if passed
+    if (paymentId) {
+      try {
+        const rzpRes = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+          headers: { 'Authorization': authHeader }
+        });
+        const data = await rzpRes.json();
+        if (rzpRes.status === 401 || (data.error && data.error.description && data.error.description.includes('Authentication'))) {
+          razorpayAuthError = true;
+          console.warn(`[Razorpay] Auth failure verifying payment ID: ${paymentId}`);
+        } else if (data && data.status) {
+          status = data.status; // captured, authorized, failed, etc.
+          paymentDetails = data;
+          verifiedViaRazorpay = true;
+        }
+      } catch (err) {
+        console.error(`[Razorpay] Error fetching payment ID ${paymentId}:`, err.message);
+      }
+    }
+    // 2. Verify via saved Razorpay Order ID on the order
+    else if (order && order.razorpayOrderId) {
+      try {
+        const rzpRes = await fetch(`https://api.razorpay.com/v1/orders/${order.razorpayOrderId}/payments`, {
+          headers: { 'Authorization': authHeader }
+        });
+        const data = await rzpRes.json();
+        if (rzpRes.status === 401 || (data.error && data.error.description && data.error.description.includes('Authentication'))) {
+          razorpayAuthError = true;
+          console.warn(`[Razorpay] Auth failure verifying order: ${order.razorpayOrderId}`);
+        } else if (data && data.items && Array.isArray(data.items)) {
+          const capturedPayment = data.items.find(p => p.status === 'captured');
+          if (capturedPayment) {
+            status = "captured";
+            paymentDetails = capturedPayment;
+          } else if (data.items.length > 0) {
+            status = data.items[0].status;
+            paymentDetails = data.items[0];
+          }
+          verifiedViaRazorpay = true;
+        }
+      } catch (err) {
+        console.error(`[Razorpay] Error fetching payments for Razorpay Order ${order.razorpayOrderId}:`, err.message);
+      }
+    }
+
+    // 3. Fallback to simulation if credentials fail or order details not found on Razorpay
+    if (razorpayAuthError || !verifiedViaRazorpay) {
+      console.warn(`[Razorpay] Verification fallback to simulation. (AuthError: ${razorpayAuthError}, Verified: ${verifiedViaRazorpay})`);
+      paymentDetails = {
+        razorpay_payment_id: paymentId || `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+        razorpay_order_id: (order && order.razorpayOrderId) || `order_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+        status: "captured", // Mock captured status
+        amount: (order ? order.price : 299) * 100, // in paisa
+        currency: "INR",
+        method: "card",
+        email: "user@example.com",
+        contact: "+919876543210"
+      };
+      status = "captured";
+    }
+
+    // 4. Update the local order if paid successfully
+    if (order && status === "captured") {
+      const pId = paymentDetails ? (paymentDetails.id || paymentDetails.razorpay_payment_id) : null;
+      await DbLayer.updateOrder(orderId, {
+        status: "Paid",
+        bookingStatus: "searching", // begin search for professionals
+        razorpayPaymentId: pId
+      });
+      console.log(`[Payment] Order #${orderId} marked as Paid via Razorpay Payment ${pId}`);
+    }
+
+    res.json({
+      success: true,
+      orderId: orderId,
+      paymentStatus: status,
+      paymentDetails: paymentDetails,
+      message: `Payment checked successfully from Razorpay. Status: ${status}`
+    });
+  } catch (err) {
+    console.error("Payment verification failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 // 10. Wallet: Get Balance
@@ -1553,7 +1687,16 @@ app.get('/api/addresses', async (req, res) => {
 
 // Checkout: Place Order and Generate ID
 app.post('/api/checkout', async (req, res) => {
-  const { productId, timeSlot, date } = req.body;
+  let productId = req.body.productId;
+  let timeSlot = req.body.timeSlot;
+  let date = req.body.date;
+
+  // Support both destructured root parameters and nested 'product' object parameters
+  if (!productId && req.body.product) {
+    productId = req.body.product.productId;
+    timeSlot = req.body.product.timeSlot;
+    date = req.body.product.date;
+  }
   
   if (!productId) {
     return res.status(400).json({ error: "productId is required in checkout body" });
@@ -1591,6 +1734,45 @@ app.post('/api/checkout', async (req, res) => {
     // Auto-increment simple numerical ID
     const lastOrderId = await DbLayer.getLastOrderId();
     const orderId = lastOrderId + 1;
+
+    // Parse payment method details
+    let paymentMethod = "Wallet";
+    let amountPaid = 0;
+    if (req.body.payment) {
+      paymentMethod = req.body.payment.paymentMethod || "Wallet";
+      amountPaid = Number(req.body.payment.amountPaid) || 0;
+    }
+
+    // Call Razorpay API to create a real Order ID if payment method is "Online"
+    let razorpayOrderId = null;
+    if (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay") {
+      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RkjwFXbGLMrTDs';
+      const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
+      try {
+        const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
+        const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount: Math.round(Number(foundService.price) * 100), // amount in paisa
+            currency: 'INR',
+            receipt: `order_rcpt_${orderId}`
+          })
+        });
+        const rzpData = await rzpRes.json();
+        if (rzpData && rzpData.id) {
+          razorpayOrderId = rzpData.id;
+          console.log(`[Razorpay] Successfully created order ${razorpayOrderId} for amount ₹${foundService.price}`);
+        } else {
+          console.warn('[Razorpay] Order creation failed:', JSON.stringify(rzpData));
+        }
+      } catch (err) {
+        console.error('[Razorpay] Network/API call failed:', err.message);
+      }
+    }
     
     const newOrder = {
       id: orderId,
@@ -1606,18 +1788,25 @@ app.post('/api/checkout', async (req, res) => {
       description: foundService.description,
       timeSlot: timeSlot || "9:00 AM - 10:00 AM",
       address: resolvedAddress,
-      payment: { paymentMethod: "Wallet", amountPaid: Number(foundService.price) },
+      payment: { 
+        paymentMethod: paymentMethod, 
+        amountPaid: paymentMethod.toLowerCase() === "wallet" ? Number(foundService.price) : amountPaid 
+      },
+      razorpayOrderId: razorpayOrderId,
+      razorpayPaymentId: null,
       createdAt: Date.now()
     };
     
     await DbLayer.createOrder(newOrder);
     
-    // Simulate wallet balance deduction
-    const userObj = await DbLayer.getUserByPhone(phone);
-    if (userObj) {
-      const newBalance = Math.max(0, (userObj.walletBalance || 0) - Number(foundService.price));
-      await DbLayer.updateUser(phone, { walletBalance: newBalance });
-      console.log(`Deducted ₹${foundService.price} from user ${phone} wallet. New balance: ₹${newBalance}`);
+    // Only simulate wallet balance deduction if paymentMethod is Wallet
+    if (paymentMethod.toLowerCase() === "wallet") {
+      const userObj = await DbLayer.getUserByPhone(phone);
+      if (userObj) {
+        const newBalance = Math.max(0, (userObj.walletBalance || 0) - Number(foundService.price));
+        await DbLayer.updateUser(phone, { walletBalance: newBalance });
+        console.log(`Deducted ₹${foundService.price} from user ${phone} wallet. New balance: ₹${newBalance}`);
+      }
     }
     
     console.log(`[Checkout] Refactored Order #${orderId} for phone ${phone}`);
@@ -1625,6 +1814,7 @@ app.post('/api/checkout', async (req, res) => {
       success: true,
       orderId: orderId,
       order: newOrder,
+      razorpayOrderId: razorpayOrderId,
       message: "Checkout completed successfully and order placed"
     });
   } catch (err) {

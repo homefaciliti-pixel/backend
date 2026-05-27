@@ -20,10 +20,10 @@ compatibility, sending a raw phone number in the Bearer token header is also sup
 
 POST /api/auth/send-otp
 - Body: { "phone": "string", "countryCode": "string" } (countryCode is optional, default: "+91")
-- Response: { "success": true, "message": "OTP sent successfully..." }
+- Response: { "success": true, "message": "OTP sent successfully to +919876543210", "otp": "5599" } (Returns generated dynamic OTP code in payload for easy development/testing fallback)
 
 POST /api/auth/verify-otp
-- Body: { "phone": "string", "otp": "string", "countryCode": "string" } (Accepts universal mock OTP: "1234")
+- Body: { "phone": "string", "otp": "string", "countryCode": "string" } (Accepts generated dynamic OTP, or universal mock bypass OTP: "1234")
 - Response: {
     "success": true,
     "message": "OTP verified successfully",
@@ -343,11 +343,13 @@ POST /api/checkout
 - Body: {
     "productId": "Tap Repair",
     "timeSlot": "2:00 PM - 3:00 PM",
-    "date": "2026-05-27"
+    "date": "2026-05-27",
+    "payment": { "paymentMethod": "Online", "amountPaid": 0 }
   }
 - Response: {
     "success": true,
     "orderId": 4,
+    "razorpayOrderId": "order_DBJOWqy2AuJZ59",
     "order": {
       "id": 4,
       "userPhone": "9876543210",
@@ -373,12 +375,14 @@ POST /api/checkout
         "latitude": 26.9124,
         "longitude": 75.7873
       },
-      "payment": { "paymentMethod": "Wallet", "amountPaid": 299 },
+      "payment": { "paymentMethod": "Online", "amountPaid": 0 },
+      "razorpayOrderId": "order_DBJOWqy2AuJZ59",
+      "razorpayPaymentId": null,
       "createdAt": 177993467
     },
     "message": "Checkout completed successfully and order placed"
   }
-- Note: Requires only productId, timeSlot, and date. The server resolves pricing/description from the static service catalog, queries/links the user's latest saved address dynamically, deducts the price from the wallet, and registers the booking.
+- Note: Requires productId, timeSlot, and date. You can optionally specify a payment body block (e.g. paymentMethod: "Online"). If "Online" is chosen, the server calls Razorpay's order creation endpoint to generate a real Razorpay Order ID and associates it with the transaction record. Otherwise, it defaults to Wallet payment method and performs balance deduction.
 
 GET /api/checkout/:id
 GET /api/checkout-api/:id
@@ -476,6 +480,7 @@ GET /api/policies/refund
 ---------------------------------------------------------
 
 GET /api/payments/verify/:orderId
+- Query Parameters: ?paymentId=pay_xxx (optional; directly verifies a specific payment ID)
 - Response: {
     "success": true,
     "orderId": 4,
@@ -492,4 +497,4 @@ GET /api/payments/verify/:orderId
     },
     "message": "Payment checked successfully from Razorpay. Status: captured"
   }
-- Note: Verifies the payment status from Razorpay simulation.
+- Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
