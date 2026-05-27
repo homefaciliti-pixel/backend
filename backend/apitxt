@@ -15,31 +15,51 @@ Response Payload / Product Listing:
     "title": "Home Cleaning",
     "price": 999,
     "description": "Full house cleaning service",
-    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop",
+    "discount": 23,
+    "rating": 4.9,
+    "reviewsCount": 312,
+    "cutPrice": 1299
   },
   {
     "title": "Bathroom Cleaning",
     "price": 499,
     "description": "Deep bathroom cleaning",
-    "image": "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.7,
+    "reviewsCount": 154,
+    "cutPrice": 599
   },
   {
     "title": "Kitchen Cleaning",
     "price": 699,
     "description": "Degreasing cabinets, countertops, and appliances",
-    "image": "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=400&auto=format&fit=crop",
+    "discount": 22,
+    "rating": 4.8,
+    "reviewsCount": 195,
+    "cutPrice": 899
   },
   {
     "title": "Sofa & Carpet Cleaning",
     "price": 799,
     "description": "Vacuuming and steam sanitizing fabric surfaces",
-    "image": "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=400&auto=format&fit=crop",
+    "discount": 20,
+    "rating": 4.6,
+    "reviewsCount": 120,
+    "cutPrice": 999
   },
   {
     "title": "Window Cleaning",
     "price": 299,
     "description": "Sparkling glass and pane washing inside-out",
-    "image": "https://images.unsplash.com/photo-1528740561666-bd247e66a20c?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1528740561666-bd247e66a20c?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.5,
+    "reviewsCount": 74,
+    "cutPrice": 399
   }
 ]
 
@@ -54,31 +74,51 @@ Response Payload / Product Listing:
     "title": "Ac Service",
     "price": 500,
     "description": "Full filter and coil cleaning",
-    "image": "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.8,
+    "reviewsCount": 420,
+    "cutPrice": 599
   },
   {
     "title": "AC Gas Charging",
     "price": 1500,
     "description": "Refill refrigerant gas to restore peak cooling",
-    "image": "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.7,
+    "reviewsCount": 215,
+    "cutPrice": 1999
   },
   {
     "title": "AC Installation",
     "price": 1200,
     "description": "Mount and configure split or window AC unit",
-    "image": "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=400&auto=format&fit=crop",
+    "discount": 20,
+    "rating": 4.9,
+    "reviewsCount": 165,
+    "cutPrice": 1499
   },
   {
     "title": "AC Leakage Repair",
     "price": 600,
     "description": "Identify and plug water or gas leak issues",
-    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.6,
+    "reviewsCount": 98,
+    "cutPrice": 799
   },
   {
     "title": "AC Condenser Replacement",
     "price": 2500,
     "description": "Install brand new copper condenser unit",
-    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.8,
+    "reviewsCount": 84,
+    "cutPrice": 2999
   }
 ]
 
@@ -93,31 +133,51 @@ Response Payload / Product Listing:
     "title": "Hair Cut",
     "price": 299,
     "description": "Modern hair styling and trimming",
-    "image": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.9,
+    "reviewsCount": 540,
+    "cutPrice": 399
   },
   {
     "title": "Facial & Grooming",
     "price": 499,
     "description": "Deep cleansing facial treatment and face massage",
-    "image": "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.7,
+    "reviewsCount": 280,
+    "cutPrice": 599
   },
   {
     "title": "Hair Coloring",
     "price": 599,
     "description": "Professional ammonia-free hair coloring",
-    "image": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.6,
+    "reviewsCount": 145,
+    "cutPrice": 799
   },
   {
     "title": "Massage Therapy",
     "price": 899,
     "description": "Stress-relieving full body Swedish massage",
-    "image": "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.8,
+    "reviewsCount": 310,
+    "cutPrice": 1199
   },
   {
     "title": "Pedicure & Manicure",
     "price": 399,
     "description": "Hand and foot grooming and nail clean spa",
-    "image": "https://images.unsplash.com/photo-1604654894610-df490651e56c?q=80&w=400&auto=format&fit=crop"
+    "image": "https://images.unsplash.com/photo-1604654894610-df490651e56c?q=80&w=400&auto=format&fit=crop",
+    "discount": 20,
+    "rating": 4.7,
+    "reviewsCount": 185,
+    "cutPrice": 499
   }
 ]
 
@@ -136,8 +196,10 @@ Response Payload / Service Detail:
     "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=400&auto=format&fit=crop",
     "category": "Plumber",
     "duration": "1-2 Hours",
-    "rating": 4.8,
-    "reviewsCount": 124,
+    "rating": 4.7,
+    "reviewsCount": 142,
+    "discount": 25,
+    "cutPrice": 399,
     "highlights": [
       "Includes background-checked & certified partner",
       "30-day post-service warranty cover included",
@@ -172,15 +234,21 @@ Response Payload / Available Dates (next 7 days):
 }
 
 Endpoint: GET /api/booking/available-slots
-Response Payload / Available Time Slots:
+Response Payload / Available Time Slots (11 hourly slots):
 {
   "success": true,
   "slots": [
-    { "id": "slot_1", "time": "9 AM - 11 AM", "available": true },
-    { "id": "slot_2", "time": "11 AM - 1 PM", "available": true },
-    { "id": "slot_3", "time": "2 PM - 4 PM", "available": true },
-    { "id": "slot_4", "time": "4 PM - 6 PM", "available": true }
+    { "id": "slot_1", "time": "9:00 AM - 10:00 AM", "available": true },
+    { "id": "slot_2", "time": "10:00 AM - 11:00 AM", "available": true },
+    { "id": "slot_3", "time": "11:00 AM - 12:00 PM", "available": true },
+    { "id": "slot_4", "time": "12:00 PM - 1:00 PM", "available": true },
+    { "id": "slot_5", "time": "1:00 PM - 2:00 PM", "available": true },
+    { "id": "slot_6", "time": "2:00 PM - 3:00 PM", "available": true },
+    { "id": "slot_7", "time": "3:00 PM - 4:00 PM", "available": true },
+    { "id": "slot_8", "time": "4:00 PM - 5:00 PM", "available": true },
+    { "id": "slot_9", "time": "5:00 PM - 6:00 PM", "available": true },
+    { "id": "slot_10", "time": "6:00 PM - 7:00 PM", "available": true },
+    { "id": "slot_11", "time": "7:00 PM - 8:00 PM", "available": true }
   ],
   "message": "Available booking time slots retrieved successfully"
 }
-

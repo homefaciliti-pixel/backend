@@ -75,7 +75,7 @@ GET /api/categories/:category/services
     "success": true,
     "category": "Plumber",
     "total": 3,
-    "services": [ { "title": "...", "price": 299, "description": "..." }, ... ]
+    "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ]
   }
 - Note: Category matching is case-insensitive. Returns 404 if category not found.
 - Example: GET /api/categories/Plumber/services
@@ -85,10 +85,10 @@ GET /api/services
 - Query Parameters: 
   - `category` (optional): Filter by category name
   - `search` (optional): Query term search
-- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "https://..." }, ... ] }
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ] }
 
 GET /api/services/trending
-- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "https://..." }, ... ] } (Returns top 5 popular services)
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ] } (Returns top 5 popular services)
 
 ---------------------------------------------------------
 2a. Search API
@@ -225,8 +225,10 @@ GET /api/services/detail?title=<title>
       "image": "https://...",
       "category": "Plumber",
       "duration": "1-2 Hours",
-      "rating": 4.8,
-      "reviewsCount": 124,
+      "rating": 4.7,
+      "reviewsCount": 142,
+      "discount": 25,
+      "cutPrice": 399,
       "highlights": [
         "Includes background-checked & certified partner",
         "30-day post-service warranty cover included",
