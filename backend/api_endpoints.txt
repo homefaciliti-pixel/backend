@@ -375,3 +375,40 @@ POST /api/checkout
   }
 - Note: Validates product, address, and payment method details, deducts wallet balance if applicable, generates a new numeric orderId, and places the active booking.
 
+GET /api/checkout/:id
+GET /api/checkout-api/:id
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "orderId": 4,
+    "product": {
+      "productId": "Tap Repair",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "description": "Fix leaking taps and water issues",
+      "date": "2026-05-27",
+      "timeSlot": "2:00 PM - 3:00 PM"
+    },
+    "address": {
+      "type": "Home",
+      "houseNo": "104",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Central Park",
+      "city": "Mumbai, Maharashtra",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": 26.9124,
+      "longitude": 75.7873
+    },
+    "payment": {
+      "paymentMethod": "Wallet",
+      "amountPaid": 299
+    },
+    "status": "Pending",
+    "bookingStatus": "searching",
+    "partnerName": null,
+    "partnerDistance": null
+  }
+- Note: Retrieves the complete checkout summary (product details, address fields with lat/lon, and transaction payment details) for the specified order ID.
+

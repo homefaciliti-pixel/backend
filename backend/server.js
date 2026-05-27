@@ -1471,6 +1471,7 @@ app.post('/api/checkout', async (req, res) => {
       description: product.description || null,
       timeSlot: product.timeSlot || null,
       address: address || null,
+      payment: payment || { paymentMethod: "Online", amountPaid: Number(product.price) },
       createdAt: Date.now()
     };
     
@@ -1498,6 +1499,46 @@ app.post('/api/checkout', async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// Checkout: Retrieve Checkout Summary (Get details)
+const handleGetCheckout = async (req, res) => {
+  const orderId = parseInt(req.params.id);
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const order = await DbLayer.getOrderById(orderId);
+    if (!order || order.userPhone !== user.phone) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    
+    res.json({
+      success: true,
+      orderId: order.id,
+      product: {
+        productId: order.productId,
+        serviceName: order.serviceName,
+        price: order.price,
+        description: order.description,
+        date: order.date,
+        timeSlot: order.timeSlot
+      },
+      address: order.address,
+      payment: order.payment || { paymentMethod: "Online", amountPaid: order.price },
+      status: order.status,
+      bookingStatus: order.bookingStatus,
+      partnerName: order.partnerName,
+      partnerDistance: order.partnerDistance
+    });
+  } catch (err) {
+    console.error("Fetch checkout details failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+app.get('/api/checkout/:id', handleGetCheckout);
+app.get('/api/checkout-api/:id', handleGetCheckout);
 
 // 14. Orders: Get All
 app.get('/api/orders', async (req, res) => {
