@@ -1648,7 +1648,7 @@ app.post('/api/referrals/apply', async (req, res) => {
 });
 
 // Booking: Save/Register Booking Details
-app.post('/api/bookings', async (req, res) => {
+const handlePostBooking = async (req, res) => {
   let productId = req.body.productId;
   let date = req.body.date;
   let timeSlot = req.body.timeSlot;
@@ -1669,6 +1669,29 @@ app.post('/api/bookings', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+
+    // Validate slot availability (no overlap with existing bookings on the same date for the same product)
+    const allOrders = await DbLayer.getAllOrders();
+    const targetDate = date.split('T')[0];
+    const matchingOrders = allOrders.filter(order => {
+      if (!order.date) return false;
+      const orderDate = order.date.split('T')[0];
+      const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
+                           (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
+      return orderDate === targetDate && matchProduct;
+    });
+
+    const reqRange = parseTimeRange(timeSlot);
+    if (reqRange) {
+      const bookedRanges = matchingOrders
+        .map(order => parseTimeRange(order.timeSlot))
+        .filter(range => range !== null);
+
+      const isBooked = bookedRanges.some(bookedRange => timesOverlap(reqRange, bookedRange));
+      if (isBooked) {
+        return res.status(400).json({ error: "This time slot is already booked. Please choose another slot." });
+      }
+    }
     
     console.log(`User ${user.phone} validated booking slot ${timeSlot} on ${date} for product ${productId}`);
     res.json({
@@ -1680,7 +1703,10 @@ app.post('/api/bookings', async (req, res) => {
     console.error("Booking validation failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
-});
+};
+
+app.post('/api/bookings', handlePostBooking);
+app.post('/api/booking', handlePostBooking);
 
 // Booking: Get All Bookings/Orders (authenticated user gets their bookings, unauthenticated gets all/fallback public bookings for testing)
 app.get('/api/bookings', async (req, res) => {
