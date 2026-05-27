@@ -213,20 +213,96 @@ class ServiceDetailScreen extends StatelessWidget {
                 SizedBox(height: 16),
 
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     service.title,
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ),
 
-                SizedBox(height: 8),
-
+                //  RATING & REVIEWS ROW
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    "₹ ${service.price}.00",
-                    style: TextStyle(fontSize: 18, color: Colors.green),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.amber.shade200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, color: Colors.amber, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              "${service.rating ?? 4.8}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Colors.amber.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "${service.reviewsCount ?? 120} customer reviews",
+                        style: const TextStyle(color: Colors.black54, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                //  PRICING HEADER WITH DISCOUNT BADGE
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "₹${service.price}.00",
+                        style: const TextStyle(
+                          fontSize: 22,
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (service.cutPrice != null && service.cutPrice! > service.price) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          "₹${service.cutPrice}.00",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.orange.shade700, Colors.red.shade700],
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            "${service.discount ?? 20}% OFF",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
 

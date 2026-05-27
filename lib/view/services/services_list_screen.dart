@@ -87,7 +87,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.80,
+          childAspectRatio: 0.73, // Adjusted to prevent layout overflow with rating & cut price
         ),
 
         itemBuilder: (context, index) {
@@ -107,9 +107,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
               );
             },
             child: ServiceBigCard(
-              title: service.title,
-              price: "₹ ${service.price}",
-              image: (service.image != null && service.image!.isNotEmpty) ? service.image! : "https://via.placeholder.com/150",
+              service: service,
             ),
           );
         },
