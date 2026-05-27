@@ -2134,8 +2134,40 @@ app.get('/api/booking/available-dates', (req, res) => {
   });
 });
 
+// Helper to parse time ranges like "9:00 AM - 10:00 AM" or "9 AM - 11 AM"
+function parseTimeRange(timeStr) {
+  if (!timeStr) return null;
+  const parts = timeStr.toUpperCase().replace(/\s/g, '').split('-');
+  if (parts.length !== 2) return null;
+  
+  const parseTime = (t) => {
+    const match = t.match(/^(\d+)(?::(\d+))?(AM|PM)$/);
+    if (!match) return null;
+    let hour = parseInt(match[1]);
+    const minute = match[2] ? parseInt(match[2]) : 0;
+    const ampm = match[3];
+    
+    if (ampm === 'PM' && hour !== 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    
+    return hour + (minute / 60);
+  };
+  
+  const start = parseTime(parts[0]);
+  const end = parseTime(parts[1]);
+  if (start === null || end === null) return null;
+  return { start, end };
+}
+
+function timesOverlap(range1, range2) {
+  if (!range1 || !range2) return false;
+  return range1.start < range2.end && range2.start < range1.end;
+}
+
 // 18b. Booking Availability: Available Time Slots
-app.get('/api/booking/available-slots', (req, res) => {
+const handleGetAvailableSlots = async (req, res) => {
+  const { date, productId } = req.query;
+  
   const slots = [
     { id: "slot_1", time: "9:00 AM - 10:00 AM", available: true },
     { id: "slot_2", time: "10:00 AM - 11:00 AM", available: true },
@@ -2150,12 +2182,52 @@ app.get('/api/booking/available-slots', (req, res) => {
     { id: "slot_11", time: "7:00 PM - 8:00 PM", available: true }
   ];
 
-  res.json({
-    success: true,
-    slots: slots,
-    message: "Available booking time slots retrieved successfully"
-  });
-});
+  try {
+    if (date) {
+      const allOrders = await DbLayer.getAllOrders();
+      const targetDate = date.split('T')[0];
+      const matchingOrders = allOrders.filter(order => {
+        if (!order.date) return false;
+        const orderDate = order.date.split('T')[0];
+        
+        if (productId) {
+          const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
+                               (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
+          return orderDate === targetDate && matchProduct;
+        }
+        return orderDate === targetDate;
+      });
+
+      const bookedRanges = matchingOrders
+        .map(order => parseTimeRange(order.timeSlot))
+        .filter(range => range !== null);
+
+      for (const slot of slots) {
+        const slotRange = parseTimeRange(slot.time);
+        if (slotRange) {
+          const isBooked = bookedRanges.some(bookedRange => timesOverlap(slotRange, bookedRange));
+          if (isBooked) {
+            slot.available = false;
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      slots: slots,
+      message: "Available booking time slots retrieved successfully"
+    });
+  } catch (err) {
+    console.error("Fetch available slots failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+app.get('/api/booking/available-slots', handleGetAvailableSlots);
+app.get('/api/booking/available-solts', handleGetAvailableSlots);
+app.get('/api/booking/available-slot', handleGetAvailableSlots);
+app.get('/api/booking/available-solt', handleGetAvailableSlots);
 
 const STATES_CITIES = {
   "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik"],
