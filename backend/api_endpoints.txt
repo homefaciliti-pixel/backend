@@ -340,27 +340,9 @@ GET /api/addresses
 POST /api/checkout
 - Headers: Authorization: Bearer <jwt_token>
 - Body: {
-    "product": {
-      "serviceName": "Tap Repair",
-      "price": 299,
-      "date": "2026-05-27",
-      "productId": "Tap Repair",
-      "description": "Fix leaking taps and water issues",
-      "timeSlot": "2:00 PM - 3:00 PM"
-    },
-    "address": {
-      "type": "Home",
-      "houseNo": "104",
-      "society": "Green Villa",
-      ...
-      "latitude": 26.9124,
-      "longitude": 75.7873
-    },
-    "payment": {
-      "paymentMethod": "Wallet",
-      "amountPaid": 299
-    },
-    "userId": "9876543210"
+    "productId": "Tap Repair",
+    "timeSlot": "2:00 PM - 3:00 PM",
+    "date": "2026-05-27"
   }
 - Response: {
     "success": true,
@@ -370,12 +352,32 @@ POST /api/checkout
       "userPhone": "9876543210",
       "serviceName": "Tap Repair",
       "price": 299,
-      ...
-      "bookingStatus": "searching"
+      "date": "2026-05-27",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "2:00 PM - 3:00 PM",
+      "address": {
+        "type": "Home",
+        "houseNo": "104",
+        "society": "Green Villa",
+        "floor": "1st",
+        "landmark": "Near Central Park",
+        "city": "Mumbai, Maharashtra",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": 26.9124,
+        "longitude": 75.7873
+      },
+      "payment": { "paymentMethod": "Wallet", "amountPaid": 299 },
+      "createdAt": 177993467
     },
     "message": "Checkout completed successfully and order placed"
   }
-- Note: Validates product, address, and payment method details, deducts wallet balance if applicable, generates a new numeric orderId, and places the active booking.
+- Note: Requires only productId, timeSlot, and date. The server resolves pricing/description from the static service catalog, queries/links the user's latest saved address dynamically, deducts the price from the wallet, and registers the booking.
 
 GET /api/checkout/:id
 GET /api/checkout-api/:id

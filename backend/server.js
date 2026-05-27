@@ -1527,22 +1527,39 @@ app.get('/api/addresses', async (req, res) => {
 
 // Checkout: Place Order and Generate ID
 app.post('/api/checkout', async (req, res) => {
-  const { product, address, payment, userId } = req.body;
+  const { productId, timeSlot, date } = req.body;
   
-  if (!product || !product.serviceName || !product.price) {
-    return res.status(400).json({ error: "Product details (serviceName and price) are required" });
+  if (!productId) {
+    return res.status(400).json({ error: "productId is required in checkout body" });
   }
   
   try {
-    // User validation: can use authenticated user, fallback to phone passed in userId/payment
-    let phone = userId;
+    // User validation: can use authenticated user, fallback to a mock phone if not logged in
+    let phone = "9876543210"; // Default fallback
     const authUser = await getAuthenticatedUser(req).catch(() => null);
     if (authUser) {
       phone = authUser.phone;
     }
     
-    if (!phone) {
-      return res.status(400).json({ error: "User identity (userId or Auth token) is required" });
+    // Resolve service properties from SERVICES_DATA using productId (which matches service title)
+    let foundService = null;
+    for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+      const match = services.find(s => s.title.toLowerCase() === productId.toLowerCase());
+      if (match) {
+        foundService = match;
+        break;
+      }
+    }
+    
+    if (!foundService) {
+      return res.status(404).json({ error: `Service/Product '${productId}' not found in catalog` });
+    }
+    
+    // Retrieve the user's latest saved address
+    let resolvedAddress = null;
+    const addresses = await DbLayer.getAddressesByUserPhone(phone).catch(() => []);
+    if (addresses && addresses.length > 0) {
+      resolvedAddress = addresses[addresses.length - 1];
     }
     
     // Auto-increment simple numerical ID
@@ -1552,34 +1569,32 @@ app.post('/api/checkout', async (req, res) => {
     const newOrder = {
       id: orderId,
       userPhone: phone,
-      serviceName: product.serviceName,
-      price: Number(product.price),
-      date: product.date || new Date().toISOString(),
+      serviceName: foundService.title,
+      price: Number(foundService.price),
+      date: date || new Date().toISOString().split('T')[0],
       status: "Pending",
       bookingStatus: "searching",
       partnerName: null,
       partnerDistance: null,
-      productId: product.productId || null,
-      description: product.description || null,
-      timeSlot: product.timeSlot || null,
-      address: address || null,
-      payment: payment || { paymentMethod: "Online", amountPaid: Number(product.price) },
+      productId: productId,
+      description: foundService.description,
+      timeSlot: timeSlot || "9:00 AM - 10:00 AM",
+      address: resolvedAddress,
+      payment: { paymentMethod: "Wallet", amountPaid: Number(foundService.price) },
       createdAt: Date.now()
     };
     
     await DbLayer.createOrder(newOrder);
     
-    // Simulate wallet balance deduction if applicable
-    if (payment && payment.paymentMethod === "Wallet" && payment.amountPaid > 0) {
-      const userObj = await DbLayer.getUserByPhone(phone);
-      if (userObj) {
-        const newBalance = Math.max(0, (userObj.walletBalance || 0) - Number(payment.amountPaid));
-        await DbLayer.updateUser(phone, { walletBalance: newBalance });
-        console.log(`Deducted ₹${payment.amountPaid} from user ${phone} wallet. New balance: ₹${newBalance}`);
-      }
+    // Simulate wallet balance deduction
+    const userObj = await DbLayer.getUserByPhone(phone);
+    if (userObj) {
+      const newBalance = Math.max(0, (userObj.walletBalance || 0) - Number(foundService.price));
+      await DbLayer.updateUser(phone, { walletBalance: newBalance });
+      console.log(`Deducted ₹${foundService.price} from user ${phone} wallet. New balance: ₹${newBalance}`);
     }
     
-    console.log(`[Checkout] Created Order #${orderId} for phone ${phone}`);
+    console.log(`[Checkout] Refactored Order #${orderId} for phone ${phone}`);
     res.json({
       success: true,
       orderId: orderId,
