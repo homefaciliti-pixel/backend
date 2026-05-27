@@ -255,11 +255,123 @@ GET /api/booking/available-slots
 - Response: {
     "success": true,
     "slots": [
-      { "id": "slot_1", "time": "9 AM - 11 AM", "available": true },
-      { "id": "slot_2", "time": "11 AM - 1 PM", "available": true },
-      { "id": "slot_3", "time": "2 PM - 4 PM", "available": true },
-      { "id": "slot_4", "time": "4 PM - 6 PM", "available": true }
+      { "id": "slot_1", "time": "9:00 AM - 10:00 AM", "available": true },
+      { "id": "slot_2", "time": "10:00 AM - 11:00 AM", "available": true },
+      ...
+      { "id": "slot_11", "time": "7:00 PM - 8:00 PM", "available": true }
     ],
     "message": "Available booking time slots retrieved successfully"
   }
+- Note: Returns 11 hourly slots ranging from 9:00 AM to 8:00 PM.
+
+POST /api/bookings
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "productId": "string", "date": "string", "timeSlot": "string" }
+- Response: {
+    "success": true,
+    "message": "Booking details validated and registered",
+    "booking": {
+      "productId": "Plumbing Service",
+      "date": "2026-05-27",
+      "timeSlot": "2:00 PM - 3:00 PM"
+    }
+  }
+
+---------------------------------------------------------
+11. Coordinates Address APIs
+---------------------------------------------------------
+
+POST /api/addresses
+POST /api/address
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "type": "Home",
+    "houseNo": "104",
+    "society": "Green Villa",
+    "floor": "1st",
+    "landmark": "Near Central Park",
+    "city": "Mumbai, Maharashtra",
+    "locality": "Andheri West",
+    "pincode": "400053",
+    "latitude": 26.9124,
+    "longitude": 75.7873
+  }
+- Response: {
+    "success": true,
+    "address": {
+      "userPhone": "9876543210",
+      "type": "Home",
+      "houseNo": "104",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Central Park",
+      "city": "Mumbai, Maharashtra",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": 26.9124,
+      "longitude": 75.7873
+    },
+    "message": "Address saved successfully"
+  }
+- Note: Saves user address details and latitude/longitude coordinates to the database.
+
+GET /api/addresses
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "addresses": [
+      {
+        "userPhone": "9876543210",
+        "type": "Home",
+        ...
+        "latitude": 26.9124,
+        "longitude": 75.7873
+      }
+    ],
+    "message": "Addresses retrieved successfully"
+  }
+
+---------------------------------------------------------
+12. Checkout and Order Processing API
+---------------------------------------------------------
+
+POST /api/checkout
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "product": {
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-27",
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "2:00 PM - 3:00 PM"
+    },
+    "address": {
+      "type": "Home",
+      "houseNo": "104",
+      "society": "Green Villa",
+      ...
+      "latitude": 26.9124,
+      "longitude": 75.7873
+    },
+    "payment": {
+      "paymentMethod": "Wallet",
+      "amountPaid": 299
+    },
+    "userId": "9876543210"
+  }
+- Response: {
+    "success": true,
+    "orderId": 4,
+    "order": {
+      "id": 4,
+      "userPhone": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      ...
+      "bookingStatus": "searching"
+    },
+    "message": "Checkout completed successfully and order placed"
+  }
+- Note: Validates product, address, and payment method details, deducts wallet balance if applicable, generates a new numeric orderId, and places the active booking.
 
