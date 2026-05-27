@@ -120,6 +120,10 @@ const MongoDbLayer = {
     return await MongoOrder.find({ userPhone: phone }).sort({ id: -1 }).lean();
   },
 
+  async getAllOrders() {
+    return await MongoOrder.find({}).sort({ id: -1 }).lean();
+  },
+
   async createOrder(order) {
     const newOrder = new MongoOrder(order);
     await newOrder.save();
@@ -319,6 +323,11 @@ const JsonDbLayer = {
     return data.orders.filter(o => o.userPhone === phone).sort((a, b) => b.id - a.id);
   },
 
+  async getAllOrders() {
+    const data = this.readData();
+    return [...data.orders].sort((a, b) => b.id - a.id);
+  },
+
   async createOrder(order) {
     const data = this.readData();
     data.orders.push(order);
@@ -445,6 +454,7 @@ const DbLayer = {
   async countUsers() { return this.getLayer().countUsers(); },
   async getOrderById(id) { return this.getLayer().getOrderById(id); },
   async getOrdersByUserPhone(phone) { return this.getLayer().getOrdersByUserPhone(phone); },
+  async getAllOrders() { return this.getLayer().getAllOrders(); },
   async createOrder(order) { return this.getLayer().createOrder(order); },
   async updateOrder(id, updates) { return this.getLayer().updateOrder(id, updates); },
   async getLastOrderId() { return this.getLayer().getLastOrderId(); },
@@ -1610,7 +1620,17 @@ app.post('/api/referrals/apply', async (req, res) => {
 
 // Booking: Save/Register Booking Details
 app.post('/api/bookings', async (req, res) => {
-  const { productId, date, timeSlot } = req.body;
+  let productId = req.body.productId;
+  let date = req.body.date;
+  let timeSlot = req.body.timeSlot;
+
+  // Support both destructured root parameters and nested 'product' object parameters
+  if (!productId && req.body.product) {
+    productId = req.body.product.productId;
+    date = req.body.product.date;
+    timeSlot = req.body.product.timeSlot;
+  }
+
   if (!productId || !date || !timeSlot) {
     return res.status(400).json({ error: "productId, date, and timeSlot are required" });
   }
@@ -1629,6 +1649,24 @@ app.post('/api/bookings', async (req, res) => {
     });
   } catch (err) {
     console.error("Booking validation failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Booking: Get All Bookings/Orders (authenticated user gets their bookings, unauthenticated gets all/fallback public bookings for testing)
+app.get('/api/bookings', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req).catch(() => null);
+    if (user) {
+      const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
+      return res.json({ success: true, bookings: userOrders, message: "User bookings retrieved successfully" });
+    }
+    
+    // Fallback: public view of all bookings in the system for testing without authorization header
+    const allOrders = await DbLayer.getAllOrders();
+    res.json({ success: true, bookings: allOrders, message: "Public bookings retrieved successfully" });
+  } catch (err) {
+    console.error("Fetch bookings failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
