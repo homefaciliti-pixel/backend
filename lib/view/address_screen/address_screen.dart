@@ -21,6 +21,8 @@ class _AddressScreenState extends State<AddressScreen> {
   final landmarkController = TextEditingController();
   final localityController = TextEditingController();
   final pinController = TextEditingController();
+  final latController = TextEditingController();
+  final lonController = TextEditingController();
 
   @override
   void initState() {
@@ -38,6 +40,8 @@ class _AddressScreenState extends State<AddressScreen> {
     landmarkController.dispose();
     localityController.dispose();
     pinController.dispose();
+    latController.dispose();
+    lonController.dispose();
     super.dispose();
   }
 
@@ -144,6 +148,18 @@ class _AddressScreenState extends State<AddressScreen> {
               _buildField(localityController, "Locality"),
               _buildField(pinController, "Pin code"),
 
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildField(latController, "Latitude (e.g. 26.9124)", isNumeric: true),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildField(lonController, "Longitude (e.g. 75.7873)", isNumeric: true),
+                  ),
+                ],
+              ),
+
               SizedBox(height: 15),
 
               /// BUTTON
@@ -159,6 +175,9 @@ class _AddressScreenState extends State<AddressScreen> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
+                        final latVal = double.tryParse(latController.text);
+                        final lonVal = double.tryParse(lonController.text);
+                        
                         vm.saveAddress(
                           AddressModel(
                             type: vm.selectedType,
@@ -169,6 +188,8 @@ class _AddressScreenState extends State<AddressScreen> {
                             city: "${vm.selectedState}, ${vm.selectedCity}",
                             locality: localityController.text,
                             pincode: pinController.text,
+                            latitude: latVal,
+                            longitude: lonVal,
                           ),
                         );
 
@@ -197,18 +218,19 @@ class _AddressScreenState extends State<AddressScreen> {
     );
   }
 
-  Widget _buildField(TextEditingController controller, String hint) {
+  Widget _buildField(TextEditingController controller, String hint, {bool isNumeric = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controller,
+        keyboardType: isNumeric ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
         decoration: InputDecoration(
           hintText: hint,
           border: OutlineInputBorder(),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {
-            return "required address";
+            return "required";
           }
           return null;
         },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../model/order_model.dart';
+import '../model/address_model.dart';
 import '../services/api_service.dart';
 
 class OrderViewmodel extends ChangeNotifier {
@@ -45,6 +46,44 @@ class OrderViewmodel extends ChangeNotifier {
     // Local fallback if offline
     _orders.insert(0, order);
     notifyListeners();
+    return null;
+  }
+
+  /// Checkout (collects product, address, payment, and user details, and generates order ID)
+  Future<int?> checkout({
+    required OrderModel product,
+    required AddressModel address,
+    required String paymentMethod,
+    required double amountPaid,
+    required String userId,
+  }) async {
+    try {
+      final res = await ApiService.post('/api/checkout', {
+        'product': {
+          'serviceName': product.serviceName,
+          'price': product.price,
+          'date': product.date,
+          'productId': product.productId,
+          'description': product.description,
+          'timeSlot': product.timeSlot,
+        },
+        'address': address.toJson(),
+        'payment': {
+          'paymentMethod': paymentMethod,
+          'amountPaid': amountPaid,
+        },
+        'userId': userId,
+      });
+
+      if (res != null && res['success'] == true) {
+        final newOrder = OrderModel.fromJson(res['order']);
+        _orders.insert(0, newOrder);
+        notifyListeners();
+        return res['orderId'] is int ? res['orderId'] : (res['orderId'] as num).toInt();
+      }
+    } catch (e) {
+      debugPrint("Checkout failed: $e");
+    }
     return null;
   }
 

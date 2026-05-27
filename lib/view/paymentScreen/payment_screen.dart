@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:userapp/viewmodel/order_viewmodel.dart';
 import 'package:userapp/viewmodel/wallet_viewmodel.dart';
+import 'package:userapp/viewmodel/address_viewmodel.dart';
+import 'package:userapp/viewmodel/auth_viewmodel.dart';
 import '../../model/order_model.dart';
+import '../../model/address_model.dart';
 import '../../viewmodel/booking_flow_viewmodel.dart';
 import '../../viewmodel/service_viewmodel.dart';
 import '../booking_map/searching_partner_screen.dart';
@@ -175,6 +178,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   final orderVM =
                   Provider.of<OrderViewmodel>(context, listen: false);
 
+                  final addressVM =
+                  Provider.of<AddressViewmodel>(context, listen: false);
+
+                  final authVM =
+                  Provider.of<AuthViewmodel>(context, listen: false);
+
                   final service = serviceVM.selectedService;
                   
                   final String dateStr = serviceVM.selectedDate != null
@@ -182,9 +191,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       : DateTime.now().toString().split(' ')[0];
                   final String timeSlotStr = serviceVM.selectedSlot ?? "9 AM - 11 AM";
 
-                  /// ORDER SAVE
-                  final orderId = await orderVM.addOrder(
-                    OrderModel(
+                  final currentAddress = addressVM.address ?? AddressModel(
+                    type: "Home",
+                    houseNo: "N/A",
+                    society: "N/A",
+                    floor: "N/A",
+                    landmark: "N/A",
+                    city: "N/A",
+                    locality: "N/A",
+                    pincode: "N/A",
+                  );
+
+                  /// ORDER CHECKOUT (returns generated order ID)
+                  final orderId = await orderVM.checkout(
+                    product: OrderModel(
                       serviceName: service?.title ?? "",
                       price: service?.price ?? 0,
                       date: dateStr,
@@ -193,6 +213,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       description: service?.description,
                       timeSlot: timeSlotStr,
                     ),
+                    address: currentAddress,
+                    paymentMethod: selectedPayment,
+                    amountPaid: walletUsed,
+                    userId: authVM.user.phone.isNotEmpty ? authVM.user.phone : "9876543210",
                   );
 
                   /// SUCCESS POPUP

@@ -18,9 +18,14 @@ class AddressViewmodel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void saveAddress(AddressModel newAddress) {
+  Future<void> saveAddress(AddressModel newAddress) async {
     address = newAddress;
     notifyListeners();
+    try {
+      await ApiService.post('/api/addresses', newAddress.toJson());
+    } catch (e) {
+      debugPrint("Failed to save address on backend: $e");
+    }
   }
 
   Future<void> fetchStates() async {

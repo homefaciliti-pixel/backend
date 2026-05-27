@@ -41,6 +41,10 @@ const mongooseOrderSchema = new mongoose.Schema({
   bookingStatus: { type: String, default: "searching" },
   partnerName: { type: String, default: null },
   partnerDistance: { type: String, default: null },
+  productId: { type: String, default: null },
+  description: { type: String, default: null },
+  timeSlot: { type: String, default: null },
+  address: { type: mongoose.Schema.Types.Mixed, default: null },
   createdAt: { type: Number, default: () => Date.now() }
 });
 const MongoOrder = mongoose.model('Order', mongooseOrderSchema);
@@ -51,6 +55,21 @@ const mongooseReferralAppliedSchema = new mongoose.Schema({
   appliedAt: { type: Date, default: Date.now }
 });
 const MongoReferralApplied = mongoose.model('ReferralApplied', mongooseReferralAppliedSchema);
+
+const mongooseAddressSchema = new mongoose.Schema({
+  userPhone: { type: String, required: true },
+  type: { type: String, default: "Home" },
+  houseNo: { type: String, default: "" },
+  society: { type: String, default: "" },
+  floor: { type: String, default: "" },
+  landmark: { type: String, default: "" },
+  city: { type: String, default: "" },
+  locality: { type: String, default: "" },
+  pincode: { type: String, default: "" },
+  latitude: { type: Number },
+  longitude: { type: Number }
+});
+const MongoAddress = mongoose.model('Address', mongooseAddressSchema);
 
 const mongooseCategorySchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -143,6 +162,17 @@ const MongoDbLayer = {
     const newCat = new MongoCategory({ id: finalId, name: name, image: image || "" });
     await newCat.save();
     return newCat.toObject();
+  },
+
+  // --- ADDRESS METHODS ---
+  async getAddressesByUserPhone(phone) {
+    return await MongoAddress.find({ userPhone: phone }).lean();
+  },
+
+  async createAddress(address) {
+    const newAddress = new MongoAddress(address);
+    await newAddress.save();
+    return newAddress.toObject();
   }
 };
 
@@ -174,12 +204,16 @@ const DEFAULT_CATEGORIES = [
 
 function initJsonDb() {
   if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES, addresses: [] }, null, 2));
   } else {
     try {
       const content = fs.readFileSync(DB_FILE, 'utf8');
       const parsed = JSON.parse(content);
       let changed = false;
+      if (!parsed.addresses) {
+        parsed.addresses = [];
+        changed = true;
+      }
       if (!parsed.categories) {
         parsed.categories = DEFAULT_CATEGORIES;
         changed = true;
@@ -215,7 +249,7 @@ const JsonDbLayer = {
       return JSON.parse(data);
     } catch (err) {
       console.error("Error reading JSON database:", err.message);
-      return { users: {}, orders: [], referralsApplied: {} };
+      return { users: {}, orders: [], referralsApplied: {}, addresses: [] };
     }
   },
 
@@ -362,6 +396,21 @@ const JsonDbLayer = {
     data.categories.push(newCat);
     this.writeData(data);
     return newCat;
+  },
+
+  // --- ADDRESS METHODS ---
+  async getAddressesByUserPhone(phone) {
+    const data = this.readData();
+    data.addresses = data.addresses || [];
+    return data.addresses.filter(a => a.userPhone === phone);
+  },
+
+  async createAddress(address) {
+    const data = this.readData();
+    data.addresses = data.addresses || [];
+    data.addresses.push(address);
+    this.writeData(data);
+    return address;
   }
 };
 
@@ -397,7 +446,9 @@ const DbLayer = {
   async getReferralApplied(phone) { return this.getLayer().getReferralApplied(phone); },
   async createReferralApplied(referralApplied) { return this.getLayer().createReferralApplied(referralApplied); },
   async getCategories() { return this.getLayer().getCategories(); },
-  async addCategory(categoryData) { return this.getLayer().addCategory(categoryData); }
+  async addCategory(categoryData) { return this.getLayer().addCategory(categoryData); },
+  async getAddressesByUserPhone(phone) { return this.getLayer().getAddressesByUserPhone(phone); },
+  async createAddress(address) { return this.getLayer().createAddress(address); }
 };
 
 // ----------------------------------------
@@ -1303,6 +1354,151 @@ app.post('/api/referrals/apply', async (req, res) => {
   }
 });
 
+// Booking: Save/Register Booking Details
+app.post('/api/bookings', async (req, res) => {
+  const { productId, date, timeSlot } = req.body;
+  if (!productId || !date || !timeSlot) {
+    return res.status(400).json({ error: "productId, date, and timeSlot are required" });
+  }
+  
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    console.log(`User ${user.phone} validated booking slot ${timeSlot} on ${date} for product ${productId}`);
+    res.json({
+      success: true,
+      message: "Booking details validated and registered",
+      booking: { productId, date, timeSlot }
+    });
+  } catch (err) {
+    console.error("Booking validation failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Addresses: Save a User Address
+const handleAddAddress = async (req, res) => {
+  const { type, houseNo, society, floor, landmark, city, locality, pincode, lat, latitude, lon, longitude, lng } = req.body;
+  
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const latValue = latitude !== undefined ? Number(latitude) : (lat !== undefined ? Number(lat) : null);
+    const lonValue = longitude !== undefined ? Number(longitude) : (lon !== undefined ? Number(lon) : (lng !== undefined ? Number(lng) : null));
+    
+    const newAddress = {
+      userPhone: user.phone,
+      type: type || "Home",
+      houseNo: houseNo || "",
+      society: society || "",
+      floor: floor || "",
+      landmark: landmark || "",
+      city: city || "",
+      locality: locality || "",
+      pincode: pincode || "",
+      latitude: latValue,
+      longitude: lonValue
+    };
+    
+    const savedAddress = await DbLayer.createAddress(newAddress);
+    console.log(`Saved address for phone ${user.phone}: ${savedAddress.houseNo}, ${savedAddress.city}`);
+    res.json({ success: true, address: savedAddress, message: "Address saved successfully" });
+  } catch (err) {
+    console.error("Save address failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+app.post('/api/addresses', handleAddAddress);
+app.post('/api/address', handleAddAddress);
+
+// Addresses: Get All User Addresses
+app.get('/api/addresses', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const list = await DbLayer.getAddressesByUserPhone(user.phone);
+    res.json({ success: true, addresses: list, message: "Addresses retrieved successfully" });
+  } catch (err) {
+    console.error("Get addresses failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Checkout: Place Order and Generate ID
+app.post('/api/checkout', async (req, res) => {
+  const { product, address, payment, userId } = req.body;
+  
+  if (!product || !product.serviceName || !product.price) {
+    return res.status(400).json({ error: "Product details (serviceName and price) are required" });
+  }
+  
+  try {
+    // User validation: can use authenticated user, fallback to phone passed in userId/payment
+    let phone = userId;
+    const authUser = await getAuthenticatedUser(req).catch(() => null);
+    if (authUser) {
+      phone = authUser.phone;
+    }
+    
+    if (!phone) {
+      return res.status(400).json({ error: "User identity (userId or Auth token) is required" });
+    }
+    
+    // Auto-increment simple numerical ID
+    const lastOrderId = await DbLayer.getLastOrderId();
+    const orderId = lastOrderId + 1;
+    
+    const newOrder = {
+      id: orderId,
+      userPhone: phone,
+      serviceName: product.serviceName,
+      price: Number(product.price),
+      date: product.date || new Date().toISOString(),
+      status: "Pending",
+      bookingStatus: "searching",
+      partnerName: null,
+      partnerDistance: null,
+      productId: product.productId || null,
+      description: product.description || null,
+      timeSlot: product.timeSlot || null,
+      address: address || null,
+      createdAt: Date.now()
+    };
+    
+    await DbLayer.createOrder(newOrder);
+    
+    // Simulate wallet balance deduction if applicable
+    if (payment && payment.paymentMethod === "Wallet" && payment.amountPaid > 0) {
+      const userObj = await DbLayer.getUserByPhone(phone);
+      if (userObj) {
+        const newBalance = Math.max(0, (userObj.walletBalance || 0) - Number(payment.amountPaid));
+        await DbLayer.updateUser(phone, { walletBalance: newBalance });
+        console.log(`Deducted ₹${payment.amountPaid} from user ${phone} wallet. New balance: ₹${newBalance}`);
+      }
+    }
+    
+    console.log(`[Checkout] Created Order #${orderId} for phone ${phone}`);
+    res.json({
+      success: true,
+      orderId: orderId,
+      order: newOrder,
+      message: "Checkout completed successfully and order placed"
+    });
+  } catch (err) {
+    console.error("Checkout failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // 14. Orders: Get All
 app.get('/api/orders', async (req, res) => {
   try {
@@ -1494,10 +1690,17 @@ app.get('/api/booking/available-dates', (req, res) => {
 // 18b. Booking Availability: Available Time Slots
 app.get('/api/booking/available-slots', (req, res) => {
   const slots = [
-    { id: "slot_1", time: "9 AM - 11 AM", available: true },
-    { id: "slot_2", time: "11 AM - 1 PM", available: true },
-    { id: "slot_3", time: "2 PM - 4 PM", available: true },
-    { id: "slot_4", time: "4 PM - 6 PM", available: true }
+    { id: "slot_1", time: "9:00 AM - 10:00 AM", available: true },
+    { id: "slot_2", time: "10:00 AM - 11:00 AM", available: true },
+    { id: "slot_3", time: "11:00 AM - 12:00 PM", available: true },
+    { id: "slot_4", time: "12:00 PM - 1:00 PM", available: true },
+    { id: "slot_5", time: "1:00 PM - 2:00 PM", available: true },
+    { id: "slot_6", time: "2:00 PM - 3:00 PM", available: true },
+    { id: "slot_7", time: "3:00 PM - 4:00 PM", available: true },
+    { id: "slot_8", time: "4:00 PM - 5:00 PM", available: true },
+    { id: "slot_9", time: "5:00 PM - 6:00 PM", available: true },
+    { id: "slot_10", time: "6:00 PM - 7:00 PM", available: true },
+    { id: "slot_11", time: "7:00 PM - 8:00 PM", available: true }
   ];
 
   res.json({
