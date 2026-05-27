@@ -414,3 +414,56 @@ GET /api/checkout-api/:id
   }
 - Note: Retrieves the complete checkout summary (product details, address fields with lat/lon, and transaction payment details) for the specified order ID.
 
+---------------------------------------------------------
+12. Policies & Information APIs
+---------------------------------------------------------
+
+GET /api/policies/privacy
+- Response: {
+    "success": true,
+    "title": "Privacy Policy",
+    "lastUpdated": "May 27, 2026",
+    "content": "At Home Services, we value your privacy...",
+    "sections": [
+      { "title": "1. Information We Collect", "body": "We collect information you provide directly..." },
+      ...
+    ]
+  }
+
+GET /api/about
+GET /api/policies/about (Redirects to /api/about)
+- Response: {
+    "success": true,
+    "title": "About Us",
+    "description": "Home Services is a premium, on-demand platform...",
+    "vision": "To make home maintenance, repair, and cleaning services completely hassle-free...",
+    "mission": "To empower local service partners...",
+    "highlights": [
+      "100% Background Checked & Verified Partners",
+      ...
+    ]
+  }
+
+GET /api/policies/terms
+- Response: {
+    "success": true,
+    "title": "Terms and Conditions",
+    "lastUpdated": "May 27, 2026",
+    "content": "Welcome to Home Services...",
+    "sections": [
+      { "title": "1. Service Booking & Cancellation", "body": "All service bookings must be made through our official mobile app..." },
+      ...
+    ]
+  }
+
+GET /api/policies/refund
+- Response: {
+    "success": true,
+    "title": "Refund Policy",
+    "lastUpdated": "May 27, 2026",
+    "content": "Our goal is your complete satisfaction...",
+    "rules": [
+      { "title": "1. Refund Eligibility", "body": "Refunds are processed if the service was not executed as described..." },
+      ...
+    ]
+  }
