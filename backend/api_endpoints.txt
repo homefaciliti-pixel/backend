@@ -2,7 +2,7 @@
 HOME SERVICES APPLICATION - API REFERENCE
 =========================================
 
-Base URL: https://backend-0cnj.onrender.com
+Base URL: https://backend-1-ux3b.onrender.com
 
 Database Configuration:
 - Uses MongoDB Atlas for database persistence.

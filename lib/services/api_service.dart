@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static String get baseUrl {
     // Production Render URL
-    return 'https://backend-0cnj.onrender.com';
+    return 'https://backend-1-ux3b.onrender.com';
 
     // Local development configuration:
     /*
