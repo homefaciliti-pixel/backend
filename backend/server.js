@@ -767,7 +767,6 @@ app.get('/', async (req, res) => {
 });
 
 // 1. Auth: Send OTP
-// 1. Auth: Send OTP
 app.post('/api/auth/send-otp', async (req, res) => {
   const { phone, countryCode } = req.body;
   if (!phone) {
@@ -782,41 +781,44 @@ app.post('/api/auth/send-otp', async (req, res) => {
   activeOTPs.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
   
   const smsApiKey = process.env.SMS_API_KEY || 'b395HRZTRUGZThPOeRSnVg';
+  const senderId = process.env.SMS_SENDER_ID || 'WEBSMS';
+  const rawTemplate = process.env.SMS_TEMPLATE_TEXT || 'Your OTP for Home Faciliti registration is {otp}.';
+  const messageText = rawTemplate.replace('{otp}', otp);
+
+  // Format phone number: SMS Gateway Hub expects 91 prefix for Indian numbers without '+'
+  let formattedPhone = phone.trim();
+  if (formattedPhone.startsWith('+')) {
+    formattedPhone = formattedPhone.replace('+', '');
+  }
+  if (formattedPhone.length === 10) {
+    formattedPhone = '91' + formattedPhone;
+  }
+
   let smsSent = false;
   let smsError = null;
 
   try {
-    const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
-      method: 'POST',
-      headers: {
-        'authorization': smsApiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        route: 'otp',
-        variables_values: otp,
-        numbers: phone
-      })
-    });
+    const url = `https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=${smsApiKey}&senderid=${senderId}&channel=2&DCS=0&flashsms=0&number=${formattedPhone}&text=${encodeURIComponent(messageText)}`;
+    const response = await fetch(url);
     const data = await response.json();
-    if (data && data.return === true) {
+    if (data && (data.ErrorCode === '000' || data.ErrorCode === '0' || data.ErrorMessage === 'Success')) {
       smsSent = true;
     } else {
-      smsError = data.message || JSON.stringify(data);
+      smsError = data.ErrorMessage || JSON.stringify(data);
     }
   } catch (err) {
     smsError = err.message;
   }
 
   if (smsSent) {
-    console.log(`[SMS] Dynamic OTP ${otp} sent successfully via Fast2SMS to phone: ${prefix}${phone}`);
+    console.log(`[SMS] Dynamic OTP ${otp} sent successfully via SMSGatewayHub to phone: ${prefix}${phone}`);
     res.json({ 
       success: true, 
       message: `OTP sent successfully to ${prefix}${phone}`,
       otp: otp 
     });
   } else {
-    console.warn(`[SMS] Failed to send SMS via Fast2SMS (${smsError}). Falling back to console/response delivery for OTP: ${otp}`);
+    console.warn(`[SMS] Failed to send SMS via SMSGatewayHub (${smsError}). Falling back to console/response delivery for OTP: ${otp}`);
     res.json({ 
       success: true, 
       message: `OTP generated (SMS delivery failed: ${smsError || 'unknown error'})`,
