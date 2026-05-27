@@ -1894,15 +1894,29 @@ app.post('/api/checkout', async (req, res) => {
 
 // Checkout: Retrieve Checkout Summary (Get details)
 const handleGetCheckout = async (req, res) => {
-  const orderId = parseInt(req.params.id);
+  const idParam = req.params.id;
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
-    const order = await DbLayer.getOrderById(orderId);
-    if (!order || order.userPhone !== user.phone) {
+    let order = null;
+    
+    // Check if the idParam looks like a phone number (user id)
+    if (isNaN(idParam) || idParam.length >= 8) {
+      const targetPhone = idParam === "me" ? user.phone : idParam;
+      const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
+      if (userOrders && userOrders.length > 0) {
+        order = userOrders[0];
+      }
+    } else {
+      // Treat as numerical orderId
+      const orderId = parseInt(idParam);
+      order = await DbLayer.getOrderById(orderId);
+    }
+    
+    if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
     
@@ -1910,7 +1924,7 @@ const handleGetCheckout = async (req, res) => {
       success: true,
       orderId: order.id,
       product: {
-        productId: order.productId,
+        productId: order.productId || order.serviceName,
         serviceName: order.serviceName,
         price: order.price,
         description: order.description,
