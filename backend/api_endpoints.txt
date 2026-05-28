@@ -346,8 +346,8 @@ POST /api/checkout-api
 - Body: {
     "userId": "string", (optional, resolves order owner)
     "productId": "Tap Repair",
-    "timeSlot": "2:00 PM - 3:00 PM",
-    "date": "2026-05-27",
+    "timeSlot": "4:00 PM - 5:00 PM",  (optional - auto-computed if omitted)
+    "date": "2026-05-28",              (optional - auto-computed if omitted)
     "payment": { "paymentMethod": "Online", "amountPaid": 0 }
   }
 - Response: {
@@ -361,14 +361,14 @@ POST /api/checkout-api
       "userId": "9876543210",
       "serviceName": "Tap Repair",
       "price": 299,
-      "date": "2026-05-27",
+      "date": "2026-05-28",
       "status": "Pending",
       "bookingStatus": "searching",
       "partnerName": null,
       "partnerDistance": null,
       "productId": "Tap Repair",
       "description": "Fix leaking taps and water issues",
-      "timeSlot": "2:00 PM - 3:00 PM",
+      "timeSlot": "4:00 PM - 5:00 PM",
       "address": {
         "type": "Home",
         "houseNo": "104",
@@ -388,11 +388,19 @@ POST /api/checkout-api
     },
     "message": "Checkout completed successfully and order placed"
   }
-- Note: Requires productId, timeSlot, and date. You can optionally specify a payment body block (e.g. paymentMethod: "Online"). If "Online" is chosen, the server calls Razorpay's order creation endpoint to generate a real Razorpay Order ID and associates it with the transaction record. Otherwise, it defaults to Wallet payment method and performs balance deduction. You can pass the optional `userId` parameter in the body to set/override the user ID for the checkout transaction.
+- Note: Requires productId. timeSlot and date are optional:
+  - If timeSlot is omitted, the server auto-selects the next available slot based on the current IST time
+    (e.g. if it is 3:05 PM IST, the default slot becomes "4:00 PM - 5:00 PM").
+  - If date is omitted, the server defaults to today's date in IST. If no slots remain today (after 8 PM),
+    it defaults to tomorrow's date with the first slot (9:00 AM - 10:00 AM).
+  - You can optionally specify a payment body block (e.g. paymentMethod: "Online"). If "Online" is chosen,
+    the server calls Razorpay's order creation endpoint to generate a real Razorpay Order ID.
+  - You can pass the optional `userId` parameter in the body to set/override the user ID for the transaction.
 
 GET /api/checkout/:userId
 GET /api/checkout-api/:userId
 - Headers: Authorization: Bearer <jwt_token>
+- Optional Query Parameters: productId, date, timeSlot
 - Response: {
     "success": true,
     "orderId": 4,
@@ -402,8 +410,8 @@ GET /api/checkout-api/:userId
       "serviceName": "Tap Repair",
       "price": 299,
       "description": "Fix leaking taps and water issues",
-      "date": "2026-05-27",
-      "timeSlot": "2:00 PM - 3:00 PM"
+      "date": "2026-05-28",
+      "timeSlot": "4:00 PM - 5:00 PM"
     },
     "address": {
       "type": "Home",
@@ -426,10 +434,12 @@ GET /api/checkout-api/:userId
     "partnerName": null,
     "partnerDistance": null
   }
-- Note: Retrieves the complete checkout summary (product details, address fields with lat/lon, and transaction payment details) for the specified user or order. The `:userId` path parameter accepts either a user phone number (userId) or a numeric orderId.
+- Note: Retrieves the complete checkout summary for the specified user or order. The `:userId` path parameter accepts either a user phone number (userId) or a numeric orderId.
+  - **Dynamic Date & Slot**: When a fallback order is auto-created (no existing order found), the date and timeSlot are computed dynamically from the current IST time — the next available hourly slot after the current hour is selected. If no slots remain today, it rolls over to tomorrow's first slot (9:00 AM).
   - **Auto-Create**: If no order exists in the database for the given user ID/order ID, a new order is automatically created with a proper auto-incremented ID and **persisted to the database** (so a 2nd call returns the same order).
-  - **Auto-Address**: The user's latest saved address from the database is resolved and applied to the order automatically. If no saved address exists, the server falls back to the user's profile `location`/`locality` fields (set via `PUT /api/auth/profile`), then to a default mock address.
+  - **Auto-Address**: The user's latest saved address from the database is resolved and applied automatically. If no saved address exists, falls back to the user's profile `location`/`locality` fields (set via `PUT /api/auth/profile`), then to a default mock address.
   - **Persistent Overrides**: Query parameters `productId`, `date`, and `timeSlot` override the order fields AND are **persisted to the database** so subsequent calls without those parameters still return the overridden values.
+
 
 ---------------------------------------------------------
 12. Policies & Information APIs

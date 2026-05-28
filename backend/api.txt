@@ -379,6 +379,15 @@ Optional Query Parameters: productId, date, timeSlot
 
 Key Behaviors:
 
+0. Dynamic Date & Slot Defaults (NEW):
+   - When no date or timeSlot is provided (in query, body, or headers), the server computes
+     the next available booking slot based on the current IST time (UTC+5:30).
+   - Logic: Picks the first hourly slot (from 9 AM to 8 PM) whose start hour is strictly
+     after the current IST hour. If no slots remain today, rolls to tomorrow's first slot.
+   - Example: If called at 3:05 PM IST  → date = today, timeSlot = "4:00 PM - 5:00 PM"
+   - Example: If called at 8:30 PM IST  → date = tomorrow, timeSlot = "9:00 AM - 10:00 AM"
+   - This same logic applies to POST /api/checkout when timeSlot/date are omitted.
+
 1. Auto-Create (Persistent Fallback):
    - If no order exists for the given userId (phone number) or numeric orderId, the server
      automatically creates a new order with a proper auto-incremented ID.
