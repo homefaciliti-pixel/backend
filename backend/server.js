@@ -837,8 +837,22 @@ app.post('/api/auth/send-otp', async (req, res) => {
   let smsError = null;
 
   try {
-    const url = `https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=${smsApiKey}&senderid=${senderId}&channel=2&DCS=0&flashsms=0&number=${formattedPhone}&text=${encodeURIComponent(messageText)}`;
-    const response = await fetch(url);
+    const url = 'https://www.smsgatewayhub.com/api/mt/SendSMS';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        APIKey: smsApiKey,
+        senderid: senderId,
+        channel: "2",
+        DCS: "0",
+        flashsms: "0",
+        number: formattedPhone,
+        text: messageText
+      })
+    });
     const data = await response.json();
     if (data && (data.ErrorCode === '000' || data.ErrorCode === '0' || data.ErrorMessage === 'Success')) {
       smsSent = true;
