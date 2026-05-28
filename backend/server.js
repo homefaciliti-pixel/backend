@@ -922,7 +922,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     res.json({
       success: true,
       message: "OTP verified successfully",
-      user: user,
+      user: { ...user, userId: user.phone },
+      userId: user.phone,
       isNewUser: isNewUser,
       token: token
     });
