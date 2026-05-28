@@ -1841,11 +1841,34 @@ const handlePostCheckout = async (req, res) => {
       return res.status(404).json({ error: `Service/Product '${productId}' not found in catalog` });
     }
     
-    // Retrieve the user's latest saved address
+    // Retrieve the user's latest saved address or save new one if passed in body
     let resolvedAddress = null;
-    const addresses = await DbLayer.getAddressesByUserPhone(phone).catch(() => []);
-    if (addresses && addresses.length > 0) {
-      resolvedAddress = addresses[addresses.length - 1];
+    if (req.body.address) {
+      try {
+        const newAddress = {
+          userPhone: phone,
+          type: req.body.address.type || "Home",
+          houseNo: req.body.address.houseNo || "",
+          society: req.body.address.society || "",
+          floor: req.body.address.floor || "",
+          landmark: req.body.address.landmark || "",
+          city: req.body.address.city || "",
+          locality: req.body.address.locality || "",
+          pincode: req.body.address.pincode || "",
+          latitude: Number(req.body.address.latitude) || 0,
+          longitude: Number(req.body.address.longitude) || 0
+        };
+        resolvedAddress = await DbLayer.createAddress(newAddress);
+        console.log(`[Checkout] Saved new address passed in body for user ${phone}`);
+      } catch (addrErr) {
+        console.error("Save address from body failed:", addrErr);
+      }
+    }
+    if (!resolvedAddress) {
+      const addresses = await DbLayer.getAddressesByUserPhone(phone).catch(() => []);
+      if (addresses && addresses.length > 0) {
+        resolvedAddress = addresses[addresses.length - 1];
+      }
     }
     
     // Auto-increment simple numerical ID
@@ -1945,12 +1968,62 @@ const handlePostCheckout = async (req, res) => {
 app.post('/api/checkout', handlePostCheckout);
 app.post('/api/checkout-api', handlePostCheckout);
 
+// Helper to resolve address for a user phone number
+const resolveAddressForPhone = async (phone) => {
+  try {
+    const addresses = await DbLayer.getAddressesByUserPhone(phone);
+    if (addresses && addresses.length > 0) {
+      return addresses[addresses.length - 1];
+    }
+  } catch (err) {
+    console.error("Resolve address for phone failed:", err);
+  }
+  // Default mock address fallback
+  return {
+    type: "Home",
+    houseNo: "104",
+    society: "Green Villa",
+    floor: "1st",
+    landmark: "Near Central Park",
+    city: "Mumbai, Maharashtra",
+    locality: "Andheri West",
+    pincode: "400053",
+    latitude: 26.9124,
+    longitude: 75.7873
+  };
+};
+
+// Helper to resolve service details by productId or title
+const resolveServiceDetails = (productId) => {
+  if (productId) {
+    for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+      const match = services.find(s => s.title.toLowerCase() === productId.toLowerCase());
+      if (match) {
+        return {
+          productId: match.title,
+          serviceName: match.title,
+          price: Number(match.price),
+          description: match.description
+        };
+      }
+    }
+  }
+  // Default fallback service
+  return {
+    productId: "Tap Repair",
+    serviceName: "Tap Repair",
+    price: 299,
+    description: "Fix leaking taps and water issues"
+  };
+};
+
 // Checkout: Retrieve Checkout Summary (Get details)
 const handleGetCheckout = async (req, res) => {
   const idParam = req.params.userId;
   // Read date and timeSlot/slot from query, body, or headers
   const queryDate = req.query.date || req.body.date || req.headers['x-date'];
   const querySlot = req.query.timeSlot || req.query.slot || req.body.timeSlot || req.body.slot || req.headers['x-timeslot'] || req.headers['x-slot'];
+  const queryProductId = req.query.productId || req.query.product || req.body.productId || req.body.product || req.headers['x-product-id'] || req.headers['x-product'];
   
   try {
     const user = await getAuthenticatedUser(req);
@@ -1965,39 +2038,30 @@ const handleGetCheckout = async (req, res) => {
       const targetPhone = idParam === "me" ? user.phone : idParam;
       const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
       if (userOrders && userOrders.length > 0) {
-        order = userOrders[0];
+        order = { ...userOrders[0] }; // Clone to allow safe mutation
       }
       
       // Dynamic fallback if no order exists for this user ID
       if (!order) {
+        const resolvedAddr = await resolveAddressForPhone(targetPhone);
+        const resolvedProduct = resolveServiceDetails(queryProductId);
         order = {
           id: 4, // default fallback order ID
           userPhone: targetPhone,
-          serviceName: "Tap Repair",
-          price: 299,
+          serviceName: resolvedProduct.serviceName,
+          price: resolvedProduct.price,
           date: queryDate || new Date().toISOString().split('T')[0],
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
-          productId: "Tap Repair",
-          description: "Fix leaking taps and water issues",
+          productId: resolvedProduct.productId,
+          description: resolvedProduct.description,
           timeSlot: querySlot || "2:00 PM - 3:00 PM",
-          address: {
-            type: "Home",
-            houseNo: "104",
-            society: "Green Villa",
-            floor: "1st",
-            landmark: "Near Central Park",
-            city: "Mumbai, Maharashtra",
-            locality: "Andheri West",
-            pincode: "400053",
-            latitude: 26.9124,
-            longitude: 75.7873
-          },
+          address: resolvedAddr,
           payment: {
             paymentMethod: "Wallet",
-            amountPaid: 299
+            amountPaid: resolvedProduct.price
           }
         };
       }
@@ -2005,43 +2069,53 @@ const handleGetCheckout = async (req, res) => {
       // Treat as numerical orderId
       const orderId = parseInt(idParam);
       order = await DbLayer.getOrderById(orderId);
+      if (order) {
+        order = { ...order }; // Clone
+      }
       
       // Dynamic fallback if no order exists for this order ID
       if (!order) {
+        const resolvedAddr = await resolveAddressForPhone(user.phone);
+        const resolvedProduct = resolveServiceDetails(queryProductId);
         order = {
           id: orderId,
           userPhone: user.phone,
-          serviceName: "Tap Repair",
-          price: 299,
+          serviceName: resolvedProduct.serviceName,
+          price: resolvedProduct.price,
           date: queryDate || new Date().toISOString().split('T')[0],
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
-          productId: "Tap Repair",
-          description: "Fix leaking taps and water issues",
+          productId: resolvedProduct.productId,
+          description: resolvedProduct.description,
           timeSlot: querySlot || "2:00 PM - 3:00 PM",
-          address: {
-            type: "Home",
-            houseNo: "104",
-            society: "Green Villa",
-            floor: "1st",
-            landmark: "Near Central Park",
-            city: "Mumbai, Maharashtra",
-            locality: "Andheri West",
-            pincode: "400053",
-            latitude: 26.9124,
-            longitude: 75.7873
-          },
+          address: resolvedAddr,
           payment: {
             paymentMethod: "Wallet",
-            amountPaid: 299
+            amountPaid: resolvedProduct.price
           }
         };
       }
     }
     
-    // Explicit query override if dynamically specified on the request
+    // Auto-resolve user's latest address from database
+    const dbAddr = await resolveAddressForPhone(order.userPhone);
+    if (dbAddr) {
+      order.address = dbAddr;
+    }
+    
+    // Explicit query overrides if dynamically specified on the request
+    if (queryProductId) {
+      const resolvedProduct = resolveServiceDetails(queryProductId);
+      order.productId = resolvedProduct.productId;
+      order.serviceName = resolvedProduct.serviceName;
+      order.price = resolvedProduct.price;
+      order.description = resolvedProduct.description;
+      if (order.payment) {
+        order.payment.amountPaid = resolvedProduct.price;
+      }
+    }
     if (queryDate) {
       order.date = queryDate;
     }
