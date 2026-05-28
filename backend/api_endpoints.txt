@@ -390,8 +390,8 @@ POST /api/checkout-api
   }
 - Note: Requires productId, timeSlot, and date. You can optionally specify a payment body block (e.g. paymentMethod: "Online"). If "Online" is chosen, the server calls Razorpay's order creation endpoint to generate a real Razorpay Order ID and associates it with the transaction record. Otherwise, it defaults to Wallet payment method and performs balance deduction. You can pass the optional `userId` parameter in the body to set/override the user ID for the checkout transaction.
 
-GET /api/checkout/:id
-GET /api/checkout-api/:id
+GET /api/checkout/:userId
+GET /api/checkout-api/:userId
 - Headers: Authorization: Bearer <jwt_token>
 - Response: {
     "success": true,
@@ -426,7 +426,7 @@ GET /api/checkout-api/:id
     "partnerName": null,
     "partnerDistance": null
   }
-- Note: Retrieves the complete checkout summary (product details, address fields with lat/lon, and transaction payment details) for the specified order ID. The `:id` path parameter accepts either a numeric orderId or a user phone number (userId) to fetch the latest checkout order.
+- Note: Retrieves the complete checkout summary (product details, address fields with lat/lon, and transaction payment details) for the specified user or order. The `:userId` path parameter accepts either a user phone number (userId) or a numeric orderId to fetch the matching order.
 
 ---------------------------------------------------------
 12. Policies & Information APIs

@@ -1947,7 +1947,7 @@ app.post('/api/checkout-api', handlePostCheckout);
 
 // Checkout: Retrieve Checkout Summary (Get details)
 const handleGetCheckout = async (req, res) => {
-  const idParam = req.params.id;
+  const idParam = req.params.userId;
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
@@ -1997,8 +1997,8 @@ const handleGetCheckout = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-app.get('/api/checkout/:id', handleGetCheckout);
-app.get('/api/checkout-api/:id', handleGetCheckout);
+app.get('/api/checkout/:userId', handleGetCheckout);
+app.get('/api/checkout-api/:userId', handleGetCheckout);
 
 // 14. Orders: Get All
 app.get('/api/orders', async (req, res) => {
