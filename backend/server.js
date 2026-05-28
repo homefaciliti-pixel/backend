@@ -165,6 +165,34 @@ async function initMySqlDb() {
       }
     }
 
+    // Sync database slots table with 11 hourly slots
+    const targetSlots = BOOKING_SLOTS.map(s => s.time);
+    try {
+      const [slotRows] = await conn.query("SELECT * FROM slots ORDER BY id ASC");
+      let needSync = false;
+      if (slotRows.length !== targetSlots.length) {
+        needSync = true;
+      } else {
+        for (let i = 0; i < targetSlots.length; i++) {
+          if (slotRows[i].slot_time !== targetSlots[i]) {
+            needSync = true;
+            break;
+          }
+        }
+      }
+
+      if (needSync) {
+        console.log("Syncing database slots table with 11 slots (9:00 AM to 8:00 PM)...");
+        await conn.query("DELETE FROM slots");
+        await conn.query("ALTER TABLE slots AUTO_INCREMENT = 1");
+        for (const st of targetSlots) {
+          await conn.query("INSERT INTO slots (slot_time) VALUES (?)", [st]);
+        }
+      }
+    } catch (slotErr) {
+      console.log("Could not sync slots table:", slotErr.message);
+    }
+
     conn.release();
     console.log("MySQL database setup complete. Running in MySQL mode.");
     dbMode = "mysql";
