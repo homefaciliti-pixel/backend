@@ -166,7 +166,7 @@ async function initMySqlDb() {
     }
 
     // Sync database slots table with 11 hourly slots
-    const targetSlots = BOOKING_SLOTS.map(s => s.time);
+    const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
     try {
       const [slotRows] = await conn.query("SELECT * FROM slots ORDER BY id ASC");
       let needSync = false;
@@ -1144,6 +1144,28 @@ app.put('/api/auth/profile', async (req, res) => {
     if (countryCode !== undefined) updates.countryCode = countryCode;
 
     const updatedUser = await DbLayer.updateUser(user.phone, updates);
+
+    if (location !== undefined || locality !== undefined) {
+      try {
+        await DbLayer.createAddress({
+          userPhone: user.phone,
+          type: "Home",
+          houseNo: "",
+          society: "",
+          floor: "",
+          landmark: "",
+          city: location || user.location || "",
+          locality: locality || user.locality || "",
+          pincode: "",
+          latitude: 26.9124,
+          longitude: 75.7873
+        });
+        console.log(`[ProfileUpdate] Synced updated location/locality to node_addresses for user ${user.phone}`);
+      } catch (addrErr) {
+        console.warn("Could not auto-create address entry from profile update:", addrErr.message);
+      }
+    }
+
     res.json({ success: true, user: updatedUser, message: "Profile updated successfully" });
   } catch (err) {
     console.error("Update profile failed:", err);
@@ -1270,7 +1292,7 @@ app.get('/api/banners', (req, res) => {
 
 
 // Categories: Get Services by Category name
-app.get('/api/categories/:category/services', (req, res) => {
+app.get('/api/categories/:category/services', async (req, res) => {
   const { category } = req.params;
   const { search } = req.query;
 
@@ -1278,6 +1300,49 @@ app.get('/api/categories/:category/services', (req, res) => {
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [catRows] = await mysqlPool.query(
+        "SELECT * FROM categories WHERE LOWER(title) = ? OR LOWER(slug) = ? OR id = ?",
+        [category.toLowerCase(), category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
+      );
+
+      if (catRows.length > 0) {
+        const cat = catRows[0];
+        let queryStr = "SELECT * FROM services WHERE (category_id = ? OR sub_category_id = ?) AND status = 1";
+        const queryParams = [cat.id, cat.id];
+
+        if (search) {
+          queryStr += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ?)";
+          const term = `%${search.toString().toLowerCase()}%`;
+          queryParams.push(term, term);
+        }
+
+        const [srvRows] = await mysqlPool.query(queryStr, queryParams);
+        const services = srvRows.map(r => ({
+          productId: r.title,
+          title: r.title,
+          price: parseFloat(r.price),
+          description: r.description,
+          image: r.image,
+          discount: 0,
+          rating: 4.8,
+          reviewsCount: 120,
+          cutPrice: parseFloat(r.price)
+        }));
+
+        return res.json({
+          success: true,
+          category: cat.title,
+          total: services.length,
+          services: resolveServiceUrls(services, serverBaseUrl)
+        });
+      }
+    } catch (err) {
+      console.warn("[DynamicServices] DB query failed, falling back to static:", err.message);
+    }
+  }
 
   // Case-insensitive match against known categories in SERVICES_DATA
   const matchedCategory = Object.keys(SERVICES_DATA).find(
@@ -1322,10 +1387,18 @@ function shuffleArray(array) {
 
 // Helper: Resolve relative service image URLs dynamically
 function resolveServiceUrls(services, serverBaseUrl) {
+  const uploadBaseUrl = serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2')
+    ? 'https://homefaciliti.com'
+    : serverBaseUrl;
+
   return services.map(s => {
     let img = s.image;
-    if (img && img.startsWith('/assets/')) {
-      img = `${serverBaseUrl}${img}`;
+    if (img) {
+      if (img.startsWith('/assets/')) {
+        img = `${serverBaseUrl}${img}`;
+      } else if (!img.startsWith('http') && !img.startsWith('https')) {
+        img = `${uploadBaseUrl}/uploads/services/${img}`;
+      }
     }
     return {
       ...s,
@@ -1335,19 +1408,64 @@ function resolveServiceUrls(services, serverBaseUrl) {
 }
 
 // 6. Services: Fetch with category / search filter
-app.get('/api/services', (req, res) => {
+app.get('/api/services', async (req, res) => {
   const { category, search } = req.query;
-  let list = [];
 
   const host = req.get('host');
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      let queryStr = "SELECT * FROM services WHERE status = 1";
+      const queryParams = [];
+
+      if (category) {
+        // Try to resolve category ID
+        const [catRows] = await mysqlPool.query(
+          "SELECT id FROM categories WHERE LOWER(title) = ? OR LOWER(slug) = ? OR id = ?",
+          [category.toLowerCase(), category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
+        );
+        if (catRows.length > 0) {
+          queryStr += " AND (category_id = ? OR sub_category_id = ?)";
+          queryParams.push(catRows[0].id, catRows[0].id);
+        }
+      }
+
+      if (search) {
+        queryStr += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ?)";
+        const term = `%${search.toString().toLowerCase()}%`;
+        queryParams.push(term, term);
+      }
+
+      const [srvRows] = await mysqlPool.query(queryStr, queryParams);
+      const services = srvRows.map(r => ({
+        productId: r.title,
+        title: r.title,
+        price: parseFloat(r.price),
+        description: r.description,
+        image: r.image,
+        discount: 0,
+        rating: 4.8,
+        reviewsCount: 120,
+        cutPrice: parseFloat(r.price)
+      }));
+
+      return res.json({
+        success: true,
+        services: resolveServiceUrls(services, serverBaseUrl)
+      });
+    } catch (err) {
+      console.warn("[DynamicServices] DB query all failed, falling back to static:", err.message);
+    }
+  }
+
+  // FALLBACK: Static
+  let list = [];
   if (category) {
     list = shuffleArray(SERVICES_DATA[category] || []);
   } else {
-    // Return all flat list shuffled
     list = shuffleArray(Object.values(SERVICES_DATA).flat());
   }
 
@@ -1360,11 +1478,31 @@ app.get('/api/services', (req, res) => {
 });
 
 // 8. Services: Trending (Returns 5 random shuffled items)
-app.get('/api/services/trending', (req, res) => {
+app.get('/api/services/trending', async (req, res) => {
   const host = req.get('host');
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE status = 1 ORDER BY RAND() LIMIT 5");
+      const services = srvRows.map(r => ({
+        productId: r.title,
+        title: r.title,
+        price: parseFloat(r.price),
+        description: r.description,
+        image: r.image,
+        discount: 0,
+        rating: 4.8,
+        reviewsCount: 120,
+        cutPrice: parseFloat(r.price)
+      }));
+      return res.json({ success: true, services: resolveServiceUrls(services, serverBaseUrl) });
+    } catch (err) {
+      console.warn("[DynamicServices] DB trending failed, falling back static:", err.message);
+    }
+  }
 
   const allServices = Object.values(SERVICES_DATA).flat();
   const trending = shuffleArray(allServices).slice(0, 5);
@@ -1372,7 +1510,7 @@ app.get('/api/services/trending', (req, res) => {
 });
 
 // 8a. Services: Get detailed specifications of a service
-const handleServiceDetail = (req, res) => {
+const handleServiceDetail = async (req, res) => {
   const title = req.params.title || req.query.title;
   if (!title) {
     return res.status(400).json({ success: false, error: "Service title is required" });
@@ -1382,6 +1520,52 @@ const handleServiceDetail = (req, res) => {
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE LOWER(title) = ? OR id = ?", [title.toLowerCase(), isNaN(title) ? -1 : parseInt(title)]);
+      if (srvRows.length > 0) {
+        const r = srvRows[0];
+        
+        let resolvedImage = r.image;
+        if (resolvedImage) {
+          if (resolvedImage.startsWith('/assets/')) {
+            resolvedImage = `${serverBaseUrl}${resolvedImage}`;
+          } else if (!resolvedImage.startsWith('http') && !resolvedImage.startsWith('https')) {
+            resolvedImage = `${serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2') ? 'https://homefaciliti.com' : serverBaseUrl}/uploads/services/${resolvedImage}`;
+          }
+        }
+
+        const enrichedService = {
+          productId: r.title,
+          title: r.title,
+          price: parseFloat(r.price),
+          description: r.description,
+          image: resolvedImage,
+          category: r.category_id.toString(),
+          duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
+          rating: 4.8,
+          reviewsCount: 124,
+          discount: 0,
+          cutPrice: parseFloat(r.price),
+          highlights: [
+            "Includes background-checked & certified partner",
+            "30-day post-service warranty cover included",
+            "Equipped with premium professional-grade tools",
+            "100% safe, hygienic, and high-quality service execution"
+          ]
+        };
+
+        return res.json({
+          success: true,
+          service: enrichedService,
+          message: "Service details retrieved successfully"
+        });
+      }
+    } catch (err) {
+      console.warn("[DynamicServices] DB detail failed, falling back static:", err.message);
+    }
+  }
 
   let foundService = null;
   let foundCategory = null;
@@ -1910,16 +2094,23 @@ const handleAddAddress = async (req, res) => {
   const { type, houseNo, society, floor, landmark, city, locality, pincode, lat, latitude, lon, longitude, lng } = req.body;
   
   try {
-    const user = await getAuthenticatedUser(req);
-    if (!user) {
-      return res.status(401).json({ error: "Unauthorized" });
+    let phone;
+    const authUser = await getAuthenticatedUser(req).catch(() => null);
+    if (authUser) {
+      phone = authUser.phone;
+    } else {
+      phone = req.body.userId || req.body.phone || req.body.userPhone || req.query.userId || req.query.phone;
+    }
+
+    if (!phone) {
+      return res.status(401).json({ error: "Unauthorized: User identification (Token or userId) is required" });
     }
     
     const latValue = latitude !== undefined ? Number(latitude) : (lat !== undefined ? Number(lat) : null);
     const lonValue = longitude !== undefined ? Number(longitude) : (lon !== undefined ? Number(lon) : (lng !== undefined ? Number(lng) : null));
     
     const newAddress = {
-      userPhone: user.phone,
+      userPhone: phone,
       type: type || "Home",
       houseNo: houseNo || "",
       society: society || "",
@@ -1933,7 +2124,7 @@ const handleAddAddress = async (req, res) => {
     };
     
     const savedAddress = await DbLayer.createAddress(newAddress);
-    console.log(`Saved address for phone ${user.phone}: ${savedAddress.houseNo}, ${savedAddress.city}`);
+    console.log(`Saved address for phone ${phone}: ${savedAddress.houseNo}, ${savedAddress.city}`);
     res.json({ success: true, address: savedAddress, message: "Address saved successfully" });
   } catch (err) {
     console.error("Save address failed:", err);
@@ -1989,13 +2180,31 @@ const handlePostCheckout = async (req, res) => {
       phone = "9876543210"; // Default fallback
     }
     
-    // Resolve service properties from SERVICES_DATA using productId (which matches service title)
+    // Resolve service properties from dynamic database or fall back to hardcoded SERVICES_DATA
     let foundService = null;
-    for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
-      const match = services.find(s => s.title.toLowerCase() === productId.toLowerCase());
-      if (match) {
-        foundService = match;
-        break;
+    if (dbMode === "mysql" && mysqlPool !== null) {
+      try {
+        const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE LOWER(title) = ? OR id = ?", [productId.toLowerCase(), isNaN(productId) ? -1 : parseInt(productId)]);
+        if (srvRows.length > 0) {
+          const r = srvRows[0];
+          foundService = {
+            title: r.title,
+            price: parseFloat(r.price),
+            description: r.description
+          };
+        }
+      } catch (err) {
+        console.warn("[Checkout] DB query failed, falling back static:", err.message);
+      }
+    }
+
+    if (!foundService) {
+      for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+        const match = services.find(s => s.title.toLowerCase() === productId.toLowerCase());
+        if (match) {
+          foundService = match;
+          break;
+        }
       }
     }
     
@@ -2026,7 +2235,8 @@ const handlePostCheckout = async (req, res) => {
         console.error("Save address from body failed:", addrErr);
       }
     }
-    if (!resolvedAddress) {
+    // ONLY fetch latest saved address if this is NOT the shared fallback guest user
+    if (!resolvedAddress && phone !== "9876543210") {
       const addresses = await DbLayer.getAddressesByUserPhone(phone).catch(() => []);
       if (addresses && addresses.length > 0) {
         resolvedAddress = addresses[addresses.length - 1];
@@ -2132,7 +2342,7 @@ app.post('/api/checkout-api', handlePostCheckout);
 
 // Helper to compute dynamic next available date and time slot based on current IST time
 // Helper: get availability-checked slots for a specific date (same logic as /api/booking/available-slots)
-const BOOKING_SLOTS = [
+const STATIC_BOOKING_SLOTS = [
   { id: "slot_1",  time: "9:00 AM - 10:00 AM",  start: 9  },
   { id: "slot_2",  time: "10:00 AM - 11:00 AM", start: 10 },
   { id: "slot_3",  time: "11:00 AM - 12:00 PM", start: 11 },
@@ -2146,9 +2356,32 @@ const BOOKING_SLOTS = [
   { id: "slot_11", time: "7:00 PM - 8:00 PM",   start: 19 }
 ];
 
+async function getBookingSlots() {
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [rows] = await mysqlPool.query("SELECT * FROM slots ORDER BY id ASC");
+      if (rows && rows.length > 0) {
+        return rows.map((r, index) => {
+          const parsed = parseTimeRange(r.slot_time);
+          const startHour = parsed ? parsed.start : (9 + index);
+          return {
+            id: `slot_${r.id}`,
+            time: r.slot_time,
+            start: startHour
+          };
+        });
+      }
+    } catch (err) {
+      console.warn("Could not load dynamic slots from database, using static fallback:", err.message);
+    }
+  }
+  return STATIC_BOOKING_SLOTS;
+}
+
 async function getAvailableSlotsForDate(dateStr) {
   // Start with all slots marked available
-  const slots = BOOKING_SLOTS.map(s => ({ ...s, available: true }));
+  const bookingSlots = await getBookingSlots();
+  const slots = bookingSlots.map(s => ({ ...s, available: true }));
   try {
     const allOrders = await DbLayer.getAllOrders();
     const targetDate = dateStr.split('T')[0];
@@ -2207,18 +2440,21 @@ async function getDynamicDateAndSlot() {
 
   // Ultimate fallback (should never be reached)
   const tomorrow = new Date(istNow.getTime() + 24 * 60 * 60 * 1000);
-  return { date: formatDate(tomorrow), timeSlot: BOOKING_SLOTS[0].time };
+  const bookingSlots = await getBookingSlots();
+  return { date: formatDate(tomorrow), timeSlot: bookingSlots[0].time };
 }
 
 // Helper to resolve address for a user phone number
 const resolveAddressForPhone = async (phone) => {
-  try {
-    const addresses = await DbLayer.getAddressesByUserPhone(phone);
-    if (addresses && addresses.length > 0) {
-      return addresses[addresses.length - 1];
+  if (phone && phone !== "9876543210") {
+    try {
+      const addresses = await DbLayer.getAddressesByUserPhone(phone);
+      if (addresses && addresses.length > 0) {
+        return addresses[addresses.length - 1];
+      }
+    } catch (err) {
+      console.error("Resolve address for phone failed:", err);
     }
-  } catch (err) {
-    console.error("Resolve address for phone failed:", err);
   }
 
   // Fallback to user profile location/locality fields if they exist
@@ -2259,7 +2495,24 @@ const resolveAddressForPhone = async (phone) => {
 };
 
 // Helper to resolve service details by productId or title
-const resolveServiceDetails = (productId) => {
+const resolveServiceDetails = async (productId) => {
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE LOWER(title) = ? OR id = ?", [productId ? productId.toLowerCase() : '', isNaN(productId) ? -1 : parseInt(productId)]);
+      if (srvRows.length > 0) {
+        const r = srvRows[0];
+        return {
+          productId: r.title,
+          serviceName: r.title,
+          price: parseFloat(r.price),
+          description: r.description
+        };
+      }
+    } catch (err) {
+      console.warn("[resolveServiceDetails] DB query failed, falling back static:", err.message);
+    }
+  }
+
   if (productId) {
     for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
       const match = services.find(s => s.title.toLowerCase() === productId.toLowerCase());
@@ -2310,7 +2563,7 @@ const handleGetCheckout = async (req, res) => {
       // Dynamic fallback if no order exists for this user ID
       if (!order) {
         const resolvedAddr = await resolveAddressForPhone(targetPhone);
-        const resolvedProduct = resolveServiceDetails(queryProductId);
+        const resolvedProduct = await resolveServiceDetails(queryProductId);
         const lastOrderId = await DbLayer.getLastOrderId();
         const orderId = lastOrderId + 1;
         
@@ -2350,7 +2603,7 @@ const handleGetCheckout = async (req, res) => {
       // Dynamic fallback if no order exists for this order ID
       if (!order) {
         const resolvedAddr = await resolveAddressForPhone(user.phone);
-        const resolvedProduct = resolveServiceDetails(queryProductId);
+        const resolvedProduct = await resolveServiceDetails(queryProductId);
         order = {
           id: orderId,
           userPhone: user.phone,
@@ -2381,8 +2634,8 @@ const handleGetCheckout = async (req, res) => {
     let needsUpdate = false;
     const updates = {};
     
-    // Auto-resolve user's latest address from database (only if not just created to avoid redundant writes)
-    if (!justCreated) {
+    // Auto-resolve user's latest address from database (only if not just created to avoid redundant writes, and not guest fallback user)
+    if (!justCreated && order.userPhone !== "9876543210") {
       const dbAddr = await resolveAddressForPhone(order.userPhone);
       if (dbAddr && JSON.stringify(order.address) !== JSON.stringify(dbAddr)) {
         order.address = dbAddr;
@@ -2392,7 +2645,7 @@ const handleGetCheckout = async (req, res) => {
       
       // Explicit query overrides if dynamically specified on the request
       if (queryProductId && order.productId !== queryProductId) {
-        const resolvedProduct = resolveServiceDetails(queryProductId);
+        const resolvedProduct = await resolveServiceDetails(queryProductId);
         order.productId = resolvedProduct.productId;
         order.serviceName = resolvedProduct.serviceName;
         order.price = resolvedProduct.price;
@@ -2678,9 +2931,10 @@ const handleGetAvailableSlots = async (req, res) => {
 
   try {
     let slots;
+    const bookingSlots = await getBookingSlots();
     if (date) {
       // Use shared helper which checks real DB bookings for the given date
-      const rawSlots = BOOKING_SLOTS.map(s => ({ ...s, available: true }));
+      const rawSlots = bookingSlots.map(s => ({ ...s, available: true }));
       const allOrders = await DbLayer.getAllOrders();
       const targetDate = date.split('T')[0];
       const matchingOrders = allOrders.filter(order => {
@@ -2703,7 +2957,7 @@ const handleGetAvailableSlots = async (req, res) => {
       slots = rawSlots;
     } else {
       // No date provided — return all slots as available
-      slots = BOOKING_SLOTS.map(s => ({ ...s, available: true }));
+      slots = bookingSlots.map(s => ({ ...s, available: true }));
     }
 
     res.json({
