@@ -79,7 +79,7 @@ async function initMySqlDb() {
     console.log("Successfully connected to MySQL. Creating tables if not exist...");
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE IF NOT EXISTS node_users (
         phone VARCHAR(20) PRIMARY KEY,
         name VARCHAR(100) DEFAULT 'Hira',
         email VARCHAR(100) DEFAULT 'hira@hmail.com',
@@ -93,7 +93,7 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS orders (
+      CREATE TABLE IF NOT EXISTS node_orders (
         id INT PRIMARY KEY,
         userPhone VARCHAR(20) NOT NULL,
         serviceName VARCHAR(100) NOT NULL,
@@ -115,7 +115,7 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS referrals_applied (
+      CREATE TABLE IF NOT EXISTS node_referrals_applied (
         userPhone VARCHAR(20) PRIMARY KEY,
         referrerPhone VARCHAR(20) NOT NULL,
         appliedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -123,7 +123,7 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS addresses (
+      CREATE TABLE IF NOT EXISTS node_addresses (
         id INT AUTO_INCREMENT PRIMARY KEY,
         userPhone VARCHAR(20) NOT NULL,
         type VARCHAR(50) DEFAULT 'Home',
@@ -140,26 +140,26 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS categories (
+      CREATE TABLE IF NOT EXISTS node_categories (
         id VARCHAR(100) PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
         image VARCHAR(255) DEFAULT ''
       )
     `);
 
-    const [rows] = await conn.query("SELECT COUNT(*) as count FROM categories");
+    const [rows] = await conn.query("SELECT COUNT(*) as count FROM node_categories");
     if (rows[0].count === 0) {
       console.log("Seeding default categories in MySQL...");
       for (const cat of DEFAULT_CATEGORIES) {
         await conn.query(
-          "INSERT INTO categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
+          "INSERT INTO node_categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
           [cat.id, cat.name, cat.image]
         );
       }
     } else {
       for (const cat of DEFAULT_CATEGORIES) {
         await conn.query(
-          "INSERT INTO categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image=VALUES(image)",
+          "INSERT INTO node_categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image=VALUES(image)",
           [cat.id, cat.name, cat.image]
         );
       }
@@ -183,14 +183,14 @@ const MySqlDbLayer = {
   },
 
   async getUserByPhone(phone) {
-    const row = await this.queryOne("SELECT * FROM users WHERE phone = ?", [phone]);
+    const row = await this.queryOne("SELECT * FROM node_users WHERE phone = ?", [phone]);
     if (!row) return null;
     row.walletBalance = parseFloat(row.walletBalance);
     return row;
   },
 
   async getUserByReferralCode(code) {
-    const row = await this.queryOne("SELECT * FROM users WHERE referralCode = ?", [code]);
+    const row = await this.queryOne("SELECT * FROM node_users WHERE referralCode = ?", [code]);
     if (!row) return null;
     row.walletBalance = parseFloat(row.walletBalance);
     return row;
@@ -207,7 +207,7 @@ const MySqlDbLayer = {
     const finalCountryCode = countryCode || "+91";
 
     await mysqlPool.query(
-      "INSERT INTO users (phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), location=VALUES(location), locality=VALUES(locality), gender=VALUES(gender), referralCode=VALUES(referralCode), walletBalance=VALUES(walletBalance), countryCode=VALUES(countryCode)",
+      "INSERT INTO node_users (phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), location=VALUES(location), locality=VALUES(locality), gender=VALUES(gender), referralCode=VALUES(referralCode), walletBalance=VALUES(walletBalance), countryCode=VALUES(countryCode)",
       [phone, finalName, finalEmail, finalLocation, finalLocality, finalGender, referralCode, finalWalletBalance, finalCountryCode]
     );
 
@@ -219,17 +219,17 @@ const MySqlDbLayer = {
     const keys = Object.keys(updates);
     const values = Object.values(updates);
     const setClause = keys.map(k => `${k} = ?`).join(", ");
-    await mysqlPool.query(`UPDATE users SET ${setClause} WHERE phone = ?`, [...values, phone]);
+    await mysqlPool.query(`UPDATE node_users SET ${setClause} WHERE phone = ?`, [...values, phone]);
     return this.getUserByPhone(phone);
   },
 
   async countUsers() {
-    const row = await this.queryOne("SELECT COUNT(*) as count FROM users");
+    const row = await this.queryOne("SELECT COUNT(*) as count FROM node_users");
     return row ? row.count : 0;
   },
 
   async getOrderById(id) {
-    const row = await this.queryOne("SELECT * FROM orders WHERE id = ?", [id]);
+    const row = await this.queryOne("SELECT * FROM node_orders WHERE id = ?", [id]);
     if (!row) return null;
     row.price = parseFloat(row.price);
     row.address = row.address ? JSON.parse(row.address) : null;
@@ -238,7 +238,7 @@ const MySqlDbLayer = {
   },
 
   async getOrdersByUserPhone(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM orders WHERE userPhone = ? ORDER BY id DESC", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_orders WHERE userPhone = ? ORDER BY id DESC", [phone]);
     return rows.map(row => {
       row.price = parseFloat(row.price);
       row.address = row.address ? JSON.parse(row.address) : null;
@@ -248,7 +248,7 @@ const MySqlDbLayer = {
   },
 
   async getAllOrders() {
-    const [rows] = await mysqlPool.query("SELECT * FROM orders ORDER BY id DESC");
+    const [rows] = await mysqlPool.query("SELECT * FROM node_orders ORDER BY id DESC");
     return rows.map(row => {
       row.price = parseFloat(row.price);
       row.address = row.address ? JSON.parse(row.address) : null;
@@ -271,7 +271,7 @@ const MySqlDbLayer = {
     const finalCreatedAt = createdAt || Date.now();
 
     await mysqlPool.query(
-      `INSERT INTO orders (
+      `INSERT INTO node_orders (
         id, userPhone, serviceName, price, date, status, bookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
         address, payment, razorpayOrderId, razorpayPaymentId, createdAt
@@ -303,22 +303,22 @@ const MySqlDbLayer = {
       return val;
     });
     const setClause = keys.map(k => `${k} = ?`).join(", ");
-    await mysqlPool.query(`UPDATE orders SET ${setClause} WHERE id = ?`, [...values, id]);
+    await mysqlPool.query(`UPDATE node_orders SET ${setClause} WHERE id = ?`, [...values, id]);
     return this.getOrderById(id);
   },
 
   async getLastOrderId() {
-    const row = await this.queryOne("SELECT MAX(id) as lastId FROM orders");
+    const row = await this.queryOne("SELECT MAX(id) as lastId FROM node_orders");
     return row && row.lastId ? row.lastId : 0;
   },
 
   async countOrders() {
-    const row = await this.queryOne("SELECT COUNT(*) as count FROM orders");
+    const row = await this.queryOne("SELECT COUNT(*) as count FROM node_orders");
     return row ? row.count : 0;
   },
 
   async getReferralApplied(phone) {
-    const row = await this.queryOne("SELECT * FROM referrals_applied WHERE userPhone = ?", [phone]);
+    const row = await this.queryOne("SELECT * FROM node_referrals_applied WHERE userPhone = ?", [phone]);
     return row;
   },
 
@@ -326,14 +326,14 @@ const MySqlDbLayer = {
     const { userPhone, referrerPhone, appliedAt } = referralApplied;
     const finalAppliedAt = appliedAt ? new Date(appliedAt) : new Date();
     await mysqlPool.query(
-      "INSERT INTO referrals_applied (userPhone, referrerPhone, appliedAt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE referrerPhone=VALUES(referrerPhone), appliedAt=VALUES(appliedAt)",
+      "INSERT INTO node_referrals_applied (userPhone, referrerPhone, appliedAt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE referrerPhone=VALUES(referrerPhone), appliedAt=VALUES(appliedAt)",
       [userPhone, referrerPhone, finalAppliedAt]
     );
     return this.getReferralApplied(userPhone);
   },
 
   async getCategories() {
-    const [rows] = await mysqlPool.query("SELECT * FROM categories");
+    const [rows] = await mysqlPool.query("SELECT * FROM node_categories");
     return rows.map(r => ({
       id: r.id,
       name: r.name,
@@ -345,15 +345,15 @@ const MySqlDbLayer = {
     const { name, id, image } = categoryData;
     const finalId = id || name.toLowerCase().replace(/\s+/g, '_');
     await mysqlPool.query(
-      "INSERT INTO categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
+      "INSERT INTO node_categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
       [finalId, name, image || ""]
     );
-    const row = await this.queryOne("SELECT * FROM categories WHERE id = ?", [finalId]);
+    const row = await this.queryOne("SELECT * FROM node_categories WHERE id = ?", [finalId]);
     return row;
   },
 
   async getAddressesByUserPhone(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM addresses WHERE userPhone = ?", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses WHERE userPhone = ?", [phone]);
     return rows.map(r => {
       r.latitude = r.latitude !== null ? parseFloat(r.latitude) : null;
       r.longitude = r.longitude !== null ? parseFloat(r.longitude) : null;
@@ -373,12 +373,12 @@ const MySqlDbLayer = {
     const finalPincode = pincode || "";
 
     await mysqlPool.query(
-      `INSERT INTO addresses (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude)
+      `INSERT INTO node_addresses (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [userPhone, finalType, finalHouseNo, finalSociety, finalFloor, finalLandmark, finalCity, finalLocality, finalPincode, latitude, longitude]
     );
 
-    const [rows] = await mysqlPool.query("SELECT * FROM addresses WHERE userPhone = ? ORDER BY id DESC LIMIT 1", [userPhone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses WHERE userPhone = ? ORDER BY id DESC LIMIT 1", [userPhone]);
     if (rows.length > 0) {
       rows[0].latitude = rows[0].latitude !== null ? parseFloat(rows[0].latitude) : null;
       rows[0].longitude = rows[0].longitude !== null ? parseFloat(rows[0].longitude) : null;
