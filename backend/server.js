@@ -1927,7 +1927,7 @@ const handlePostCheckout = async (req, res) => {
       partnerDistance: null,
       productId: productId,
       description: foundService.description,
-      timeSlot: timeSlot || "9:00 AM - 10:00 AM",
+      timeSlot: timeSlot || getDynamicDateAndSlot().timeSlot,
       address: resolvedAddress,
       payment: { 
         paymentMethod: paymentMethod, 
@@ -1967,6 +1967,52 @@ const handlePostCheckout = async (req, res) => {
 
 app.post('/api/checkout', handlePostCheckout);
 app.post('/api/checkout-api', handlePostCheckout);
+
+// Helper to compute dynamic next available date and time slot based on current IST time
+function getDynamicDateAndSlot() {
+  // Standard available slots in order
+  const AVAILABLE_SLOTS = [
+    { start: 9,  label: "9:00 AM - 10:00 AM" },
+    { start: 10, label: "10:00 AM - 11:00 AM" },
+    { start: 11, label: "11:00 AM - 12:00 PM" },
+    { start: 12, label: "12:00 PM - 1:00 PM" },
+    { start: 13, label: "1:00 PM - 2:00 PM" },
+    { start: 14, label: "2:00 PM - 3:00 PM" },
+    { start: 15, label: "3:00 PM - 4:00 PM" },
+    { start: 16, label: "4:00 PM - 5:00 PM" },
+    { start: 17, label: "5:00 PM - 6:00 PM" },
+    { start: 18, label: "6:00 PM - 7:00 PM" },
+    { start: 19, label: "7:00 PM - 8:00 PM" }
+  ];
+
+  // Get current IST time (UTC+5:30)
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const istNow = new Date(now.getTime() + istOffset);
+  const currentHour = istNow.getUTCHours();
+  const currentMinute = istNow.getUTCMinutes();
+
+  // Format a Date object as YYYY-MM-DD in IST
+  const formatDate = (d) => {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // Find next slot that starts strictly after current hour
+  // (or same hour but minute is 0, meaning the slot hasn't started yet)
+  const nextSlot = AVAILABLE_SLOTS.find(s => s.start > currentHour || (s.start === currentHour && currentMinute === 0));
+
+  if (nextSlot) {
+    // A slot is available today
+    return { date: formatDate(istNow), timeSlot: nextSlot.label };
+  } else {
+    // No more slots today — default to first slot tomorrow
+    const tomorrow = new Date(istNow.getTime() + 24 * 60 * 60 * 1000);
+    return { date: formatDate(tomorrow), timeSlot: AVAILABLE_SLOTS[0].label };
+  }
+}
 
 // Helper to resolve address for a user phone number
 const resolveAddressForPhone = async (phone) => {
@@ -2078,14 +2124,14 @@ const handleGetCheckout = async (req, res) => {
           userId: targetPhone,
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
-          date: queryDate || new Date().toISOString().split('T')[0],
+          date: queryDate || getDynamicDateAndSlot().date,
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
           productId: resolvedProduct.productId,
           description: resolvedProduct.description,
-          timeSlot: querySlot || "2:00 PM - 3:00 PM",
+          timeSlot: querySlot || getDynamicDateAndSlot().timeSlot,
           address: resolvedAddr,
           payment: {
             paymentMethod: "Wallet",
@@ -2115,14 +2161,14 @@ const handleGetCheckout = async (req, res) => {
           userId: user.phone,
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
-          date: queryDate || new Date().toISOString().split('T')[0],
+          date: queryDate || getDynamicDateAndSlot().date,
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
           productId: resolvedProduct.productId,
           description: resolvedProduct.description,
-          timeSlot: querySlot || "2:00 PM - 3:00 PM",
+          timeSlot: querySlot || getDynamicDateAndSlot().timeSlot,
           address: resolvedAddr,
           payment: {
             paymentMethod: "Wallet",
