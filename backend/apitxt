@@ -368,4 +368,32 @@ Response Payload:
 }
 Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
 
+---------------------------------------------------------
+8. Dynamic GET Checkout – Auto-Create, Auto-Address & Persistent Overrides
+---------------------------------------------------------
+
+Endpoint: GET /api/checkout/:userId
+Endpoint: GET /api/checkout-api/:userId
+Headers: Authorization: Bearer <jwt_token>
+Optional Query Parameters: productId, date, timeSlot
+
+Key Behaviors:
+
+1. Auto-Create (Persistent Fallback):
+   - If no order exists for the given userId (phone number) or numeric orderId, the server
+     automatically creates a new order with a proper auto-incremented ID.
+   - The created order is persisted to the database (MongoDB or database.json).
+   - A 2nd call with the same userId returns the previously created order instead of creating another.
+
+2. Auto-Address Resolution (3-level fallback):
+   - Level 1: Latest saved address from the addresses collection for this user.
+   - Level 2: User profile `location` and `locality` fields (set via PUT /api/auth/profile).
+   - Level 3: Static default mock address (Green Villa, Mumbai).
+   - The resolved address is applied to the order and updated in the database.
+
+3. Persistent Query Overrides:
+   - Passing ?productId=, ?date=, or ?timeSlot= overrides the corresponding order fields.
+   - The overrides are saved to the database, so a follow-up call without query params
+     still returns the overridden values.
+   - Example: GET /api/checkout/9876543210?productId=AC+Gas+Charging&date=2026-06-01&timeSlot=10:00+AM+-+11:00+AM
 

@@ -1978,6 +1978,29 @@ const resolveAddressForPhone = async (phone) => {
   } catch (err) {
     console.error("Resolve address for phone failed:", err);
   }
+
+  // Fallback to user profile location/locality fields if they exist
+  try {
+    const user = await DbLayer.getUserByPhone(phone);
+    if (user && (user.location || user.locality)) {
+      console.log(`[AddressResolution] Falling back to user profile location fields for user ${phone}`);
+      return {
+        type: "Home",
+        houseNo: "",
+        society: "",
+        floor: "",
+        landmark: "",
+        city: user.location || "Mumbai, Maharashtra",
+        locality: user.locality || "Andheri West",
+        pincode: "",
+        latitude: 26.9124,
+        longitude: 75.7873
+      };
+    }
+  } catch (userErr) {
+    console.error("Resolve address from user profile failed:", userErr);
+  }
+
   // Default mock address fallback
   return {
     type: "Home",
@@ -2032,6 +2055,7 @@ const handleGetCheckout = async (req, res) => {
     }
     
     let order = null;
+    let justCreated = false;
     
     // Check if the idParam looks like a phone number (user id)
     if (isNaN(idParam) || idParam.length >= 8) {
@@ -2045,9 +2069,13 @@ const handleGetCheckout = async (req, res) => {
       if (!order) {
         const resolvedAddr = await resolveAddressForPhone(targetPhone);
         const resolvedProduct = resolveServiceDetails(queryProductId);
+        const lastOrderId = await DbLayer.getLastOrderId();
+        const orderId = lastOrderId + 1;
+        
         order = {
-          id: 4, // default fallback order ID
+          id: orderId,
           userPhone: targetPhone,
+          userId: targetPhone,
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
           date: queryDate || new Date().toISOString().split('T')[0],
@@ -2062,8 +2090,12 @@ const handleGetCheckout = async (req, res) => {
           payment: {
             paymentMethod: "Wallet",
             amountPaid: resolvedProduct.price
-          }
+          },
+          createdAt: Date.now()
         };
+        await DbLayer.createOrder(order);
+        justCreated = true;
+        console.log(`[GetCheckout] Created and persisted fallback order #${orderId} for user ${targetPhone}`);
       }
     } else {
       // Treat as numerical orderId
@@ -2080,6 +2112,7 @@ const handleGetCheckout = async (req, res) => {
         order = {
           id: orderId,
           userPhone: user.phone,
+          userId: user.phone,
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
           date: queryDate || new Date().toISOString().split('T')[0],
@@ -2094,33 +2127,62 @@ const handleGetCheckout = async (req, res) => {
           payment: {
             paymentMethod: "Wallet",
             amountPaid: resolvedProduct.price
-          }
+          },
+          createdAt: Date.now()
         };
+        await DbLayer.createOrder(order);
+        justCreated = true;
+        console.log(`[GetCheckout] Created and persisted fallback order #${orderId} for order ID lookup`);
       }
     }
     
-    // Auto-resolve user's latest address from database
-    const dbAddr = await resolveAddressForPhone(order.userPhone);
-    if (dbAddr) {
-      order.address = dbAddr;
-    }
+    let needsUpdate = false;
+    const updates = {};
     
-    // Explicit query overrides if dynamically specified on the request
-    if (queryProductId) {
-      const resolvedProduct = resolveServiceDetails(queryProductId);
-      order.productId = resolvedProduct.productId;
-      order.serviceName = resolvedProduct.serviceName;
-      order.price = resolvedProduct.price;
-      order.description = resolvedProduct.description;
-      if (order.payment) {
-        order.payment.amountPaid = resolvedProduct.price;
+    // Auto-resolve user's latest address from database (only if not just created to avoid redundant writes)
+    if (!justCreated) {
+      const dbAddr = await resolveAddressForPhone(order.userPhone);
+      if (dbAddr && JSON.stringify(order.address) !== JSON.stringify(dbAddr)) {
+        order.address = dbAddr;
+        updates.address = dbAddr;
+        needsUpdate = true;
       }
-    }
-    if (queryDate) {
-      order.date = queryDate;
-    }
-    if (querySlot) {
-      order.timeSlot = querySlot;
+      
+      // Explicit query overrides if dynamically specified on the request
+      if (queryProductId && order.productId !== queryProductId) {
+        const resolvedProduct = resolveServiceDetails(queryProductId);
+        order.productId = resolvedProduct.productId;
+        order.serviceName = resolvedProduct.serviceName;
+        order.price = resolvedProduct.price;
+        order.description = resolvedProduct.description;
+        if (order.payment) {
+          order.payment.amountPaid = resolvedProduct.price;
+        }
+        
+        updates.productId = resolvedProduct.productId;
+        updates.serviceName = resolvedProduct.serviceName;
+        updates.price = resolvedProduct.price;
+        updates.description = resolvedProduct.description;
+        if (order.payment) {
+          updates.payment = order.payment;
+        }
+        needsUpdate = true;
+      }
+      if (queryDate && order.date !== queryDate) {
+        order.date = queryDate;
+        updates.date = queryDate;
+        needsUpdate = true;
+      }
+      if (querySlot && order.timeSlot !== querySlot) {
+        order.timeSlot = querySlot;
+        updates.timeSlot = querySlot;
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
+        await DbLayer.updateOrder(order.id, updates);
+        console.log(`[GetCheckout] Persisted overrides to database for order #${order.id}`);
+      }
     }
     
     res.json({
