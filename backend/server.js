@@ -2537,6 +2537,11 @@ const resolveServiceDetails = async (productId) => {
 
 // Checkout: Retrieve Checkout Summary (Get details)
 const handleGetCheckout = async (req, res) => {
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
   const idParam = req.params.userId;
   // Read date and timeSlot/slot from query, body, or headers
   const queryDate = req.query.date || req.body.date || req.headers['x-date'];
@@ -2680,6 +2685,58 @@ const handleGetCheckout = async (req, res) => {
       }
     }
     
+    // Retrieve available user addresses
+    const addresses = await DbLayer.getAddressesByUserPhone(order.userPhone).catch(() => []);
+
+    // Retrieve available services in the same category
+    let services = [];
+    if (dbMode === "mysql" && mysqlPool !== null) {
+      try {
+        const [srvRows] = await mysqlPool.query("SELECT category_id FROM services WHERE LOWER(title) = ? OR id = ?", [order.serviceName.toLowerCase(), isNaN(order.productId) ? -1 : parseInt(order.productId)]);
+        if (srvRows.length > 0) {
+          const categoryId = srvRows[0].category_id;
+          const [catSrvRows] = await mysqlPool.query("SELECT * FROM services WHERE category_id = ? AND status = 1", [categoryId]);
+          services = catSrvRows.map(r => ({
+            productId: r.title,
+            title: r.title,
+            price: parseFloat(r.price),
+            description: r.description,
+            image: r.image
+          }));
+        }
+      } catch (err) {
+        console.warn("[GetCheckout] Failed to load dynamic services list:", err.message);
+      }
+    }
+    
+    if (services.length === 0) {
+      for (const [catName, list] of Object.entries(SERVICES_DATA)) {
+        const match = list.some(s => s.title.toLowerCase() === order.serviceName.toLowerCase());
+        if (match) {
+          services = list;
+          break;
+        }
+      }
+    }
+    const resolvedServices = resolveServiceUrls(services, serverBaseUrl);
+
+    // Retrieve available booking slots for the selected date
+    const availableSlots = await getAvailableSlotsForDate(order.date);
+
+    // Generate available booking dates (next 7 days)
+    const dates = [];
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      dates.push({
+        formattedDate: d.toISOString().split('T')[0],
+        dayName: i === 0 ? "Today" : (i === 1 ? "Tomorrow" : daysOfWeek[d.getDay()]),
+        displayDate: `${d.getDate()} ${months[d.getMonth()]}`
+      });
+    }
+
     res.json({
       success: true,
       orderId: order.id,
@@ -2697,7 +2754,12 @@ const handleGetCheckout = async (req, res) => {
       status: order.status,
       bookingStatus: order.bookingStatus,
       partnerName: order.partnerName,
-      partnerDistance: order.partnerDistance
+      partnerDistance: order.partnerDistance,
+      addresses: addresses,
+      services: resolvedServices,
+      products: resolvedServices,
+      slots: availableSlots,
+      dates: dates
     });
   } catch (err) {
     console.error("Fetch checkout details failed:", err);
