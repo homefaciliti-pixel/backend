@@ -1927,7 +1927,7 @@ const handlePostCheckout = async (req, res) => {
       partnerDistance: null,
       productId: productId,
       description: foundService.description,
-      timeSlot: timeSlot || getDynamicDateAndSlot().timeSlot,
+      timeSlot: timeSlot || (await getDynamicDateAndSlot()).timeSlot,
       address: resolvedAddress,
       payment: { 
         paymentMethod: paymentMethod, 
@@ -1969,30 +1969,50 @@ app.post('/api/checkout', handlePostCheckout);
 app.post('/api/checkout-api', handlePostCheckout);
 
 // Helper to compute dynamic next available date and time slot based on current IST time
-function getDynamicDateAndSlot() {
-  // Standard available slots in order
-  const AVAILABLE_SLOTS = [
-    { start: 9,  label: "9:00 AM - 10:00 AM" },
-    { start: 10, label: "10:00 AM - 11:00 AM" },
-    { start: 11, label: "11:00 AM - 12:00 PM" },
-    { start: 12, label: "12:00 PM - 1:00 PM" },
-    { start: 13, label: "1:00 PM - 2:00 PM" },
-    { start: 14, label: "2:00 PM - 3:00 PM" },
-    { start: 15, label: "3:00 PM - 4:00 PM" },
-    { start: 16, label: "4:00 PM - 5:00 PM" },
-    { start: 17, label: "5:00 PM - 6:00 PM" },
-    { start: 18, label: "6:00 PM - 7:00 PM" },
-    { start: 19, label: "7:00 PM - 8:00 PM" }
-  ];
+// Helper: get availability-checked slots for a specific date (same logic as /api/booking/available-slots)
+const BOOKING_SLOTS = [
+  { id: "slot_1",  time: "9:00 AM - 10:00 AM",  start: 9  },
+  { id: "slot_2",  time: "10:00 AM - 11:00 AM", start: 10 },
+  { id: "slot_3",  time: "11:00 AM - 12:00 PM", start: 11 },
+  { id: "slot_4",  time: "12:00 PM - 1:00 PM",  start: 12 },
+  { id: "slot_5",  time: "1:00 PM - 2:00 PM",   start: 13 },
+  { id: "slot_6",  time: "2:00 PM - 3:00 PM",   start: 14 },
+  { id: "slot_7",  time: "3:00 PM - 4:00 PM",   start: 15 },
+  { id: "slot_8",  time: "4:00 PM - 5:00 PM",   start: 16 },
+  { id: "slot_9",  time: "5:00 PM - 6:00 PM",   start: 17 },
+  { id: "slot_10", time: "6:00 PM - 7:00 PM",   start: 18 },
+  { id: "slot_11", time: "7:00 PM - 8:00 PM",   start: 19 }
+];
 
+async function getAvailableSlotsForDate(dateStr) {
+  // Start with all slots marked available
+  const slots = BOOKING_SLOTS.map(s => ({ ...s, available: true }));
+  try {
+    const allOrders = await DbLayer.getAllOrders();
+    const targetDate = dateStr.split('T')[0];
+    const matchingOrders = allOrders.filter(o => o.date && o.date.split('T')[0] === targetDate);
+    const bookedRanges = matchingOrders.map(o => parseTimeRange(o.timeSlot)).filter(r => r !== null);
+    for (const slot of slots) {
+      const slotRange = parseTimeRange(slot.time);
+      if (slotRange && bookedRanges.some(b => timesOverlap(slotRange, b))) {
+        slot.available = false;
+      }
+    }
+  } catch (err) {
+    console.error('[getAvailableSlotsForDate] DB check failed, returning all slots as available:', err.message);
+  }
+  return slots;
+}
+
+// Helper: compute the next available date and slot based on real DB availability + current IST time
+async function getDynamicDateAndSlot() {
   // Get current IST time (UTC+5:30)
   const now = new Date();
-  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
   const istNow = new Date(now.getTime() + istOffset);
   const currentHour = istNow.getUTCHours();
   const currentMinute = istNow.getUTCMinutes();
 
-  // Format a Date object as YYYY-MM-DD in IST
   const formatDate = (d) => {
     const y = d.getUTCFullYear();
     const m = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -2000,18 +2020,32 @@ function getDynamicDateAndSlot() {
     return `${y}-${m}-${day}`;
   };
 
-  // Find next slot that starts strictly after current hour
-  // (or same hour but minute is 0, meaning the slot hasn't started yet)
-  const nextSlot = AVAILABLE_SLOTS.find(s => s.start > currentHour || (s.start === currentHour && currentMinute === 0));
+  // Try today first, then tomorrow
+  for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+    const targetDate = new Date(istNow.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+    const dateStr = formatDate(targetDate);
+    const slots = await getAvailableSlotsForDate(dateStr);
 
-  if (nextSlot) {
-    // A slot is available today
-    return { date: formatDate(istNow), timeSlot: nextSlot.label };
-  } else {
-    // No more slots today — default to first slot tomorrow
-    const tomorrow = new Date(istNow.getTime() + 24 * 60 * 60 * 1000);
-    return { date: formatDate(tomorrow), timeSlot: AVAILABLE_SLOTS[0].label };
+    // Find first slot that is available AND starts after current IST hour (today only matters for today)
+    const candidateSlot = slots.find(s => {
+      if (!s.available) return false;
+      if (dayOffset === 0) {
+        // For today: slot must start strictly after current hour (or same hour at minute 0)
+        return s.start > currentHour || (s.start === currentHour && currentMinute === 0);
+      }
+      // For tomorrow: any available slot
+      return true;
+    });
+
+    if (candidateSlot) {
+      console.log(`[DynamicSlot] date=${dateStr} slot=${candidateSlot.time} (IST ${currentHour}:${String(currentMinute).padStart(2,'0')})`);
+      return { date: dateStr, timeSlot: candidateSlot.time };
+    }
   }
+
+  // Ultimate fallback (should never be reached)
+  const tomorrow = new Date(istNow.getTime() + 24 * 60 * 60 * 1000);
+  return { date: formatDate(tomorrow), timeSlot: BOOKING_SLOTS[0].time };
 }
 
 // Helper to resolve address for a user phone number
@@ -2124,14 +2158,14 @@ const handleGetCheckout = async (req, res) => {
           userId: targetPhone,
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
-          date: queryDate || getDynamicDateAndSlot().date,
+          date: queryDate || (await getDynamicDateAndSlot()).date,
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
           productId: resolvedProduct.productId,
           description: resolvedProduct.description,
-          timeSlot: querySlot || getDynamicDateAndSlot().timeSlot,
+          timeSlot: querySlot || (await getDynamicDateAndSlot()).timeSlot,
           address: resolvedAddr,
           payment: {
             paymentMethod: "Wallet",
@@ -2161,14 +2195,14 @@ const handleGetCheckout = async (req, res) => {
           userId: user.phone,
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
-          date: queryDate || getDynamicDateAndSlot().date,
+          date: queryDate || (await getDynamicDateAndSlot()).date,
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
           productId: resolvedProduct.productId,
           description: resolvedProduct.description,
-          timeSlot: querySlot || getDynamicDateAndSlot().timeSlot,
+          timeSlot: querySlot || (await getDynamicDateAndSlot()).timeSlot,
           address: resolvedAddr,
           payment: {
             paymentMethod: "Wallet",
@@ -2479,29 +2513,17 @@ function timesOverlap(range1, range2) {
 // 18b. Booking Availability: Available Time Slots
 const handleGetAvailableSlots = async (req, res) => {
   const { date, productId } = req.query;
-  
-  const slots = [
-    { id: "slot_1", time: "9:00 AM - 10:00 AM", available: true },
-    { id: "slot_2", time: "10:00 AM - 11:00 AM", available: true },
-    { id: "slot_3", time: "11:00 AM - 12:00 PM", available: true },
-    { id: "slot_4", time: "12:00 PM - 1:00 PM", available: true },
-    { id: "slot_5", time: "1:00 PM - 2:00 PM", available: true },
-    { id: "slot_6", time: "2:00 PM - 3:00 PM", available: true },
-    { id: "slot_7", time: "3:00 PM - 4:00 PM", available: true },
-    { id: "slot_8", time: "4:00 PM - 5:00 PM", available: true },
-    { id: "slot_9", time: "5:00 PM - 6:00 PM", available: true },
-    { id: "slot_10", time: "6:00 PM - 7:00 PM", available: true },
-    { id: "slot_11", time: "7:00 PM - 8:00 PM", available: true }
-  ];
 
   try {
+    let slots;
     if (date) {
+      // Use shared helper which checks real DB bookings for the given date
+      const rawSlots = BOOKING_SLOTS.map(s => ({ ...s, available: true }));
       const allOrders = await DbLayer.getAllOrders();
       const targetDate = date.split('T')[0];
       const matchingOrders = allOrders.filter(order => {
         if (!order.date) return false;
         const orderDate = order.date.split('T')[0];
-        
         if (productId) {
           const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
                                (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
@@ -2509,20 +2531,17 @@ const handleGetAvailableSlots = async (req, res) => {
         }
         return orderDate === targetDate;
       });
-
-      const bookedRanges = matchingOrders
-        .map(order => parseTimeRange(order.timeSlot))
-        .filter(range => range !== null);
-
-      for (const slot of slots) {
+      const bookedRanges = matchingOrders.map(o => parseTimeRange(o.timeSlot)).filter(r => r !== null);
+      for (const slot of rawSlots) {
         const slotRange = parseTimeRange(slot.time);
-        if (slotRange) {
-          const isBooked = bookedRanges.some(bookedRange => timesOverlap(slotRange, bookedRange));
-          if (isBooked) {
-            slot.available = false;
-          }
+        if (slotRange && bookedRanges.some(b => timesOverlap(slotRange, b))) {
+          slot.available = false;
         }
       }
+      slots = rawSlots;
+    } else {
+      // No date provided — return all slots as available
+      slots = BOOKING_SLOTS.map(s => ({ ...s, available: true }));
     }
 
     res.json({
