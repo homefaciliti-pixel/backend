@@ -807,9 +807,10 @@ app.get('/', async (req, res) => {
 
 // 1. Auth: Send OTP
 app.post('/api/auth/send-otp', async (req, res) => {
-  const { phone, countryCode } = req.body;
+  const phone = req.body.phone || req.body.userId;
+  const { countryCode } = req.body;
   if (!phone) {
-    return res.status(400).json({ error: "Phone number is required" });
+    return res.status(400).json({ error: "Phone number / userId is required" });
   }
   const prefix = countryCode || "+91";
   
@@ -882,9 +883,10 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
 // 2. Auth: Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
-  const { phone, otp, countryCode } = req.body;
+  const phone = req.body.phone || req.body.userId;
+  const { otp, countryCode } = req.body;
   if (!phone || !otp) {
-    return res.status(400).json({ error: "Phone and OTP are required" });
+    return res.status(400).json({ error: "Phone / userId and OTP are required" });
   }
 
   const storedData = activeOTPs.get(phone);
@@ -1796,7 +1798,7 @@ app.get('/api/addresses', async (req, res) => {
 });
 
 // Checkout: Place Order and Generate ID
-app.post('/api/checkout', async (req, res) => {
+const handlePostCheckout = async (req, res) => {
   let productId = req.body.productId;
   let timeSlot = req.body.timeSlot;
   let date = req.body.date;
@@ -1813,11 +1815,16 @@ app.post('/api/checkout', async (req, res) => {
   }
   
   try {
-    // User validation: can use authenticated user, fallback to a mock phone if not logged in
-    let phone = "9876543210"; // Default fallback
-    const authUser = await getAuthenticatedUser(req).catch(() => null);
-    if (authUser) {
-      phone = authUser.phone;
+    // User validation: prioritize explicit userId/phone in body or query, then authenticated user, then fallback
+    let phone = req.body.userId || req.body.phone || req.body.userPhone || req.query.userId;
+    if (!phone) {
+      const authUser = await getAuthenticatedUser(req).catch(() => null);
+      if (authUser) {
+        phone = authUser.phone;
+      }
+    }
+    if (!phone) {
+      phone = "9876543210"; // Default fallback
     }
     
     // Resolve service properties from SERVICES_DATA using productId (which matches service title)
@@ -1887,6 +1894,7 @@ app.post('/api/checkout', async (req, res) => {
     const newOrder = {
       id: orderId,
       userPhone: phone,
+      userId: phone,
       serviceName: foundService.title,
       price: Number(foundService.price),
       date: date || new Date().toISOString().split('T')[0],
@@ -1923,7 +1931,8 @@ app.post('/api/checkout', async (req, res) => {
     res.json({
       success: true,
       orderId: orderId,
-      order: newOrder,
+      userId: phone,
+      order: { ...newOrder, userId: phone },
       razorpayOrderId: razorpayOrderId,
       message: "Checkout completed successfully and order placed"
     });
@@ -1931,7 +1940,10 @@ app.post('/api/checkout', async (req, res) => {
     console.error("Checkout failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
-});
+};
+
+app.post('/api/checkout', handlePostCheckout);
+app.post('/api/checkout-api', handlePostCheckout);
 
 // Checkout: Retrieve Checkout Summary (Get details)
 const handleGetCheckout = async (req, res) => {
