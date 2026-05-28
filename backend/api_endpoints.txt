@@ -518,3 +518,34 @@ GET /api/payments/verify/:orderId
     "message": "Payment checked successfully from Razorpay. Status: captured"
   }
 - Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
+
+
+---------------------------------------------------------
+14. Database Configuration & Fallback Engine (MySQL + MongoDB + JSON)
+---------------------------------------------------------
+
+The backend uses a highly resilient, triple-hybrid database routing architecture to store and manage data. It dynamically chooses the active database layer based on environment configuration and server startup connectivity.
+
+Database Priority Order:
+1. MySQL (Primary)
+   - Host: BigRock (homefaciliti.com)
+   - Configuration Env: MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, MYSQL_PORT
+   - Schema Auto-Migrations: On server startup, the server automatically queries "CREATE TABLE IF NOT EXISTS" for:
+     - `users`
+     - `orders` (stores nested object columns like address and payment as JSON strings)
+     - `addresses`
+     - `categories` (seeds default categories if empty)
+     - `referrals_applied`
+2. MongoDB (Secondary Fallback)
+   - Host: MongoDB Atlas (backend.qxop8cz.mongodb.net)
+   - Configuration Env: MONGODB_URI
+   - Framework: Mongoose ODM
+3. JSON File Database (Tertiary Fallback)
+   - Host: Local file system (`database.json`)
+   - Backup mode: Activates automatically if both MySQL and MongoDB fail to connect.
+
+How the Fallback Engine Works:
+- On startup, the backend attempts to establish a connection to the MySQL pool.
+- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and attempts a connection to MongoDB Atlas.
+- If MongoDB also fails (e.g. IP not whitelisted or querySrv DNS error), it logs the warning and falls back to running in-memory backed by `database.json`.
+- All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring zero service downtime across environments.
