@@ -1799,15 +1799,15 @@ app.get('/api/addresses', async (req, res) => {
 
 // Checkout: Place Order and Generate ID
 const handlePostCheckout = async (req, res) => {
-  let productId = req.body.productId;
-  let timeSlot = req.body.timeSlot;
-  let date = req.body.date;
+  let productId = req.body.productId || req.query.productId;
+  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot;
+  let date = req.body.date || req.query.date;
 
   // Support both destructured root parameters and nested 'product' object parameters
   if (!productId && req.body.product) {
     productId = req.body.product.productId;
-    timeSlot = req.body.product.timeSlot;
-    date = req.body.product.date;
+    timeSlot = req.body.product.timeSlot || req.body.product.slot || timeSlot;
+    date = req.body.product.date || date;
   }
   
   if (!productId) {
@@ -1948,6 +1948,10 @@ app.post('/api/checkout-api', handlePostCheckout);
 // Checkout: Retrieve Checkout Summary (Get details)
 const handleGetCheckout = async (req, res) => {
   const idParam = req.params.userId;
+  // Read date and timeSlot/slot from query, body, or headers
+  const queryDate = req.query.date || req.body.date || req.headers['x-date'];
+  const querySlot = req.query.timeSlot || req.query.slot || req.body.timeSlot || req.body.slot || req.headers['x-timeslot'] || req.headers['x-slot'];
+  
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
@@ -1971,14 +1975,14 @@ const handleGetCheckout = async (req, res) => {
           userPhone: targetPhone,
           serviceName: "Tap Repair",
           price: 299,
-          date: new Date().toISOString().split('T')[0],
+          date: queryDate || new Date().toISOString().split('T')[0],
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
           productId: "Tap Repair",
           description: "Fix leaking taps and water issues",
-          timeSlot: "2:00 PM - 3:00 PM",
+          timeSlot: querySlot || "2:00 PM - 3:00 PM",
           address: {
             type: "Home",
             houseNo: "104",
@@ -2009,14 +2013,14 @@ const handleGetCheckout = async (req, res) => {
           userPhone: user.phone,
           serviceName: "Tap Repair",
           price: 299,
-          date: new Date().toISOString().split('T')[0],
+          date: queryDate || new Date().toISOString().split('T')[0],
           status: "Pending",
           bookingStatus: "searching",
           partnerName: null,
           partnerDistance: null,
           productId: "Tap Repair",
           description: "Fix leaking taps and water issues",
-          timeSlot: "2:00 PM - 3:00 PM",
+          timeSlot: querySlot || "2:00 PM - 3:00 PM",
           address: {
             type: "Home",
             houseNo: "104",
@@ -2035,6 +2039,14 @@ const handleGetCheckout = async (req, res) => {
           }
         };
       }
+    }
+    
+    // Explicit query override if dynamically specified on the request
+    if (queryDate) {
+      order.date = queryDate;
+    }
+    if (querySlot) {
+      order.timeSlot = querySlot;
     }
     
     res.json({
