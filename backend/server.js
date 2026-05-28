@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
@@ -20,174 +19,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 // Active OTPs in-memory storage (phone -> { otp, expiresAt })
 const activeOTPs = new Map();
 
-// ----------------------------------------
-// MONGOOSE SCHEMAS & MODELS
-// ----------------------------------------
-
-const mongooseUserSchema = new mongoose.Schema({
-  name: { type: String, default: "Hira" },
-  phone: { type: String, required: true, unique: true },
-  email: { type: String, default: "hira@hmail.com" },
-  location: { type: String, default: "" },
-  locality: { type: String, default: "" },
-  gender: { type: String, default: "Male" },
-  referralCode: { type: String, required: true },
-  walletBalance: { type: Number, default: 0.0 },
-  countryCode: { type: String, default: "+91" }
-});
-const MongoUser = mongoose.model('User', mongooseUserSchema);
-
-const mongooseOrderSchema = new mongoose.Schema({
-  id: { type: Number, required: true, unique: true },
-  userPhone: { type: String, required: true },
-  serviceName: { type: String, required: true },
-  price: { type: Number, required: true },
-  date: { type: String, required: true },
-  status: { type: String, default: "Pending" },
-  bookingStatus: { type: String, default: "searching" },
-  partnerName: { type: String, default: null },
-  partnerDistance: { type: String, default: null },
-  productId: { type: String, default: null },
-  description: { type: String, default: null },
-  timeSlot: { type: String, default: null },
-  address: { type: mongoose.Schema.Types.Mixed, default: null },
-  payment: { type: mongoose.Schema.Types.Mixed, default: null },
-  razorpayOrderId: { type: String, default: null },
-  razorpayPaymentId: { type: String, default: null },
-  createdAt: { type: Number, default: () => Date.now() }
-});
-const MongoOrder = mongoose.model('Order', mongooseOrderSchema);
-
-const mongooseReferralAppliedSchema = new mongoose.Schema({
-  userPhone: { type: String, required: true, unique: true },
-  referrerPhone: { type: String, required: true },
-  appliedAt: { type: Date, default: Date.now }
-});
-const MongoReferralApplied = mongoose.model('ReferralApplied', mongooseReferralAppliedSchema);
-
-const mongooseAddressSchema = new mongoose.Schema({
-  userPhone: { type: String, required: true },
-  type: { type: String, default: "Home" },
-  houseNo: { type: String, default: "" },
-  society: { type: String, default: "" },
-  floor: { type: String, default: "" },
-  landmark: { type: String, default: "" },
-  city: { type: String, default: "" },
-  locality: { type: String, default: "" },
-  pincode: { type: String, default: "" },
-  latitude: { type: Number },
-  longitude: { type: Number }
-});
-const MongoAddress = mongoose.model('Address', mongooseAddressSchema);
-
-const mongooseCategorySchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
-  name: { type: String, required: true, unique: true },
-  image: { type: String, default: "" }
-});
-const MongoCategory = mongoose.model('Category', mongooseCategorySchema);
-
-// ----------------------------------------
-// DATABASE ABSTRACTED DATA LAYER (MongoDB)
-// ----------------------------------------
-const MongoDbLayer = {
-  // --- USER METHODS ---
-  async getUserByPhone(phone) {
-    return await MongoUser.findOne({ phone: phone }).lean();
-  },
-
-  async getUserByReferralCode(code) {
-    return await MongoUser.findOne({ referralCode: code }).lean();
-  },
-
-  async createUser(user) {
-    const newUser = new MongoUser(user);
-    await newUser.save();
-    return newUser.toObject();
-  },
-
-  async updateUser(phone, updates) {
-    return await MongoUser.findOneAndUpdate({ phone: phone }, { $set: updates }, { new: true }).lean();
-  },
-
-  async countUsers() {
-    return await MongoUser.countDocuments();
-  },
-
-  // --- ORDER METHODS ---
-  async getOrderById(id) {
-    return await MongoOrder.findOne({ id: id }).lean();
-  },
-
-  async getOrdersByUserPhone(phone) {
-    return await MongoOrder.find({ userPhone: phone }).sort({ id: -1 }).lean();
-  },
-
-  async getAllOrders() {
-    return await MongoOrder.find({}).sort({ id: -1 }).lean();
-  },
-
-  async createOrder(order) {
-    const newOrder = new MongoOrder(order);
-    await newOrder.save();
-    return newOrder.toObject();
-  },
-
-  async updateOrder(id, updates) {
-    return await MongoOrder.findOneAndUpdate({ id: id }, { $set: updates }, { new: true }).lean();
-  },
-
-  async getLastOrderId() {
-    const last = await MongoOrder.findOne().sort({ id: -1 }).lean();
-    return last ? last.id : 0;
-  },
-
-  async countOrders() {
-    return await MongoOrder.countDocuments();
-  },
-
-  // --- REFERRAL METHODS ---
-  async getReferralApplied(phone) {
-    return await MongoReferralApplied.findOne({ userPhone: phone }).lean();
-  },
-
-  async createReferralApplied(referralApplied) {
-    const newRef = new MongoReferralApplied(referralApplied);
-    await newRef.save();
-    return newRef.toObject();
-  },
-
-  // --- CATEGORY METHODS ---
-  async getCategories() {
-    const list = await MongoCategory.find().lean();
-    return list.map(c => ({
-      id: c.id,
-      name: c.name,
-      image: c.image || ""
-    }));
-  },
-
-  async addCategory(categoryData) {
-    const { name, id, image } = categoryData;
-    const finalId = id || name.toLowerCase().replace(/\s+/g, '_');
-    const existing = await MongoCategory.findOne({ $or: [{ name: name }, { id: finalId }] }).lean();
-    if (existing) return existing;
-    const newCat = new MongoCategory({ id: finalId, name: name, image: image || "" });
-    await newCat.save();
-    return newCat.toObject();
-  },
-
-  // --- ADDRESS METHODS ---
-  async getAddressesByUserPhone(phone) {
-    return await MongoAddress.find({ userPhone: phone }).lean();
-  },
-
-  async createAddress(address) {
-    const newAddress = new MongoAddress(address);
-    await newAddress.save();
-    return newAddress.toObject();
-  }
-};
+// (Removed Mongoose/MongoDB Schemas, Models and MongoDbLayer)
 
 // ----------------------------------------
 // DATABASE ABSTRACTED DATA LAYER (JSON File Database fallback)
@@ -776,23 +608,12 @@ const JsonDbLayer = {
 // ----------------------------------------
 // HYBRID DATABASE ROUTER
 // ----------------------------------------
-let dbMode = "mongo";
+let dbMode = "mysql";
 
 const DbLayer = {
   getLayer() {
     if (dbMode === "mysql" && mysqlPool !== null) {
       return MySqlDbLayer;
-    }
-    if (dbMode === "mongo" && mongoose.connection.readyState === 1) {
-      return MongoDbLayer;
-    }
-    if (MONGODB_URI.includes('<db_password>')) {
-      dbMode = "json";
-      return JsonDbLayer;
-    }
-    if (mongoose.connection.readyState === 1) {
-      dbMode = "mongo";
-      return MongoDbLayer;
     }
     dbMode = "json";
     return JsonDbLayer;
@@ -821,53 +642,11 @@ const DbLayer = {
 // DATABASE CONFIGURATION AND INITIALIZATION
 // ----------------------------------------
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/home-services';
-
 (async () => {
   const mysqlSuccess = await initMySqlDb();
   if (!mysqlSuccess) {
-    if (MONGODB_URI.includes('<db_password>')) {
-      console.log("MONGODB_URI contains placeholder '<db_password>'. Bypassing MongoDB and running in JSON file database mode.");
-      dbMode = "json";
-      initJsonDb();
-    } else {
-      console.log(`Attempting connection to MongoDB at: ${MONGODB_URI}...`);
-      mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 3000 })
-        .then(async () => {
-          console.log('Successfully connected to MongoDB. Running in MongoDB mode.');
-          dbMode = "mongo";
-          
-          // Seed default categories if MongoDB collection is empty
-          try {
-            // Migration: Rename 'Cleaning Services', 'Cleaning' or 'clening' to 'Cleaning' in existing MongoDB documents
-            await MongoCategory.updateMany(
-              { name: { $in: ["Cleaning Services", "Cleaning", "clening"] } },
-              { $set: { name: "Cleaning", id: "cleaning" } }
-            );
-            // Migration: Update category images in existing MongoDB documents to local relative asset paths
-            for (const cat of DEFAULT_CATEGORIES) {
-              await MongoCategory.updateOne(
-                { id: cat.id },
-                { $set: { image: cat.image } }
-              );
-            }
-
-            const count = await MongoCategory.countDocuments();
-            if (count === 0) {
-              await MongoCategory.insertMany(DEFAULT_CATEGORIES);
-              console.log("Seeded default categories in MongoDB.");
-            }
-          } catch (err) {
-            console.error("Error seeding or updating categories in MongoDB:", err.message);
-          }
-        })
-        .catch(err => {
-          console.error('Failed to connect to MongoDB on startup. Falling back to local JSON database mode.');
-          console.error(err.message);
-          dbMode = "json";
-          initJsonDb();
-        });
-    }
+    dbMode = "json";
+    initJsonDb();
   }
 })();
 

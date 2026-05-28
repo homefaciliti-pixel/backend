@@ -391,7 +391,7 @@ Key Behaviors:
 1. Auto-Create (Persistent Fallback):
    - If no order exists for the given userId (phone number) or numeric orderId, the server
      automatically creates a new order with a proper auto-incremented ID.
-   - The created order is persisted to the database (MongoDB or database.json).
+   - The created order is persisted to the database (MySQL or database.json).
    - A 2nd call with the same userId returns the previously created order instead of creating another.
 
 2. Auto-Address Resolution (3-level fallback):
@@ -408,10 +408,10 @@ Key Behaviors:
 
 
 ---------------------------------------------------------
-14. Database Configuration & Fallback Engine (MySQL + MongoDB + JSON)
+14. Database Configuration & Fallback Engine (MySQL + JSON)
 ---------------------------------------------------------
 
-The backend uses a highly resilient, triple-hybrid database routing architecture to store and manage data. It dynamically chooses the active database layer based on environment configuration and server startup connectivity.
+The backend uses a highly resilient database routing architecture to store and manage data. It dynamically chooses the active database layer based on environment configuration and server startup connectivity, supporting MySQL as the remote database and a local JSON file database as a fallback.
 
 Database Priority Order:
 1. MySQL (Primary)
@@ -423,17 +423,12 @@ Database Priority Order:
      - `addresses`
      - `categories` (seeds default categories if empty)
      - `referrals_applied`
-2. MongoDB (Secondary Fallback)
-   - Host: MongoDB Atlas (backend.qxop8cz.mongodb.net)
-   - Configuration Env: MONGODB_URI
-   - Framework: Mongoose ODM
-3. JSON File Database (Tertiary Fallback)
+2. JSON File Database (Fallback)
    - Host: Local file system (`database.json`)
-   - Backup mode: Activates automatically if both MySQL and MongoDB fail to connect.
+   - Backup mode: Activates automatically if MySQL connection fails to establish or is unconfigured.
 
 How the Fallback Engine Works:
 - On startup, the backend attempts to establish a connection to the MySQL pool.
-- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and attempts a connection to MongoDB Atlas.
-- If MongoDB also fails (e.g. IP not whitelisted or querySrv DNS error), it logs the warning and falls back to running in-memory backed by `database.json`.
+- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and falls back to running in-memory backed by `database.json`.
 - All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring zero service downtime across environments.
 
