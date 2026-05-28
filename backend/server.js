@@ -1964,6 +1964,7 @@ const handleGetCheckout = async (req, res) => {
     res.json({
       success: true,
       orderId: order.id,
+      userId: order.userPhone,
       product: {
         productId: order.productId || order.serviceName,
         serviceName: order.serviceName,
