@@ -3,8 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+
+let mysqlPool = null;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -211,6 +214,347 @@ const DEFAULT_CATEGORIES = [
   { id: "compounder", name: "Compounder", image: "/assets/categories/compounder.png" },
   { id: "halwai", name: "Halwai", image: "/assets/categories/halwai.png" }
 ];
+
+// ----------------------------------------
+// DATABASE ABSTRACTED DATA LAYER (MySQL)
+// ----------------------------------------
+async function initMySqlDb() {
+  const host = process.env.MYSQL_HOST;
+  const user = process.env.MYSQL_USER;
+  const password = process.env.MYSQL_PASSWORD;
+  const database = process.env.MYSQL_DATABASE;
+  const port = process.env.MYSQL_PORT || 3306;
+
+  if (!host || !user || !password || !database) {
+    console.log("MySQL environment variables are incomplete. Skipping MySQL initialization.");
+    return false;
+  }
+
+  try {
+    console.log(`Attempting connection to MySQL at: ${host}:${port}...`);
+    mysqlPool = mysql.createPool({
+      host,
+      user,
+      password,
+      database,
+      port: parseInt(port),
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    });
+
+    const conn = await mysqlPool.getConnection();
+    console.log("Successfully connected to MySQL. Creating tables if not exist...");
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        phone VARCHAR(20) PRIMARY KEY,
+        name VARCHAR(100) DEFAULT 'Hira',
+        email VARCHAR(100) DEFAULT 'hira@hmail.com',
+        location VARCHAR(255) DEFAULT '',
+        locality VARCHAR(255) DEFAULT '',
+        gender VARCHAR(20) DEFAULT 'Male',
+        referralCode VARCHAR(50) NOT NULL,
+        walletBalance DECIMAL(10,2) DEFAULT 0.00,
+        countryCode VARCHAR(10) DEFAULT '+91'
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id INT PRIMARY KEY,
+        userPhone VARCHAR(20) NOT NULL,
+        serviceName VARCHAR(100) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        date VARCHAR(50) NOT NULL,
+        status VARCHAR(50) DEFAULT 'Pending',
+        bookingStatus VARCHAR(50) DEFAULT 'searching',
+        partnerName VARCHAR(100) DEFAULT NULL,
+        partnerDistance VARCHAR(50) DEFAULT NULL,
+        productId VARCHAR(100) DEFAULT NULL,
+        description TEXT DEFAULT NULL,
+        timeSlot VARCHAR(100) DEFAULT NULL,
+        address TEXT DEFAULT NULL,
+        payment TEXT DEFAULT NULL,
+        razorpayOrderId VARCHAR(100) DEFAULT NULL,
+        razorpayPaymentId VARCHAR(100) DEFAULT NULL,
+        createdAt BIGINT NOT NULL
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS referrals_applied (
+        userPhone VARCHAR(20) PRIMARY KEY,
+        referrerPhone VARCHAR(20) NOT NULL,
+        appliedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS addresses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userPhone VARCHAR(20) NOT NULL,
+        type VARCHAR(50) DEFAULT 'Home',
+        houseNo VARCHAR(100) DEFAULT '',
+        society VARCHAR(255) DEFAULT '',
+        floor VARCHAR(50) DEFAULT '',
+        landmark VARCHAR(255) DEFAULT '',
+        city VARCHAR(255) DEFAULT '',
+        locality VARCHAR(255) DEFAULT '',
+        pincode VARCHAR(20) DEFAULT '',
+        latitude DECIMAL(10,8) DEFAULT NULL,
+        longitude DECIMAL(11,8) DEFAULT NULL
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        image VARCHAR(255) DEFAULT ''
+      )
+    `);
+
+    const [rows] = await conn.query("SELECT COUNT(*) as count FROM categories");
+    if (rows[0].count === 0) {
+      console.log("Seeding default categories in MySQL...");
+      for (const cat of DEFAULT_CATEGORIES) {
+        await conn.query(
+          "INSERT INTO categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
+          [cat.id, cat.name, cat.image]
+        );
+      }
+    } else {
+      for (const cat of DEFAULT_CATEGORIES) {
+        await conn.query(
+          "INSERT INTO categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image=VALUES(image)",
+          [cat.id, cat.name, cat.image]
+        );
+      }
+    }
+
+    conn.release();
+    console.log("MySQL database setup complete. Running in MySQL mode.");
+    dbMode = "mysql";
+    return true;
+  } catch (err) {
+    console.error("Failed to connect to MySQL on startup. Falling back:", err.message);
+    mysqlPool = null;
+    return false;
+  }
+}
+
+const MySqlDbLayer = {
+  async queryOne(sql, params) {
+    const [rows] = await mysqlPool.query(sql, params);
+    return rows.length > 0 ? rows[0] : null;
+  },
+
+  async getUserByPhone(phone) {
+    const row = await this.queryOne("SELECT * FROM users WHERE phone = ?", [phone]);
+    if (!row) return null;
+    row.walletBalance = parseFloat(row.walletBalance);
+    return row;
+  },
+
+  async getUserByReferralCode(code) {
+    const row = await this.queryOne("SELECT * FROM users WHERE referralCode = ?", [code]);
+    if (!row) return null;
+    row.walletBalance = parseFloat(row.walletBalance);
+    return row;
+  },
+
+  async createUser(user) {
+    const { phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode } = user;
+    const finalName = name || "Hira";
+    const finalEmail = email || "hira@hmail.com";
+    const finalLocation = location || "";
+    const finalLocality = locality || "";
+    const finalGender = gender || "Male";
+    const finalWalletBalance = walletBalance !== undefined ? walletBalance : 0.00;
+    const finalCountryCode = countryCode || "+91";
+
+    await mysqlPool.query(
+      "INSERT INTO users (phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), location=VALUES(location), locality=VALUES(locality), gender=VALUES(gender), referralCode=VALUES(referralCode), walletBalance=VALUES(walletBalance), countryCode=VALUES(countryCode)",
+      [phone, finalName, finalEmail, finalLocation, finalLocality, finalGender, referralCode, finalWalletBalance, finalCountryCode]
+    );
+
+    return this.getUserByPhone(phone);
+  },
+
+  async updateUser(phone, updates) {
+    if (Object.keys(updates).length === 0) return this.getUserByPhone(phone);
+    const keys = Object.keys(updates);
+    const values = Object.values(updates);
+    const setClause = keys.map(k => `${k} = ?`).join(", ");
+    await mysqlPool.query(`UPDATE users SET ${setClause} WHERE phone = ?`, [...values, phone]);
+    return this.getUserByPhone(phone);
+  },
+
+  async countUsers() {
+    const row = await this.queryOne("SELECT COUNT(*) as count FROM users");
+    return row ? row.count : 0;
+  },
+
+  async getOrderById(id) {
+    const row = await this.queryOne("SELECT * FROM orders WHERE id = ?", [id]);
+    if (!row) return null;
+    row.price = parseFloat(row.price);
+    row.address = row.address ? JSON.parse(row.address) : null;
+    row.payment = row.payment ? JSON.parse(row.payment) : null;
+    return row;
+  },
+
+  async getOrdersByUserPhone(phone) {
+    const [rows] = await mysqlPool.query("SELECT * FROM orders WHERE userPhone = ? ORDER BY id DESC", [phone]);
+    return rows.map(row => {
+      row.price = parseFloat(row.price);
+      row.address = row.address ? JSON.parse(row.address) : null;
+      row.payment = row.payment ? JSON.parse(row.payment) : null;
+      return row;
+    });
+  },
+
+  async getAllOrders() {
+    const [rows] = await mysqlPool.query("SELECT * FROM orders ORDER BY id DESC");
+    return rows.map(row => {
+      row.price = parseFloat(row.price);
+      row.address = row.address ? JSON.parse(row.address) : null;
+      row.payment = row.payment ? JSON.parse(row.payment) : null;
+      return row;
+    });
+  },
+
+  async createOrder(order) {
+    const {
+      id, userPhone, serviceName, price, date, status, bookingStatus,
+      partnerName, partnerDistance, productId, description, timeSlot,
+      address, payment, razorpayOrderId, razorpayPaymentId, createdAt
+    } = order;
+
+    const finalStatus = status || "Pending";
+    const finalBookingStatus = bookingStatus || "searching";
+    const finalAddress = address ? JSON.stringify(address) : null;
+    const finalPayment = payment ? JSON.stringify(payment) : null;
+    const finalCreatedAt = createdAt || Date.now();
+
+    await mysqlPool.query(
+      `INSERT INTO orders (
+        id, userPhone, serviceName, price, date, status, bookingStatus,
+        partnerName, partnerDistance, productId, description, timeSlot,
+        address, payment, razorpayOrderId, razorpayPaymentId, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        userPhone=VALUES(userPhone), serviceName=VALUES(serviceName), price=VALUES(price),
+        date=VALUES(date), status=VALUES(status), bookingStatus=VALUES(bookingStatus),
+        partnerName=VALUES(partnerName), partnerDistance=VALUES(partnerDistance),
+        productId=VALUES(productId), description=VALUES(description), timeSlot=VALUES(timeSlot),
+        address=VALUES(address), payment=VALUES(payment), razorpayOrderId=VALUES(razorpayOrderId),
+        razorpayPaymentId=VALUES(razorpayPaymentId), createdAt=VALUES(createdAt)`,
+      [
+        id, userPhone, serviceName, price, date, finalStatus, finalBookingStatus,
+        partnerName, partnerDistance, productId, description, timeSlot,
+        finalAddress, finalPayment, razorpayOrderId, razorpayPaymentId, finalCreatedAt
+      ]
+    );
+
+    return this.getOrderById(id);
+  },
+
+  async updateOrder(id, updates) {
+    if (Object.keys(updates).length === 0) return this.getOrderById(id);
+    const keys = Object.keys(updates);
+    const values = Object.values(updates).map(val => {
+      if (typeof val === 'object' && val !== null) {
+        return JSON.stringify(val);
+      }
+      return val;
+    });
+    const setClause = keys.map(k => `${k} = ?`).join(", ");
+    await mysqlPool.query(`UPDATE orders SET ${setClause} WHERE id = ?`, [...values, id]);
+    return this.getOrderById(id);
+  },
+
+  async getLastOrderId() {
+    const row = await this.queryOne("SELECT MAX(id) as lastId FROM orders");
+    return row && row.lastId ? row.lastId : 0;
+  },
+
+  async countOrders() {
+    const row = await this.queryOne("SELECT COUNT(*) as count FROM orders");
+    return row ? row.count : 0;
+  },
+
+  async getReferralApplied(phone) {
+    const row = await this.queryOne("SELECT * FROM referrals_applied WHERE userPhone = ?", [phone]);
+    return row;
+  },
+
+  async createReferralApplied(referralApplied) {
+    const { userPhone, referrerPhone, appliedAt } = referralApplied;
+    const finalAppliedAt = appliedAt ? new Date(appliedAt) : new Date();
+    await mysqlPool.query(
+      "INSERT INTO referrals_applied (userPhone, referrerPhone, appliedAt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE referrerPhone=VALUES(referrerPhone), appliedAt=VALUES(appliedAt)",
+      [userPhone, referrerPhone, finalAppliedAt]
+    );
+    return this.getReferralApplied(userPhone);
+  },
+
+  async getCategories() {
+    const [rows] = await mysqlPool.query("SELECT * FROM categories");
+    return rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      image: r.image || ""
+    }));
+  },
+
+  async addCategory(categoryData) {
+    const { name, id, image } = categoryData;
+    const finalId = id || name.toLowerCase().replace(/\s+/g, '_');
+    await mysqlPool.query(
+      "INSERT INTO categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
+      [finalId, name, image || ""]
+    );
+    const row = await this.queryOne("SELECT * FROM categories WHERE id = ?", [finalId]);
+    return row;
+  },
+
+  async getAddressesByUserPhone(phone) {
+    const [rows] = await mysqlPool.query("SELECT * FROM addresses WHERE userPhone = ?", [phone]);
+    return rows.map(r => {
+      r.latitude = r.latitude !== null ? parseFloat(r.latitude) : null;
+      r.longitude = r.longitude !== null ? parseFloat(r.longitude) : null;
+      return r;
+    });
+  },
+
+  async createAddress(address) {
+    const { userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude } = address;
+    const finalType = type || "Home";
+    const finalHouseNo = houseNo || "";
+    const finalSociety = society || "";
+    const finalFloor = floor || "";
+    const finalLandmark = landmark || "";
+    const finalCity = city || "";
+    const finalLocality = locality || "";
+    const finalPincode = pincode || "";
+
+    await mysqlPool.query(
+      `INSERT INTO addresses (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userPhone, finalType, finalHouseNo, finalSociety, finalFloor, finalLandmark, finalCity, finalLocality, finalPincode, latitude, longitude]
+    );
+
+    const [rows] = await mysqlPool.query("SELECT * FROM addresses WHERE userPhone = ? ORDER BY id DESC LIMIT 1", [userPhone]);
+    if (rows.length > 0) {
+      rows[0].latitude = rows[0].latitude !== null ? parseFloat(rows[0].latitude) : null;
+      rows[0].longitude = rows[0].longitude !== null ? parseFloat(rows[0].longitude) : null;
+      return rows[0];
+    }
+    return address;
+  }
+};
 
 function initJsonDb() {
   if (!fs.existsSync(DB_FILE)) {
@@ -436,6 +780,12 @@ let dbMode = "mongo";
 
 const DbLayer = {
   getLayer() {
+    if (dbMode === "mysql" && mysqlPool !== null) {
+      return MySqlDbLayer;
+    }
+    if (dbMode === "mongo" && mongoose.connection.readyState === 1) {
+      return MongoDbLayer;
+    }
     if (MONGODB_URI.includes('<db_password>')) {
       dbMode = "json";
       return JsonDbLayer;
@@ -473,48 +823,53 @@ const DbLayer = {
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/home-services';
 
-if (MONGODB_URI.includes('<db_password>')) {
-  console.log("MONGODB_URI contains placeholder '<db_password>'. Bypassing MongoDB and running in JSON file database mode.");
-  dbMode = "json";
-  initJsonDb();
-} else {
-  console.log(`Attempting connection to MongoDB at: ${MONGODB_URI}...`);
-  mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 3000 })
-    .then(async () => {
-      console.log('Successfully connected to MongoDB. Running in MongoDB mode.');
-      dbMode = "mongo";
-      
-      // Seed default categories if MongoDB collection is empty
-      try {
-        // Migration: Rename 'Cleaning Services', 'Cleaning' or 'clening' to 'Cleaning' in existing MongoDB documents
-        await MongoCategory.updateMany(
-          { name: { $in: ["Cleaning Services", "Cleaning", "clening"] } },
-          { $set: { name: "Cleaning", id: "cleaning" } }
-        );
-        // Migration: Update category images in existing MongoDB documents to local relative asset paths
-        for (const cat of DEFAULT_CATEGORIES) {
-          await MongoCategory.updateOne(
-            { id: cat.id },
-            { $set: { image: cat.image } }
-          );
-        }
-
-        const count = await MongoCategory.countDocuments();
-        if (count === 0) {
-          await MongoCategory.insertMany(DEFAULT_CATEGORIES);
-          console.log("Seeded default categories in MongoDB.");
-        }
-      } catch (err) {
-        console.error("Error seeding or updating categories in MongoDB:", err.message);
-      }
-    })
-    .catch(err => {
-      console.error('Failed to connect to MongoDB on startup. Falling back to local JSON database mode.');
-      console.error(err.message);
+(async () => {
+  const mysqlSuccess = await initMySqlDb();
+  if (!mysqlSuccess) {
+    if (MONGODB_URI.includes('<db_password>')) {
+      console.log("MONGODB_URI contains placeholder '<db_password>'. Bypassing MongoDB and running in JSON file database mode.");
       dbMode = "json";
       initJsonDb();
-    });
-}
+    } else {
+      console.log(`Attempting connection to MongoDB at: ${MONGODB_URI}...`);
+      mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 3000 })
+        .then(async () => {
+          console.log('Successfully connected to MongoDB. Running in MongoDB mode.');
+          dbMode = "mongo";
+          
+          // Seed default categories if MongoDB collection is empty
+          try {
+            // Migration: Rename 'Cleaning Services', 'Cleaning' or 'clening' to 'Cleaning' in existing MongoDB documents
+            await MongoCategory.updateMany(
+              { name: { $in: ["Cleaning Services", "Cleaning", "clening"] } },
+              { $set: { name: "Cleaning", id: "cleaning" } }
+            );
+            // Migration: Update category images in existing MongoDB documents to local relative asset paths
+            for (const cat of DEFAULT_CATEGORIES) {
+              await MongoCategory.updateOne(
+                { id: cat.id },
+                { $set: { image: cat.image } }
+              );
+            }
+
+            const count = await MongoCategory.countDocuments();
+            if (count === 0) {
+              await MongoCategory.insertMany(DEFAULT_CATEGORIES);
+              console.log("Seeded default categories in MongoDB.");
+            }
+          } catch (err) {
+            console.error("Error seeding or updating categories in MongoDB:", err.message);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to connect to MongoDB on startup. Falling back to local JSON database mode.');
+          console.error(err.message);
+          dbMode = "json";
+          initJsonDb();
+        });
+    }
+  }
+})();
 
 // Global Static Data for Services
 const CATEGORIES_DATA = [
