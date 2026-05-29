@@ -300,7 +300,9 @@ POST /api/address
     "locality": "Andheri West",
     "pincode": "400053",
     "latitude": 26.9124,
-    "longitude": 75.7873
+    "longitude": 75.7873,
+    "name": "John Doe",
+    "alternateNumber": "9999911111"
   }
 - Response: {
     "success": true,
@@ -315,7 +317,9 @@ POST /api/address
       "locality": "Andheri West",
       "pincode": "400053",
       "latitude": 26.9124,
-      "longitude": 75.7873
+      "longitude": 75.7873,
+      "name": "John Doe",
+      "alternateNumber": "9999911111"
     },
     "message": "Address saved successfully"
   }
@@ -424,7 +428,9 @@ GET /api/checkout-api/:userId
       "locality": "Andheri West",
       "pincode": "400053",
       "latitude": 26.9124,
-      "longitude": 75.7873
+      "longitude": 75.7873,
+      "name": "Mock Guest",
+      "alternateNumber": ""
     },
     "payment": {
       "paymentMethod": "Wallet",
@@ -447,7 +453,9 @@ GET /api/checkout-api/:userId
         "locality": "Andheri West",
         "pincode": "400053",
         "latitude": 26.9124,
-        "longitude": 75.7873
+        "longitude": 75.7873,
+        "name": "John Doe",
+        "alternateNumber": "9999911111"
       }
     ],
     "services": [

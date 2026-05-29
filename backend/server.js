@@ -135,9 +135,23 @@ async function initMySqlDb() {
         locality VARCHAR(255) DEFAULT '',
         pincode VARCHAR(20) DEFAULT '',
         latitude DECIMAL(10,8) DEFAULT NULL,
-        longitude DECIMAL(11,8) DEFAULT NULL
+        longitude DECIMAL(11,8) DEFAULT NULL,
+        name VARCHAR(255) DEFAULT '',
+        alternateNumber VARCHAR(50) DEFAULT ''
       )
     `);
+
+    // Schema migrations for name and alternateNumber columns
+    try {
+      await conn.query("ALTER TABLE node_addresses ADD COLUMN name VARCHAR(255) DEFAULT ''");
+    } catch (err) {
+      // Column might already exist
+    }
+    try {
+      await conn.query("ALTER TABLE node_addresses ADD COLUMN alternateNumber VARCHAR(50) DEFAULT ''");
+    } catch (err) {
+      // Column might already exist
+    }
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS node_categories (
@@ -390,7 +404,7 @@ const MySqlDbLayer = {
   },
 
   async createAddress(address) {
-    const { userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude } = address;
+    const { userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber, alternate_number } = address;
     const finalType = type || "Home";
     const finalHouseNo = houseNo || "";
     const finalSociety = society || "";
@@ -399,11 +413,13 @@ const MySqlDbLayer = {
     const finalCity = city || "";
     const finalLocality = locality || "";
     const finalPincode = pincode || "";
+    const finalName = name || "";
+    const finalAltNum = alternateNumber || alternate_number || "";
 
     await mysqlPool.query(
-      `INSERT INTO node_addresses (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userPhone, finalType, finalHouseNo, finalSociety, finalFloor, finalLandmark, finalCity, finalLocality, finalPincode, latitude, longitude]
+      `INSERT INTO node_addresses (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userPhone, finalType, finalHouseNo, finalSociety, finalFloor, finalLandmark, finalCity, finalLocality, finalPincode, latitude, longitude, finalName, finalAltNum]
     );
 
     const [rows] = await mysqlPool.query("SELECT * FROM node_addresses WHERE userPhone = ? ORDER BY id DESC LIMIT 1", [userPhone]);
@@ -1158,7 +1174,9 @@ app.put('/api/auth/profile', async (req, res) => {
           locality: locality || user.locality || "",
           pincode: "",
           latitude: 26.9124,
-          longitude: 75.7873
+          longitude: 75.7873,
+          name: updatedUser.name || user.name || "",
+          alternateNumber: ""
         });
         console.log(`[ProfileUpdate] Synced updated location/locality to node_addresses for user ${user.phone}`);
       } catch (addrErr) {
@@ -2091,7 +2109,7 @@ app.get('/api/bookings', async (req, res) => {
 
 // Addresses: Save a User Address
 const handleAddAddress = async (req, res) => {
-  const { type, houseNo, society, floor, landmark, city, locality, pincode, lat, latitude, lon, longitude, lng } = req.body;
+  const { type, houseNo, society, floor, landmark, city, locality, pincode, lat, latitude, lon, longitude, lng, name, alternateNumber, alternate_number } = req.body;
   
   try {
     let phone;
@@ -2120,7 +2138,9 @@ const handleAddAddress = async (req, res) => {
       locality: locality || "",
       pincode: pincode || "",
       latitude: latValue,
-      longitude: lonValue
+      longitude: lonValue,
+      name: name || "",
+      alternateNumber: alternateNumber || alternate_number || ""
     };
     
     const savedAddress = await DbLayer.createAddress(newAddress);
@@ -2227,7 +2247,9 @@ const handlePostCheckout = async (req, res) => {
           locality: req.body.address.locality || "",
           pincode: req.body.address.pincode || "",
           latitude: Number(req.body.address.latitude) || 0,
-          longitude: Number(req.body.address.longitude) || 0
+          longitude: Number(req.body.address.longitude) || 0,
+          name: req.body.address.name || "",
+          alternateNumber: req.body.address.alternateNumber || req.body.address.alternate_number || ""
         };
         resolvedAddress = await DbLayer.createAddress(newAddress);
         console.log(`[Checkout] Saved new address passed in body for user ${phone}`);
@@ -2472,7 +2494,9 @@ const resolveAddressForPhone = async (phone) => {
         locality: user.locality || "Andheri West",
         pincode: "",
         latitude: 26.9124,
-        longitude: 75.7873
+        longitude: 75.7873,
+        name: user.name || "",
+        alternateNumber: ""
       };
     }
   } catch (userErr) {
@@ -2490,7 +2514,9 @@ const resolveAddressForPhone = async (phone) => {
     locality: "Andheri West",
     pincode: "400053",
     latitude: 26.9124,
-    longitude: 75.7873
+    longitude: 75.7873,
+    name: "Mock Guest",
+    alternateNumber: ""
   };
 };
 
