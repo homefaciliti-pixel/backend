@@ -3530,7 +3530,13 @@ app.get('/api/orders', async (req, res) => {
     }
 
     const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
-    res.json({ success: true, orders: userOrders, message: "Orders retrieved successfully" });
+    res.json({
+      success: true,
+      orders: userOrders,
+      list: userOrders,
+      orderlist: userOrders,
+      message: "Orders retrieved successfully"
+    });
   } catch (err) {
     console.error("Fetch orders failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
