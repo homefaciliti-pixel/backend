@@ -347,8 +347,11 @@ Response Payload:
 7. Razorpay Payment Verification API
 ---------------------------------------------------------
 
+Endpoint: GET /api/payments/verify
+Endpoint: POST /api/payments/verify
 Endpoint: GET /api/payments/verify/:orderId
-Query Parameters: ?paymentId=pay_xxx (optional; directly verifies a specific payment ID)
+Endpoint: POST /api/payments/verify/:orderId
+Parameters (Query/Body/Path): orderId, razorpay_order_id, paymentId / razorpay_payment_id
 Response Payload:
 {
   "success": true,

@@ -580,8 +580,14 @@ GET /api/policies/refund
 13. Razorpay Payment Verification API
 ---------------------------------------------------------
 
+GET /api/payments/verify
+POST /api/payments/verify
 GET /api/payments/verify/:orderId
-- Query Parameters: ?paymentId=pay_xxx (optional; directly verifies a specific payment ID)
+POST /api/payments/verify/:orderId
+- Parameters (Path/Query/Body): 
+  * `orderId` (optional; numeric database order ID)
+  * `razorpay_order_id` / `order_id` (optional; Razorpay Order ID to look up the order by)
+  * `paymentId` / `razorpay_payment_id` (optional; Razorpay Payment ID to verify payment status)
 - Response: {
     "success": true,
     "orderId": 4,
@@ -598,7 +604,7 @@ GET /api/payments/verify/:orderId
     },
     "message": "Payment checked successfully from Razorpay. Status: captured"
   }
-- Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
+- Note: Verifies the payment status using the real Razorpay API. Dynamically detects and resolves the target database order ID from URL path parameters, query string parameters, request body parameters, or by looking up the order matching the `razorpay_order_id`. If `paymentId` is provided, it verifies that specific payment; otherwise, it checks payments for the saved `razorpayOrderId` on the order. Falls back to simulated validation if API keys are unauthenticated.
 
 
 ---------------------------------------------------------

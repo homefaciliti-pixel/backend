@@ -279,6 +279,15 @@ const MySqlDbLayer = {
     return row;
   },
 
+  async getOrderByRazorpayOrderId(rzpOrderId) {
+    const row = await this.queryOne("SELECT * FROM node_orders WHERE razorpayOrderId = ?", [rzpOrderId]);
+    if (!row) return null;
+    row.price = parseFloat(row.price);
+    row.address = row.address ? JSON.parse(row.address) : null;
+    row.payment = row.payment ? JSON.parse(row.payment) : null;
+    return row;
+  },
+
   async getOrdersByUserPhone(phone) {
     const [rows] = await mysqlPool.query("SELECT * FROM node_orders WHERE userPhone = ? ORDER BY id DESC", [phone]);
     return rows.map(row => {
@@ -538,6 +547,11 @@ const JsonDbLayer = {
     return data.orders.find(o => o.id === id) || null;
   },
 
+  async getOrderByRazorpayOrderId(rzpOrderId) {
+    const data = this.readData();
+    return data.orders.find(o => o.razorpayOrderId === rzpOrderId) || null;
+  },
+
   async getOrdersByUserPhone(phone) {
     const data = this.readData();
     return data.orders.filter(o => o.userPhone === phone).sort((a, b) => b.id - a.id);
@@ -668,6 +682,7 @@ const DbLayer = {
   async updateUser(phone, updates) { return this.getLayer().updateUser(phone, updates); },
   async countUsers() { return this.getLayer().countUsers(); },
   async getOrderById(id) { return this.getLayer().getOrderById(id); },
+  async getOrderByRazorpayOrderId(rzpOrderId) { return this.getLayer().getOrderByRazorpayOrderId(rzpOrderId); },
   async getOrdersByUserPhone(phone) { return this.getLayer().getOrdersByUserPhone(phone); },
   async getAllOrders() { return this.getLayer().getAllOrders(); },
   async createOrder(order) { return this.getLayer().createOrder(order); },
@@ -1782,13 +1797,29 @@ app.get('/api/policies/refund', (req, res) => {
 });
 
 // 9b. Razorpay Payment Verification
-app.get('/api/payments/verify/:orderId', async (req, res) => {
-  const orderId = parseInt(req.params.orderId);
-  const paymentId = req.query.paymentId || req.query.razorpay_payment_id;
+const handleVerifyPayment = async (req, res) => {
+  const paramOrderId = req.params.orderId || req.query.orderId || req.body.orderId;
+  const paymentId = req.query.paymentId || req.query.razorpay_payment_id || req.body.paymentId || req.body.razorpay_payment_id;
+  const rzpOrderId = req.query.razorpay_order_id || req.body.razorpay_order_id || req.query.order_id || req.body.order_id;
   
   try {
-    let order = await DbLayer.getOrderById(orderId);
+    let order = null;
+    let orderId = isNaN(paramOrderId) ? null : parseInt(paramOrderId);
     
+    if (orderId) {
+      order = await DbLayer.getOrderById(orderId);
+    }
+    
+    // Try to find the order by razorpayOrderId if not found by numeric ID
+    if (!order && rzpOrderId) {
+      order = await DbLayer.getOrderByRazorpayOrderId(rzpOrderId);
+      if (order) {
+        orderId = order.id;
+      }
+    }
+
+    const resolvedOrderId = order ? order.id : (orderId || 0);
+
     const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RkjwFXbGLMrTDs';
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
     const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
@@ -1862,17 +1893,17 @@ app.get('/api/payments/verify/:orderId', async (req, res) => {
     // 4. Update the local order if paid successfully
     if (order && status === "captured") {
       const pId = paymentDetails ? (paymentDetails.id || paymentDetails.razorpay_payment_id) : null;
-      await DbLayer.updateOrder(orderId, {
+      await DbLayer.updateOrder(resolvedOrderId, {
         status: "Paid",
         bookingStatus: "searching", // begin search for professionals
         razorpayPaymentId: pId
       });
-      console.log(`[Payment] Order #${orderId} marked as Paid via Razorpay Payment ${pId}`);
+      console.log(`[Payment] Order #${resolvedOrderId} marked as Paid via Razorpay Payment ${pId}`);
     }
 
     res.json({
       success: true,
-      orderId: orderId,
+      orderId: resolvedOrderId,
       paymentStatus: status,
       paymentDetails: paymentDetails,
       message: `Payment checked successfully from Razorpay. Status: ${status}`
@@ -1881,7 +1912,12 @@ app.get('/api/payments/verify/:orderId', async (req, res) => {
     console.error("Payment verification failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
-});
+};
+
+app.get('/api/payments/verify', handleVerifyPayment);
+app.post('/api/payments/verify', handleVerifyPayment);
+app.get('/api/payments/verify/:orderId', handleVerifyPayment);
+app.post('/api/payments/verify/:orderId', handleVerifyPayment);
 
 // 10. Wallet: Get Balance
 app.get('/api/wallet/balance', async (req, res) => {
