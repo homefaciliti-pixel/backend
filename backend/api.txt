@@ -372,6 +372,22 @@ Response Payload:
 Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
 
 ---------------------------------------------------------
+7a. Hosted Payment Checkout Page URL
+---------------------------------------------------------
+
+Endpoint: GET /api/payments/pay/:orderId
+Parameters (Path): orderId (required; numeric database order ID)
+Response: HTML page serving the Razorpay Standard Checkout UI or simulated sandbox payment option if Razorpay credentials are not active.
+
+---------------------------------------------------------
+7b. Hosted Payment Redirect Callback URL
+---------------------------------------------------------
+
+Endpoint: GET /api/payments/callback
+Parameters (Query): orderId (required), razorpay_payment_id / paymentId, status, mock
+Response: HTML page showing a beautiful payment success/failed tick animation screen and prompts to return to the app.
+
+---------------------------------------------------------
 8. Dynamic GET Checkout – Auto-Create, Auto-Address & Persistent Overrides
 ---------------------------------------------------------
 

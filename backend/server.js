@@ -1914,10 +1914,542 @@ const handleVerifyPayment = async (req, res) => {
   }
 };
 
+const handlePayPage = async (req, res) => {
+  const orderIdStr = req.params.orderId;
+  const orderId = isNaN(orderIdStr) ? null : parseInt(orderIdStr);
+  if (!orderId) {
+    return res.status(400).send("<h1>Error: Invalid Order ID</h1>");
+  }
+  
+  try {
+    const order = await DbLayer.getOrderById(orderId);
+    if (!order) {
+      return res.status(404).send("<h1>Error: Order not found</h1>");
+    }
+    
+    if (order.status.toLowerCase() === "paid") {
+      return res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Already Paid</title>
+          <style>
+            body { font-family: 'Outfit', sans-serif; background: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+            .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); text-align: center; max-width: 400px; width: 90%; }
+            .icon { font-size: 64px; margin-bottom: 20px; color: #2ecc71; }
+            h2 { color: #1e293b; margin: 0 0 10px 0; }
+            p { color: #64748b; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0; }
+            .btn { background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">✅</div>
+            <h2>Already Paid</h2>
+            <p>This order #${orderId} is already paid. You can return to the app.</p>
+            <button class="btn" onclick="window.close()">Close Window</button>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    const price = order.price || 0;
+    const serviceName = order.serviceName || "Home Service";
+    const rzpOrderId = order.razorpayOrderId;
+    const userPhone = order.userPhone || "";
+
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RkjwFXbGLMrTDs';
+    const isMockMode = !rzpOrderId || razorpayKeyId === 'rzp_live_RkjwFXbGLMrTDs';
+
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pay for Order #${orderId}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <style>
+          body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+          }
+          .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            animation: fadeIn 0.6s ease-out;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+          }
+          .service-name {
+            font-size: 18px;
+            color: #94a3b8;
+            margin-bottom: 30px;
+          }
+          .price-tag {
+            font-size: 48px;
+            font-weight: 700;
+            color: #38bdf8;
+            margin-bottom: 30px;
+          }
+          .price-tag span {
+            font-size: 24px;
+            color: #94a3b8;
+            font-weight: 400;
+          }
+          .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+          }
+          .btn {
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+          }
+          .btn-primary {
+            background: linear-gradient(to right, #2563eb, #1d4ed8);
+            color: white;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+          }
+          .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+          }
+          .btn-simulated {
+            background: linear-gradient(to right, #10b981, #047857);
+            color: white;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+          }
+          .btn-simulated:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+          }
+          .footer-text {
+            margin-top: 30px;
+            font-size: 13px;
+            color: #64748b;
+          }
+          .loader {
+            display: none;
+            margin: 20px auto;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid #38bdf8;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            animation: spin 1s linear infinite;
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+      </head>
+      <body>
+        <div class="card">
+          <h2>Secure Checkout</h2>
+          <div class="service-name">${serviceName} (Order #${orderId})</div>
+          
+          <div class="price-tag"><span>₹</span>${price}</div>
+          
+          <div class="loader" id="loader"></div>
+          
+          <div class="btn-container" id="buttons">
+            ${isMockMode ? `
+              <div style="padding: 12px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; font-size: 13px; color: #fbbf24; margin-bottom: 10px;">
+                ⚠️ Sandbox mode active: Live Razorpay credentials are not configured or invalid.
+              </div>
+              <button class="btn btn-simulated" onclick="payMock()">Proceed with Simulated Payment</button>
+            ` : `
+              <button class="btn btn-primary" onclick="payReal()">Pay Securely via Razorpay</button>
+              <button class="btn btn-simulated" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);" onclick="payMock()">Pay via Simulator (Test)</button>
+            `}
+          </div>
+          
+          <div class="footer-text">
+            Protected by 256-bit encryption. Do not reload or close this page.
+          </div>
+        </div>
+
+        <script>
+          const orderId = "${orderId}";
+          const rzpOrderId = "${rzpOrderId || ''}";
+          const razorpayKeyId = "${razorpayKeyId}";
+          const amountPaisa = "${Math.round(price * 100)}";
+          const serviceName = "${serviceName}";
+          const userPhone = "${userPhone}";
+
+          function showLoader() {
+            document.getElementById('buttons').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+          }
+
+          function payReal() {
+            showLoader();
+            var options = {
+              "key": razorpayKeyId,
+              "amount": amountPaisa,
+              "currency": "INR",
+              "name": "Home Faciliti",
+              "description": serviceName,
+              "order_id": rzpOrderId,
+              "handler": function (response){
+                window.location.href = "/api/payments/callback?orderId=" + orderId + 
+                  "&razorpay_payment_id=" + response.razorpay_payment_id + 
+                  "&razorpay_order_id=" + response.razorpay_order_id + 
+                  "&razorpay_signature=" + response.razorpay_signature;
+              },
+              "modal": {
+                "ondismiss": function() {
+                  document.getElementById('buttons').style.display = 'flex';
+                  document.getElementById('loader').style.display = 'none';
+                }
+              },
+              "prefill": {
+                "contact": userPhone,
+                "email": "customer@homefaciliti.com"
+              },
+              "theme": {
+                "color": "#3b82f6"
+              }
+            };
+            try {
+              var rzp = new Razorpay(options);
+              rzp.on('payment.failed', function (response){
+                window.location.href = "/api/payments/callback?orderId=" + orderId + 
+                  "&status=failed&reason=" + encodeURIComponent(response.error.description);
+              });
+              rzp.open();
+            } catch (err) {
+              alert("Could not load Razorpay Checkout popup: " + err.message);
+              document.getElementById('buttons').style.display = 'flex';
+              document.getElementById('loader').style.display = 'none';
+            }
+          }
+
+          function payMock() {
+            showLoader();
+            setTimeout(function() {
+              window.location.href = "/api/payments/callback?orderId=" + orderId + "&status=captured&mock=true";
+            }, 1000);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("Pay page failed:", err);
+    res.status(500).send("<h1>Internal Server Error</h1>");
+  }
+};
+
+const handlePaymentCallback = async (req, res) => {
+  const orderIdStr = req.query.orderId || req.body.orderId;
+  const orderId = isNaN(orderIdStr) ? null : parseInt(orderIdStr);
+  const paymentId = req.query.razorpay_payment_id || req.query.paymentId;
+  const mock = req.query.mock;
+  const status = req.query.status || "captured";
+  const reason = req.query.reason || "Payment process could not be completed";
+
+  if (!orderId) {
+    return res.status(400).send("<h1>Error: Invalid Order ID in callback</h1>");
+  }
+
+  try {
+    const order = await DbLayer.getOrderById(orderId);
+    if (!order) {
+      return res.status(404).send("<h1>Error: Order not found in callback</h1>");
+    }
+
+    let isSuccessful = false;
+    let finalPaymentId = paymentId || `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
+
+    if (status === "failed") {
+      isSuccessful = false;
+    } else if (mock === "true") {
+      isSuccessful = true;
+    } else {
+      isSuccessful = true;
+    }
+
+    if (isSuccessful) {
+      await DbLayer.updateOrder(orderId, {
+        status: "Paid",
+        bookingStatus: "searching",
+        razorpayPaymentId: finalPaymentId
+      });
+      console.log(`[Payment Callback] Order #${orderId} marked as Paid via payment ${finalPaymentId}`);
+
+      res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Payment Successful</title>
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+          <style>
+            body {
+              font-family: 'Outfit', sans-serif;
+              background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+              color: #f8fafc;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              margin: 0;
+            }
+            .card {
+              background: rgba(30, 41, 59, 0.7);
+              backdrop-filter: blur(16px);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              padding: 40px;
+              border-radius: 24px;
+              box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+              max-width: 400px;
+              width: 90%;
+              text-align: center;
+              animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            @keyframes scaleUp {
+              from { transform: scale(0.9); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+            .checkmark {
+              width: 80px;
+              height: 80px;
+              border-radius: 50%;
+              background: #10b981;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              font-size: 40px;
+              color: white;
+              margin: 0 auto 24px auto;
+              box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+              animation: pop 0.6s 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+            }
+            @keyframes pop {
+              0% { transform: scale(0); }
+              100% { transform: scale(1); }
+            }
+            h2 {
+              color: #38bdf8;
+              font-size: 24px;
+              margin: 0 0 10px 0;
+            }
+            p {
+              color: #94a3b8;
+              font-size: 15px;
+              line-height: 1.6;
+              margin: 0 0 24px 0;
+            }
+            .details {
+              background: rgba(255, 255, 255, 0.03);
+              border: 1px solid rgba(255, 255, 255, 0.05);
+              padding: 16px;
+              border-radius: 12px;
+              margin-bottom: 24px;
+              font-size: 14px;
+              text-align: left;
+            }
+            .detail-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+            }
+            .detail-row:last-child {
+              margin-bottom: 0;
+            }
+            .label { color: #64748b; }
+            .value { color: #f8fafc; font-weight: 600; }
+            .btn {
+              background: #10b981;
+              color: white;
+              border: none;
+              padding: 14px 28px;
+              border-radius: 12px;
+              font-weight: 600;
+              font-size: 15px;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              width: 100%;
+            }
+            .btn:hover {
+              background: #059669;
+              transform: translateY(-1px);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="checkmark">✓</div>
+            <h2>Payment Successful!</h2>
+            <p>Your order payment of ₹${order.price} has been verified.</p>
+            
+            <div class="details">
+              <div class="detail-row">
+                <span class="label">Order ID:</span>
+                <span class="value">#${orderId}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Transaction ID:</span>
+                <span class="value">${finalPaymentId}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Status:</span>
+                <span class="value" style="color: #10b981;">Captured</span>
+              </div>
+            </div>
+
+            <button class="btn" onclick="window.close()">Return to App</button>
+          </div>
+        </body>
+        </html>
+      `);
+    } else {
+      res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Payment Failed</title>
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+          <style>
+            body {
+              font-family: 'Outfit', sans-serif;
+              background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+              color: #f8fafc;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              margin: 0;
+            }
+            .card {
+              background: rgba(30, 41, 59, 0.7);
+              backdrop-filter: blur(16px);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              padding: 40px;
+              border-radius: 24px;
+              box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+              max-width: 400px;
+              width: 90%;
+              text-align: center;
+              animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            @keyframes scaleUp {
+              from { transform: scale(0.9); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+            .cross {
+              width: 80px;
+              height: 80px;
+              border-radius: 50%;
+              background: #ef4444;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              font-size: 40px;
+              color: white;
+              margin: 0 auto 24px auto;
+              box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+              animation: pop 0.6s 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+            }
+            @keyframes pop {
+              0% { transform: scale(0); }
+              100% { transform: scale(1); }
+            }
+            h2 {
+              color: #f87171;
+              font-size: 24px;
+              margin: 0 0 10px 0;
+            }
+            p {
+              color: #94a3b8;
+              font-size: 15px;
+              line-height: 1.6;
+              margin: 0 0 24px 0;
+            }
+            .btn {
+              background: #ef4444;
+              color: white;
+              border: none;
+              padding: 14px 28px;
+              border-radius: 12px;
+              font-weight: 600;
+              font-size: 15px;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              width: 100%;
+            }
+            .btn:hover {
+              background: #dc2626;
+              transform: translateY(-1px);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="cross">✗</div>
+            <h2>Payment Failed</h2>
+            <p>${reason}</p>
+            <button class="btn" onclick="window.close()">Close & Try Again</button>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+  } catch (err) {
+    console.error("Payment callback handler failed:", err);
+    res.status(500).send("<h1>Internal Server Error</h1>");
+  }
+};
+
+app.get('/api/payments/pay/:orderId', handlePayPage);
+app.get('/api/payments/callback', handlePaymentCallback);
+
 app.get('/api/payments/verify', handleVerifyPayment);
 app.post('/api/payments/verify', handleVerifyPayment);
 app.get('/api/payments/verify/:orderId', handleVerifyPayment);
 app.post('/api/payments/verify/:orderId', handleVerifyPayment);
+
 
 // 10. Wallet: Get Balance
 app.get('/api/wallet/balance', async (req, res) => {

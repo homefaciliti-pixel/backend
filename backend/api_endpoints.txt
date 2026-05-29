@@ -608,6 +608,31 @@ POST /api/payments/verify/:orderId
 
 
 ---------------------------------------------------------
+13a. Hosted Payment Checkout Page URL
+---------------------------------------------------------
+
+GET /api/payments/pay/:orderId
+- Parameters (Path):
+  * `orderId` (required; numeric database order ID)
+- Response: HTML page serving the Razorpay Standard Checkout UI.
+- Note: Renders a premium payment checkout experience. Loads Checkout.js. If keys are invalid or not configured, it displays an overlay to complete a simulated mock payment. On success, it redirects to the callback page.
+
+
+---------------------------------------------------------
+13b. Hosted Payment Redirect Callback URL
+---------------------------------------------------------
+
+GET /api/payments/callback
+- Parameters (Query):
+  * `orderId` (required; numeric database order ID)
+  * `razorpay_payment_id` / `paymentId` (optional; transaction ID)
+  * `status` (optional; defaults to captured)
+  * `mock` (optional; 'true' for simulated payment)
+- Response: HTML page showing a beautiful payment success/failed tick animation screen and prompts to return to the app.
+- Note: Updates the database order status to 'Paid' and triggers professional search status.
+
+
+---------------------------------------------------------
 14. Database Configuration & Fallback Engine (MySQL + JSON)
 ---------------------------------------------------------
 

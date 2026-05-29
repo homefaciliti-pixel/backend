@@ -4,12 +4,14 @@ import 'package:userapp/viewmodel/order_viewmodel.dart';
 import 'package:userapp/viewmodel/wallet_viewmodel.dart';
 import 'package:userapp/viewmodel/address_viewmodel.dart';
 import 'package:userapp/viewmodel/auth_viewmodel.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../model/order_model.dart';
 import '../../model/address_model.dart';
 import '../../viewmodel/booking_flow_viewmodel.dart';
 import '../../viewmodel/service_viewmodel.dart';
 import '../booking_map/searching_partner_screen.dart';
 import '../../services/api_service.dart';
+
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -220,103 +222,151 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     userId: authVM.user.phone.isNotEmpty ? authVM.user.phone : "9876543210",
                   );
 
-                  if (!context.mounted) return;
-
-                  // 1. Show processing loader overlay
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (_) => const AlertDialog(
-                      content: Row(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(width: 20),
-                          Expanded(child: Text("Processing Razorpay Payment...")),
-                        ],
-                      ),
-                    ),
-                  );
-
-                  // 2. Simulate 2 seconds delay
-                  await Future.delayed(const Duration(seconds: 2));
-
-                  // 3. Verify status from simulated Razorpay verification API on backend
-                  bool paymentSuccess = false;
-                  String razorpayMsg = "Razorpay verification failed.";
-
-                  try {
-                    final verifyRes = await ApiService.get('/api/payments/verify/$orderId');
-                    if (verifyRes != null && verifyRes['success'] == true) {
-                      if (verifyRes['paymentStatus'] == 'captured') {
-                        paymentSuccess = true;
-                        razorpayMsg = verifyRes['message'] ?? "Payment Successful";
-                      }
-                    }
-                  } catch (e) {
-                    debugPrint("Failed to call Razorpay verification API: $e");
+                  if (orderId == null) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Failed to place order. Please try again.")),
+                    );
+                    return;
                   }
 
                   if (!context.mounted) return;
-                  Navigator.pop(context); // Close loader overlay
 
-                  if (paymentSuccess) {
-                    /// SUCCESS POPUP
+                  if (selectedPayment.toLowerCase() != "cash") {
+                    // --- ONLINE / RAZORPAY PAYMENT FLOW ---
+                    final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/$orderId");
+                    
+                    try {
+                      if (await canLaunchUrl(paymentUrl)) {
+                        await launchUrl(paymentUrl, mode: LaunchMode.externalApplication);
+                      } else {
+                        throw "Could not launch payment page URL";
+                      }
+                    } catch (e) {
+                      debugPrint("Failed to launch payment URL: $e");
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Could not open payment page: $e")),
+                      );
+                    }
+
+                    if (!context.mounted) return;
+
+                    // Show dialog asking user to verify payment once done in browser
                     showDialog(
                       context: context,
                       barrierDismissible: false,
-                      builder: (_) => AlertDialog(
-                        title: const Text("Success"),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Payment Successful 🎉"),
-                            const SizedBox(height: 10),
-                            Text(
-                              razorpayMsg,
-                              style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context); // dialog close
-
-                              final bookingVM =
-                              Provider.of<BookingFlowViewModel>(context, listen: false);
-
-                              bookingVM.startSearching(orderId);
-
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const SearchingPartnerScreen(),
+                      builder: (dialogContext) {
+                        bool verifying = false;
+                        return StatefulBuilder(
+                          builder: (context, setDialogState) {
+                            return AlertDialog(
+                              title: const Text("Payment in Progress"),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text("We have opened the secure checkout page in your browser. Please complete the payment there."),
+                                  if (verifying) ...[
+                                    const SizedBox(height: 20),
+                                    const CircularProgressIndicator(),
+                                    const SizedBox(height: 10),
+                                    const Text("Verifying your payment status...", style: TextStyle(fontSize: 12)),
+                                  ]
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: verifying ? null : () => Navigator.pop(dialogContext),
+                                  child: const Text("Cancel"),
                                 ),
-                              );
-                            },
-                            child: const Text("OK"),
-                          ) 
-                        ],
-                      ),
+                                ElevatedButton(
+                                  onPressed: verifying ? null : () async {
+                                    setDialogState(() => verifying = true);
+                                    
+                                    bool paymentSuccess = false;
+                                    String razorpayMsg = "Payment not verified yet. Please complete the transaction in your browser.";
+
+                                    try {
+                                      final verifyRes = await ApiService.get('/api/payments/verify/$orderId');
+                                      if (verifyRes != null && verifyRes['success'] == true) {
+                                        if (verifyRes['paymentStatus'] == 'captured') {
+                                          paymentSuccess = true;
+                                          razorpayMsg = verifyRes['message'] ?? "Payment Successful";
+                                        }
+                                      }
+                                    } catch (e) {
+                                      debugPrint("Verification call failed: $e");
+                                    }
+
+                                    setDialogState(() => verifying = false);
+
+                                    if (paymentSuccess) {
+                                      if (!context.mounted) return;
+                                      Navigator.pop(dialogContext); // Close payment-in-progress dialog
+
+                                      // Show success dialog
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (_) => AlertDialog(
+                                          title: const Text("Success"),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text("Payment Successful 🎉"),
+                                              const SizedBox(height: 10),
+                                              Text(
+                                                razorpayMsg,
+                                                style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.pop(context); // dialog close
+                                                final bookingVM = Provider.of<BookingFlowViewModel>(context, listen: false);
+                                                bookingVM.startSearching(orderId);
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => const SearchingPartnerScreen(),
+                                                  ),
+                                                );
+                                              },
+                                              child: const Text("OK"),
+                                            )
+                                          ],
+                                        ),
+                                      );
+                                    } else {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(razorpayMsg)),
+                                      );
+                                    }
+                                  },
+                                  child: const Text("Verify Payment"),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
                     );
                   } else {
-                    /// FAILURE POPUP
-                    showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text("Payment Failed"),
-                        content: Text(razorpayMsg),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text("Try Again"),
-                          )
-                        ],
+                    // --- CASH PAYMENT FLOW ---
+                    final bookingVM = Provider.of<BookingFlowViewModel>(context, listen: false);
+                    bookingVM.startSearching(orderId);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SearchingPartnerScreen(),
                       ),
                     );
                   }
                 },
+
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(30),
