@@ -1900,14 +1900,18 @@ const handleVerifyPayment = async (req, res) => {
     
     if (orderId) {
       order = await DbLayer.getOrderById(orderId);
+    } else if (paramOrderId) {
+      // If paramOrderId is not numeric, treat it as the Razorpay Order ID
+      order = await DbLayer.getOrderByRazorpayOrderId(paramOrderId);
     }
     
-    // Try to find the order by razorpayOrderId if not found by numeric ID
+    // Try to find the order by razorpayOrderId from query/body if not found by path parameter
     if (!order && rzpOrderId) {
       order = await DbLayer.getOrderByRazorpayOrderId(rzpOrderId);
-      if (order) {
-        orderId = order.id;
-      }
+    }
+
+    if (order) {
+      orderId = order.id;
     }
 
     const resolvedOrderId = order ? order.id : (orderId || 0);
@@ -2008,16 +2012,23 @@ const handleVerifyPayment = async (req, res) => {
 
 const handlePayPage = async (req, res) => {
   const orderIdStr = req.params.orderId;
-  const orderId = isNaN(orderIdStr) ? null : parseInt(orderIdStr);
-  if (!orderId) {
+  if (!orderIdStr) {
     return res.status(400).send("<h1>Error: Invalid Order ID</h1>");
   }
   
   try {
-    const order = await DbLayer.getOrderById(orderId);
+    let order = null;
+    if (!isNaN(orderIdStr)) {
+      order = await DbLayer.getOrderById(parseInt(orderIdStr));
+    } else {
+      order = await DbLayer.getOrderByRazorpayOrderId(orderIdStr);
+    }
+    
     if (!order) {
       return res.status(404).send("<h1>Error: Order not found</h1>");
     }
+    
+    const orderId = order.id;
     
     if (order.status.toLowerCase() === "paid") {
       return res.send(`
@@ -2273,21 +2284,28 @@ const handlePayPage = async (req, res) => {
 
 const handlePaymentCallback = async (req, res) => {
   const orderIdStr = req.query.orderId || req.body.orderId;
-  const orderId = isNaN(orderIdStr) ? null : parseInt(orderIdStr);
   const paymentId = req.query.razorpay_payment_id || req.query.paymentId;
   const mock = req.query.mock;
   const status = req.query.status || "captured";
   const reason = req.query.reason || "Payment process could not be completed";
 
-  if (!orderId) {
+  if (!orderIdStr) {
     return res.status(400).send("<h1>Error: Invalid Order ID in callback</h1>");
   }
 
   try {
-    const order = await DbLayer.getOrderById(orderId);
+    let order = null;
+    if (!isNaN(orderIdStr)) {
+      order = await DbLayer.getOrderById(parseInt(orderIdStr));
+    } else {
+      order = await DbLayer.getOrderByRazorpayOrderId(orderIdStr);
+    }
+
     if (!order) {
       return res.status(404).send("<h1>Error: Order not found in callback</h1>");
     }
+
+    const orderId = order.id;
 
     let isSuccessful = false;
     let finalPaymentId = paymentId || `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`;

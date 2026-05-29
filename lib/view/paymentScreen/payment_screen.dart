@@ -242,9 +242,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                   if (selectedPayment.toLowerCase() != "cash") {
                     // --- ONLINE / RAZORPAY PAYMENT FLOW ---
-                    // Build payment URL using the internal DB order ID
-                    // The backend pay page uses this to look up razorpayOrderId and display checkout
-                    final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/$orderId");
+                    // Build payment URL using the Razorpay Order ID if present, otherwise DB orderId
+                    final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/${razorpayOrderId ?? orderId}");
 
                     debugPrint("[Payment] DB orderId=$orderId  razorpayOrderId=$razorpayOrderId");
                     debugPrint("[Payment] Opening: $paymentUrl");
@@ -268,6 +267,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       builder: (dialogContext) {
                         return PaymentInProgressDialog(
                           orderId: orderId,
+                          razorpayOrderId: razorpayOrderId ?? '',
                           amount: (service?.price ?? 0).toDouble(),
                           serviceName: service?.title ?? 'Home Service',
                           dateStr: dateStr,
@@ -315,6 +315,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
 class PaymentInProgressDialog extends StatefulWidget {
   final int orderId;
+  final String razorpayOrderId;
   final double amount;
   final String serviceName;
   final String dateStr;
@@ -323,6 +324,7 @@ class PaymentInProgressDialog extends StatefulWidget {
   const PaymentInProgressDialog({
     super.key,
     required this.orderId,
+    required this.razorpayOrderId,
     required this.amount,
     required this.serviceName,
     required this.dateStr,
@@ -358,7 +360,8 @@ class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
   Future<void> _autoVerify() async {
     if (!mounted) return;
     try {
-      final verifyRes = await ApiService.get('/api/payments/verify/${widget.orderId}');
+      final verifyId = widget.razorpayOrderId.isNotEmpty ? widget.razorpayOrderId : widget.orderId.toString();
+      final verifyRes = await ApiService.get('/api/payments/verify/$verifyId');
       if (verifyRes != null && verifyRes['success'] == true) {
         if (verifyRes['paymentStatus'] == 'captured') {
           _success = true;
@@ -401,7 +404,8 @@ class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
     dynamic verifyRes;
 
     try {
-      verifyRes = await ApiService.get('/api/payments/verify/${widget.orderId}');
+      final verifyId = widget.razorpayOrderId.isNotEmpty ? widget.razorpayOrderId : widget.orderId.toString();
+      verifyRes = await ApiService.get('/api/payments/verify/$verifyId');
       if (verifyRes != null && verifyRes['success'] == true) {
         if (verifyRes['paymentStatus'] == 'captured') {
           paymentSuccess = true;
