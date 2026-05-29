@@ -237,11 +237,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/$orderId");
                     
                     try {
-                      if (await canLaunchUrl(paymentUrl)) {
-                        await launchUrl(paymentUrl, mode: LaunchMode.externalApplication);
-                      } else {
-                        throw "Could not launch payment page URL";
-                      }
+                      await launchUrl(paymentUrl, mode: LaunchMode.externalApplication);
                     } catch (e) {
                       debugPrint("Failed to launch payment URL: $e");
                       ScaffoldMessenger.of(context).showSnackBar(
