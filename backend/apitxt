@@ -372,6 +372,8 @@ Note: Verifies the payment status using the real Razorpay API. If a `paymentId` 
 8. Dynamic GET Checkout – Auto-Create, Auto-Address & Persistent Overrides
 ---------------------------------------------------------
 
+Endpoint: GET /api/checkout
+Endpoint: GET /api/checkout-api
 Endpoint: GET /api/checkout/:userId
 Endpoint: GET /api/checkout-api/:userId
 Headers: Authorization: Bearer <jwt_token>

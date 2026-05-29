@@ -2568,7 +2568,7 @@ const handleGetCheckout = async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-  const idParam = req.params.userId;
+  const idParam = req.params.userId || "me";
   // Read date and timeSlot/slot from query, body, or headers
   const queryDate = req.query.date || req.body.date || req.headers['x-date'];
   const querySlot = req.query.timeSlot || req.query.slot || req.body.timeSlot || req.body.slot || req.headers['x-timeslot'] || req.headers['x-slot'];
@@ -2767,6 +2767,12 @@ const handleGetCheckout = async (req, res) => {
       success: true,
       orderId: order.id,
       userId: order.userPhone,
+      user: {
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        walletBalance: parseFloat(user.walletBalance || 0)
+      },
       product: {
         productId: order.productId || order.serviceName,
         serviceName: order.serviceName,
@@ -2792,6 +2798,8 @@ const handleGetCheckout = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+app.get('/api/checkout', handleGetCheckout);
+app.get('/api/checkout-api', handleGetCheckout);
 app.get('/api/checkout/:userId', handleGetCheckout);
 app.get('/api/checkout-api/:userId', handleGetCheckout);
 

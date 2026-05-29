@@ -402,6 +402,8 @@ POST /api/checkout-api
     the server calls Razorpay's order creation endpoint to generate a real Razorpay Order ID.
   - You can pass the optional `userId` parameter in the body to set/override the user ID for the transaction.
 
+GET /api/checkout
+GET /api/checkout-api
 GET /api/checkout/:userId
 GET /api/checkout-api/:userId
 - Headers: Authorization: Bearer <jwt_token>
@@ -410,6 +412,12 @@ GET /api/checkout-api/:userId
     "success": true,
     "orderId": 4,
     "userId": "9876543210",
+    "user": {
+      "name": "Guest User",
+      "phone": "9876543210",
+      "email": "guest@example.com",
+      "walletBalance": 0
+    },
     "product": {
       "productId": "Tap Repair",
       "serviceName": "Tap Repair",
