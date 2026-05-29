@@ -11,8 +11,8 @@ Database Configuration:
 
 
 Authentication Note:
-All private APIs require the custom header 'Authorization: Bearer <jwt_token>' 
-where the JWT token is obtained from /api/auth/verify-otp response. For backward 
+All private APIs require the custom header 'Authorization: Bearer <jwt_token>'
+where the JWT token is obtained from /api/auth/verify-otp response. For backward
 compatibility, sending a raw phone number in the Bearer token header is also supported.
 
 ---------------------------------------------------------
@@ -90,7 +90,7 @@ GET /api/categories/:category/services
 - Example: GET /api/categories/electrician/services?search=switch
 
 GET /api/services
-- Query Parameters: 
+- Query Parameters:
   - `category` (optional): Filter by category name
   - `search` (optional): Query term search
 - Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ] }
@@ -153,7 +153,7 @@ POST /api/referrals/apply
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "code": "string" }
 - Response: { "success": true, "message": "Referral code successfully applied!...", "newBalance": number }
-- Note: Adds ₹50 to both the current user and the referrer's wallet balance.
+- Note: Adds Rs.50 to both the current user and the referrer's wallet balance.
 
 ---------------------------------------------------------
 5. Bookings & Orders APIs
@@ -363,19 +363,19 @@ POST /api/checkout
 POST /api/checkout-api
 - Headers: Authorization: Bearer <jwt_token>
 - Body: {
-    "userId": "string", (optional, resolves order owner)
+    "userId": "string",                              (optional, resolves order owner)
     "productId": "Tap Repair",
-    "timeSlot": "4:00 PM - 5:00 PM",  (optional - auto-computed if omitted)
-    "date": "2026-05-28",              (optional - auto-computed if omitted)
+    "timeSlot": "4:00 PM - 5:00 PM",                (optional - auto-computed if omitted)
+    "date": "2026-05-28",                            (optional - auto-computed if omitted)
     "payment": { "paymentMethod": "Online", "amountPaid": 0 }
   }
 - Response: {
     "success": true,
-    "orderId": 4,
+    "orderId": 1000007,
     "userId": "9876543210",
     "razorpayOrderId": "order_DBJOWqy2AuJZ59",
     "order": {
-      "id": 4,
+      "id": 1000007,
       "userPhone": "9876543210",
       "userId": "9876543210",
       "serviceName": "Tap Repair",
@@ -412,9 +412,11 @@ POST /api/checkout-api
     (e.g. if it is 3:05 PM IST, the default slot becomes "4:00 PM - 5:00 PM").
   - If date is omitted, the server defaults to today's date in IST. If no slots remain today (after 8 PM),
     it defaults to tomorrow's date with the first slot (9:00 AM - 10:00 AM).
-  - You can optionally specify a payment body block (e.g. paymentMethod: "Online"). If "Online" is chosen,
-    the server calls Razorpay's order creation endpoint to generate a real Razorpay Order ID.
-  - You can pass the optional `userId` parameter in the body to set/override the user ID for the transaction.
+  - If paymentMethod is "Online", the server calls Razorpay's API to generate a real Razorpay Order ID
+    which is stored in the DB and returned as `razorpayOrderId`. Falls back to `order_mock_XXXXXX` if
+    Razorpay credentials are invalid.
+  - Flutter must extract BOTH `orderId` and `razorpayOrderId` from this response.
+    `orderId` is used to build the payment URL. `razorpayOrderId` is for reference/logging.
 
 GET /api/checkout
 GET /api/checkout-api
@@ -462,133 +464,45 @@ GET /api/checkout-api/:userId
     "bookingStatus": "searching",
     "partnerName": null,
     "partnerDistance": null,
-    "addresses": [
-      {
-        "id": 1,
-        "userPhone": "9876543210",
-        "type": "Home",
-        "houseNo": "104",
-        "society": "Green Villa",
-        "floor": "1st",
-        "landmark": "Near Central Park",
-        "city": "Mumbai, Maharashtra",
-        "locality": "Andheri West",
-        "pincode": "400053",
-        "latitude": 26.9124,
-        "longitude": 75.7873,
-        "name": "John Doe",
-        "alternateNumber": "9999911111"
-      }
-    ],
-    "services": [
-      {
-        "productId": "Tap Repair",
-        "title": "Tap Repair",
-        "price": 299,
-        "description": "Fix leaking taps and water issues",
-        "image": "https://homefaciliti.com/uploads/services/1715694294.png"
-      }
-    ],
-    "products": [
-      {
-        "productId": "Tap Repair",
-        "title": "Tap Repair",
-        "price": 299,
-        "description": "Fix leaking taps and water issues",
-        "image": "https://homefaciliti.com/uploads/services/1715694294.png"
-      }
-    ],
+    "addresses": [ { "id": 1, "userPhone": "9876543210", "type": "Home", ... } ],
+    "services": [ { "productId": "Tap Repair", "title": "Tap Repair", "price": 299, ... } ],
+    "products": [ { "productId": "Tap Repair", "title": "Tap Repair", "price": 299, ... } ],
     "slots": [
-      "9:00 AM - 10:00 AM",
-      "10:00 AM - 11:00 AM",
-      "11:00 AM - 12:00 PM",
-      "12:00 PM - 1:00 PM",
-      "1:00 PM - 2:00 PM",
-      "2:00 PM - 3:00 PM",
-      "3:00 PM - 4:00 PM",
-      "4:00 PM - 5:00 PM",
-      "5:00 PM - 6:00 PM",
-      "6:00 PM - 7:00 PM",
-      "7:00 PM - 8:00 PM"
+      "9:00 AM - 10:00 AM", "10:00 AM - 11:00 AM", "11:00 AM - 12:00 PM",
+      "12:00 PM - 1:00 PM", "1:00 PM - 2:00 PM", "2:00 PM - 3:00 PM",
+      "3:00 PM - 4:00 PM", "4:00 PM - 5:00 PM", "5:00 PM - 6:00 PM",
+      "6:00 PM - 7:00 PM", "7:00 PM - 8:00 PM"
     ],
     "dates": [
-      {
-        "formattedDate": "2026-05-28",
-        "dayName": "Today",
-        "displayDate": "28 May"
-      },
-      {
-        "formattedDate": "2026-05-29",
-        "dayName": "Tomorrow",
-        "displayDate": "29 May"
-      }
+      { "formattedDate": "2026-05-28", "dayName": "Today", "displayDate": "28 May" },
+      { "formattedDate": "2026-05-29", "dayName": "Tomorrow", "displayDate": "29 May" }
     ]
   }
-- Note: Retrieves the complete checkout summary for the specified user or order. The `:userId` path parameter accepts either a user phone number (userId) or a numeric orderId.
-  - **Dynamic Date & Slot**: When a fallback order is auto-created (no existing order found), the date and timeSlot are computed dynamically from the current IST time — the next available hourly slot after the current hour is selected. If no slots remain today, it rolls over to tomorrow's first slot (9:00 AM).
-  - **Auto-Create**: If no order exists in the database for the given user ID/order ID, a new order is automatically created with a proper auto-incremented ID and **persisted to the database** (so a 2nd call returns the same order).
-  - **Auto-Address**: The user's latest saved address from the database is resolved and applied automatically. If no saved address exists, falls back to the user's profile `location`/`locality` fields (set via `PUT /api/auth/profile`), then to a default mock address.
-  - **Persistent Overrides**: Query parameters `productId`, `date`, and `timeSlot` override the order fields AND are **persisted to the database** so subsequent calls without those parameters still return the overridden values.
-  - **Interactive Option Lists (NEW)**: Returns selectable choices to support dynamic frontend changes:
-    * `addresses`: All saved user addresses.
-    * `services` / `products`: All active services in the same category as the active service, returned under both keys.
-    * `slots`: Dynamically loaded available time slots for the checkout date.
-    * `dates`: Generates 7-day selection list of calendar dates.
+- Note: Retrieves complete checkout summary for the specified user or order.
+  - Dynamic Date & Slot: Date and timeSlot are computed from current IST time when auto-created.
+  - Auto-Create: Creates a new order if none exists for the given userId/orderId.
+  - Auto-Address: Resolves user's latest saved address, falling back to profile location, then mock address.
+  - Persistent Overrides: Query params productId, date, timeSlot are saved to DB.
+  - Interactive Option Lists: Returns addresses, services/products, slots, dates for frontend dropdowns.
 
 
 ---------------------------------------------------------
-12. Policies & Information APIs
+12a. Policies & Information APIs
 ---------------------------------------------------------
 
 GET /api/policies/privacy
-- Response: {
-    "success": true,
-    "title": "Privacy Policy",
-    "lastUpdated": "May 27, 2026",
-    "content": "At Home Services, we value your privacy...",
-    "sections": [
-      { "title": "1. Information We Collect", "body": "We collect information you provide directly..." },
-      ...
-    ]
-  }
+- Response: { "success": true, "title": "Privacy Policy", "lastUpdated": "May 27, 2026", "content": "...", "sections": [ ... ] }
 
 GET /api/about
 GET /api/policies/about (Redirects to /api/about)
-- Response: {
-    "success": true,
-    "title": "About Us",
-    "description": "Home Services is a premium, on-demand platform...",
-    "vision": "To make home maintenance, repair, and cleaning services completely hassle-free...",
-    "mission": "To empower local service partners...",
-    "highlights": [
-      "100% Background Checked & Verified Partners",
-      ...
-    ]
-  }
+- Response: { "success": true, "title": "About Us", "description": "...", "vision": "...", "mission": "...", "highlights": [ ... ] }
 
 GET /api/policies/terms
-- Response: {
-    "success": true,
-    "title": "Terms and Conditions",
-    "lastUpdated": "May 27, 2026",
-    "content": "Welcome to Home Services...",
-    "sections": [
-      { "title": "1. Service Booking & Cancellation", "body": "All service bookings must be made through our official mobile app..." },
-      ...
-    ]
-  }
+- Response: { "success": true, "title": "Terms and Conditions", "lastUpdated": "May 27, 2026", "content": "...", "sections": [ ... ] }
 
 GET /api/policies/refund
-- Response: {
-    "success": true,
-    "title": "Refund Policy",
-    "lastUpdated": "May 27, 2026",
-    "content": "Our goal is your complete satisfaction...",
-    "rules": [
-      { "title": "1. Refund Eligibility", "body": "Refunds are processed if the service was not executed as described..." },
-      ...
-    ]
-  }
+- Response: { "success": true, "title": "Refund Policy", "lastUpdated": "May 27, 2026", "content": "...", "rules": [ ... ] }
+
 
 ---------------------------------------------------------
 13. Razorpay Payment Verification API
@@ -598,7 +512,7 @@ GET /api/payments/verify
 POST /api/payments/verify
 GET /api/payments/verify/:orderId
 POST /api/payments/verify/:orderId
-- Parameters (Path/Query/Body): 
+- Parameters (Path/Query/Body):
   * `orderId` (optional; numeric database order ID)
   * `razorpay_order_id` / `order_id` (optional; Razorpay Order ID to look up the order by)
   * `paymentId` / `razorpay_payment_id` (optional; Razorpay Payment ID to verify payment status)
@@ -618,7 +532,11 @@ POST /api/payments/verify/:orderId
     },
     "message": "Payment checked successfully from Razorpay. Status: captured"
   }
-- Note: Verifies the payment status using the real Razorpay API. Dynamically detects and resolves the target database order ID from URL path parameters, query string parameters, request body parameters, or by looking up the order matching the `razorpay_order_id`. If `paymentId` is provided, it verifies that specific payment; otherwise, it checks payments for the saved `razorpayOrderId` on the order. Falls back to simulated validation if API keys are unauthenticated.
+- Note: Verifies payment status using the real Razorpay API. Dynamically detects and resolves the target
+  database order ID from URL path, query string, request body, or by looking up the order matching
+  `razorpay_order_id`. If `paymentId` is provided, it verifies that specific payment; otherwise checks
+  payments for the saved `razorpayOrderId` on the order. Falls back to simulated validation if API keys
+  are unauthenticated.
 
 
 ---------------------------------------------------------
@@ -629,7 +547,28 @@ GET /api/payments/pay/:orderId
 - Parameters (Path):
   * `orderId` (required; numeric database order ID)
 - Response: HTML page serving the Razorpay Standard Checkout UI.
-- Note: Renders a premium payment checkout experience. Loads Checkout.js. If keys are invalid or not configured, it displays an overlay to complete a simulated mock payment. On success, it redirects to the callback page.
+- Note:
+  * Renders a premium payment checkout experience using Razorpay Checkout.js.
+  * Live Razorpay Key ID: rzp_live_RLno7eQMMUUT8A
+  * The Razorpay Order ID (`razorpayOrderId`) is generated DYNAMICALLY at checkout time (POST /api/checkout)
+    and stored in the DB. The payment page fetches the saved `razorpayOrderId` for this orderId from DB.
+  * If keys are invalid or not configured, displays an overlay for a simulated mock payment.
+  * On success, redirects to: GET /api/payments/callback?orderId=<orderId>
+
+Flutter Dynamic Order ID Flow (End-to-End):
+  Step 1: POST /api/checkout
+          Response: { "orderId": 1000007, "razorpayOrderId": "order_ABC123XYZ" }
+  Step 2: Flutter stores BOTH IDs from checkout response.
+          orderId = checkoutResult['orderId']        (DB order ID)
+          razorpayOrderId = checkoutResult['razorpayOrderId']  (Razorpay order ID - for reference)
+  Step 3: Payment URL built as: GET /api/payments/pay/1000007  (uses DB orderId in path)
+  Step 4: Backend looks up `razorpayOrderId` from DB for orderId=1000007.
+  Step 5: Razorpay Checkout.js opens with the correct dynamic `razorpayOrderId`.
+  Step 6: User completes payment on Razorpay page.
+  Step 7: Browser redirects to /api/payments/callback?orderId=1000007
+  Step 8: Callback page shows success animation + 3-second auto-close countdown.
+  Step 9: Flutter detects browser close → shows "Verify Payment" dialog.
+  Step 10: User taps "Verify" → Flutter navigates to PaymentSuccessScreen.
 
 
 ---------------------------------------------------------
@@ -639,18 +578,41 @@ GET /api/payments/pay/:orderId
 GET /api/payments/callback
 - Parameters (Query):
   * `orderId` (required; numeric database order ID)
-  * `razorpay_payment_id` / `paymentId` (optional; transaction ID)
-  * `status` (optional; defaults to captured)
-  * `mock` (optional; 'true' for simulated payment)
-- Response: HTML page showing a beautiful payment success/failed tick animation screen and prompts to return to the app.
-- Note: Updates the database order status to 'Paid' and triggers professional search status.
+  * `razorpay_payment_id` / `paymentId` (optional; Razorpay transaction ID)
+  * `status` (optional; defaults to "captured")
+  * `mock` (optional; "true" for simulated payment)
+- Response: Premium animated HTML page showing payment success/failed tick animation with 3-second
+  auto-close countdown timer and a manual "Return to App Now" button.
+- Note:
+  * Updates the DB order `status` to "Paid" and saves `razorpayPaymentId` to the order record.
+  * Sets `bookingStatus` to "searching" to trigger partner auto-assignment flow.
+  * Browser tab auto-closes after 3-second countdown.
+  * Flutter app detects browser tab closure and shows "Verify Payment" dialog.
+  * After verify → Flutter navigates to PaymentSuccessScreen (in-app animated confirmation).
+
+
+---------------------------------------------------------
+13c. Flutter PaymentSuccessScreen (In-App Confirmation)
+---------------------------------------------------------
+
+This is a Flutter in-app screen (not an API endpoint) shown after the user taps "Verify Payment":
+  - Animated checkmark with elastic pop-in and green gradient glow ring
+  - Amount badge (e.g. Rs.299) displayed in a gradient pill
+  - Order ID (DB orderId) and Razorpay Payment ID shown
+  - Service name, booking date, time slot displayed
+  - "Track My Booking" CTA button -> navigates to SearchingPartnerScreen
+  - File: lib/view/paymentScreen/payment_success_screen.dart
+  - File: lib/viewmodel/order_viewmodel.dart (checkout() returns Map with both orderId + razorpayOrderId)
+  - File: lib/view/paymentScreen/payment_screen.dart (uses checkoutResult['orderId'] for payment URL)
 
 
 ---------------------------------------------------------
 14. Database Configuration & Fallback Engine (MySQL + JSON)
 ---------------------------------------------------------
 
-The backend uses a highly resilient database routing architecture to store and manage data. It dynamically chooses the active database layer based on environment configuration and server startup connectivity, supporting MySQL as the remote database and a local JSON file database as a fallback.
+The backend uses a highly resilient database routing architecture to store and manage data. It dynamically
+chooses the active database layer based on environment configuration and server startup connectivity,
+supporting MySQL as the remote database and a local JSON file database as a fallback.
 
 Database Priority Order:
 1. MySQL (Primary)
@@ -669,8 +631,10 @@ Database Priority Order:
 
 How the Fallback Engine Works:
 - On startup, the backend attempts to establish a connection to the MySQL pool.
-- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and falls back to running in-memory backed by `database.json`.
-- All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring zero service downtime across environments.
+- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs
+  the error and falls back to running in-memory backed by `database.json`.
+- All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring
+  zero service downtime across environments.
 
 ---------------------------------------------------------
 15. Contact & Support API
@@ -678,8 +642,8 @@ How the Fallback Engine Works:
 
 POST /api/contact
 - Body: { "name": "string", "email": "string", "phone": "string" (optional), "message": "string" }
-- Response: { 
-    "success": true, 
+- Response: {
+    "success": true,
     "message": "Contact message sent successfully",
     "contact": {
       "id": 1,
@@ -690,4 +654,5 @@ POST /api/contact
       "createdAt": "2026-05-29T06:30:00.000Z"
     }
   }
-- Note: Saves customer support and contact form inquiries to the database (`node_contacts` MySQL table or JSON fallback contacts list).
+- Note: Saves customer support and contact form inquiries to the database
+  (`node_contacts` MySQL table or JSON fallback contacts list).
