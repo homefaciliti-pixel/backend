@@ -58,6 +58,11 @@ PUT /api/auth/profile
 - Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string", "countryCode": "string" }
 - Response: { "success": true, "user": { ... }, "message": "Profile updated successfully" }
 
+DELETE /api/auth/account
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "message": "Account deleted successfully" }
+- Note: Permanently deletes the user profile and all saved addresses associated with the authenticated user from the database.
+
 ---------------------------------------------------------
 2. Services & Categories APIs
 ---------------------------------------------------------
@@ -648,6 +653,7 @@ Database Priority Order:
      - `addresses`
      - `categories` (seeds default categories if empty)
      - `referrals_applied`
+     - `contacts`
 2. JSON File Database (Fallback)
    - Host: Local file system (`database.json`)
    - Backup mode: Activates automatically if MySQL connection fails to establish or is unconfigured.
@@ -656,3 +662,23 @@ How the Fallback Engine Works:
 - On startup, the backend attempts to establish a connection to the MySQL pool.
 - If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and falls back to running in-memory backed by `database.json`.
 - All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring zero service downtime across environments.
+
+---------------------------------------------------------
+15. Contact & Support API
+---------------------------------------------------------
+
+POST /api/contact
+- Body: { "name": "string", "email": "string", "phone": "string" (optional), "message": "string" }
+- Response: { 
+    "success": true, 
+    "message": "Contact message sent successfully",
+    "contact": {
+      "id": 1,
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "phone": "+919876543210",
+      "message": "Hello, I need help with my booking.",
+      "createdAt": "2026-05-29T06:30:00.000Z"
+    }
+  }
+- Note: Saves customer support and contact form inquiries to the database (`node_contacts` MySQL table or JSON fallback contacts list).

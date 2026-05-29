@@ -461,3 +461,20 @@ How the Fallback Engine Works:
 - If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and falls back to running in-memory backed by `database.json`.
 - All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring zero service downtime across environments.
 
+---------------------------------------------------------
+15. Contact & Support API
+---------------------------------------------------------
+
+Endpoint: POST /api/contact
+Body: { "name": "string", "email": "string", "phone": "string" (optional), "message": "string" }
+Response: { "success": true, "message": "Contact message sent successfully", "contact": { ... } }
+
+---------------------------------------------------------
+16. Account Deletion API
+---------------------------------------------------------
+
+Endpoint: DELETE /api/auth/account
+Headers: Authorization: Bearer <jwt_token>
+Response: { "success": true, "message": "Account deleted successfully" }
+
+

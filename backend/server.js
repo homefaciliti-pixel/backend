@@ -179,6 +179,17 @@ async function initMySqlDb() {
       }
     }
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS node_contacts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL,
+        phone VARCHAR(20) DEFAULT '',
+        message TEXT NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Sync database slots table with 11 hourly slots
     const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
     try {
@@ -263,6 +274,21 @@ const MySqlDbLayer = {
     const setClause = keys.map(k => `${k} = ?`).join(", ");
     await mysqlPool.query(`UPDATE node_users SET ${setClause} WHERE phone = ?`, [...values, phone]);
     return this.getUserByPhone(phone);
+  },
+
+  async deleteUser(phone) {
+    await mysqlPool.query("DELETE FROM node_users WHERE phone = ?", [phone]);
+    await mysqlPool.query("DELETE FROM node_addresses WHERE userPhone = ?", [phone]);
+    return true;
+  },
+
+  async createContact(contact) {
+    const { name, email, phone, message } = contact;
+    const [result] = await mysqlPool.query(
+      "INSERT INTO node_contacts (name, email, phone, message) VALUES (?, ?, ?, ?)",
+      [name, email, phone || "", message]
+    );
+    return { id: result.insertId, name, email, phone, message, createdAt: new Date() };
   },
 
   async countUsers() {
@@ -443,7 +469,7 @@ const MySqlDbLayer = {
 
 function initJsonDb() {
   if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES, addresses: [] }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES, addresses: [], contacts: [] }, null, 2));
   } else {
     try {
       const content = fs.readFileSync(DB_FILE, 'utf8');
@@ -451,6 +477,10 @@ function initJsonDb() {
       let changed = false;
       if (!parsed.addresses) {
         parsed.addresses = [];
+        changed = true;
+      }
+      if (!parsed.contacts) {
+        parsed.contacts = [];
         changed = true;
       }
       if (!parsed.categories) {
@@ -534,6 +564,34 @@ const JsonDbLayer = {
     data.users[phone] = { ...data.users[phone], ...updates };
     this.writeData(data);
     return data.users[phone];
+  },
+
+  async deleteUser(phone) {
+    const data = this.readData();
+    if (data.users[phone]) {
+      delete data.users[phone];
+    }
+    data.addresses = data.addresses.filter(addr => addr.userPhone !== phone);
+    this.writeData(data);
+    return true;
+  },
+
+  async createContact(contact) {
+    const data = this.readData();
+    if (!data.contacts) {
+      data.contacts = [];
+    }
+    const newContact = {
+      id: data.contacts.length + 1,
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone || "",
+      message: contact.message,
+      createdAt: new Date().toISOString()
+    };
+    data.contacts.push(newContact);
+    this.writeData(data);
+    return newContact;
   },
 
   async countUsers() {
@@ -680,6 +738,8 @@ const DbLayer = {
   async getUserByReferralCode(code) { return this.getLayer().getUserByReferralCode(code); },
   async createUser(user) { return this.getLayer().createUser(user); },
   async updateUser(phone, updates) { return this.getLayer().updateUser(phone, updates); },
+  async deleteUser(phone) { return this.getLayer().deleteUser(phone); },
+  async createContact(contact) { return this.getLayer().createContact(contact); },
   async countUsers() { return this.getLayer().countUsers(); },
   async getOrderById(id) { return this.getLayer().getOrderById(id); },
   async getOrderByRazorpayOrderId(rzpOrderId) { return this.getLayer().getOrderByRazorpayOrderId(rzpOrderId); },
@@ -1202,6 +1262,38 @@ app.put('/api/auth/profile', async (req, res) => {
     res.json({ success: true, user: updatedUser, message: "Profile updated successfully" });
   } catch (err) {
     console.error("Update profile failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 5. Auth: Delete Account
+app.delete('/api/auth/account', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    await DbLayer.deleteUser(user.phone);
+    console.log(`[Auth] User account ${user.phone} deleted successfully.`);
+    res.json({ success: true, message: "Account deleted successfully" });
+  } catch (err) {
+    console.error("Delete account failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Contact Support API
+app.post('/api/contact', async (req, res) => {
+  const { name, email, phone, message } = req.body;
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: "name, email, and message are required" });
+  }
+  try {
+    const contact = await DbLayer.createContact({ name, email, phone, message });
+    console.log(`[Contact] Inquiry created from ${name} (${email})`);
+    res.json({ success: true, message: "Contact message sent successfully", contact });
+  } catch (err) {
+    console.error("Contact API failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
