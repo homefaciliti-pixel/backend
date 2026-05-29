@@ -274,10 +274,11 @@ Response Payload:
       "razorpayOrderId": "order_xyz123ABC"
     }
   ],
+  "list": [ ... ],
   "orderlist": [ ... ],
   "message": "Orders retrieved successfully"
 }
-Note: The response includes two keys for the same orders array — `orders` and `orderlist` — for frontend compatibility.
+Note: The response includes three aliases for the same orders array — `orders`, `list`, and `orderlist` — for maximum frontend compatibility.
 
 ---------------------------------------------------------
 6. Policies & Information APIs

@@ -3533,6 +3533,7 @@ app.get('/api/orders', async (req, res) => {
     res.json({
       success: true,
       orders: userOrders,
+      list: userOrders,
       orderlist: userOrders,
       message: "Orders retrieved successfully"
     });
