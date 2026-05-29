@@ -477,4 +477,19 @@ Endpoint: DELETE /api/auth/account
 Headers: Authorization: Bearer <jwt_token>
 Response: { "success": true, "message": "Account deleted successfully" }
 
+---------------------------------------------------------
+17. Dropdown Selection APIs (States, Cities, Localities)
+---------------------------------------------------------
+
+Endpoint: GET /api/states
+Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully from database" }
+
+Endpoint: GET /api/cities
+Query Parameters: state (optional; e.g. Rajasthan)
+Response: { "success": true, "cities": ["Jaipur", "Ahmedabad", ...], "message": "Cities retrieved successfully" }
+
+Endpoint: GET /api/localities
+Query Parameters: city (optional; e.g. Jaipur), state (optional; e.g. Rajasthan)
+Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
+
 

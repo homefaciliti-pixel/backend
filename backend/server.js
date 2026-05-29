@@ -3744,7 +3744,21 @@ const STATES_CITIES = {
 };
 
 // Dropdown: Get States
-app.get('/api/states', (req, res) => {
+app.get('/api/states', async (req, res) => {
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [rows] = await mysqlPool.query("SELECT name FROM states WHERE status = 1 AND deleted_at IS NULL ORDER BY name ASC");
+      const states = rows.map(r => r.name);
+      return res.json({
+        success: true,
+        states: states,
+        message: "States retrieved successfully from database"
+      });
+    } catch (err) {
+      console.error("Fetch states from MySQL failed:", err);
+    }
+  }
+  
   const states = Object.keys(STATES_CITIES);
   res.json({
     success: true,
@@ -3754,8 +3768,41 @@ app.get('/api/states', (req, res) => {
 });
 
 // Dropdown: Get Cities
-app.get('/api/cities', (req, res) => {
+app.get('/api/cities', async (req, res) => {
   const { state } = req.query;
+  
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      let query = "SELECT c.name FROM cities c WHERE c.status = 1 AND c.deleted_at IS NULL";
+      const params = [];
+      
+      if (state) {
+        const [stateRows] = await mysqlPool.query("SELECT id FROM states WHERE name = ? AND deleted_at IS NULL LIMIT 1", [state]);
+        if (stateRows.length > 0) {
+          query += " AND c.state_id = ?";
+          params.push(stateRows[0].id);
+        } else {
+          return res.status(404).json({
+            success: false,
+            error: "State not found",
+            message: `State ${state} not found`
+          });
+        }
+      }
+      
+      query += " ORDER BY c.name ASC";
+      const [rows] = await mysqlPool.query(query, params);
+      const cities = rows.map(r => r.name);
+      return res.json({
+        success: true,
+        cities: cities,
+        message: state ? `Cities for state ${state} retrieved successfully` : "All cities retrieved successfully"
+      });
+    } catch (err) {
+      console.error("Fetch cities from MySQL failed:", err);
+    }
+  }
+  
   if (state) {
     const cities = STATES_CITIES[state];
     if (!cities) {
@@ -3777,6 +3824,57 @@ app.get('/api/cities', (req, res) => {
     success: true,
     cities: allCities,
     message: "All cities retrieved successfully"
+  });
+});
+
+// Dropdown: Get Localities
+app.get('/api/localities', async (req, res) => {
+  const { city, state } = req.query;
+  
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      let query = "SELECT l.name FROM localities l WHERE l.status = 1 AND l.deleted_at IS NULL";
+      const params = [];
+      
+      if (city) {
+        const [cityRows] = await mysqlPool.query("SELECT id FROM cities WHERE name = ? AND deleted_at IS NULL LIMIT 1", [city]);
+        if (cityRows.length > 0) {
+          query += " AND l.city_id = ?";
+          params.push(cityRows[0].id);
+        } else {
+          return res.json({ success: true, localities: [], message: `No localities found for city ${city}` });
+        }
+      } else if (state) {
+        const [stateRows] = await mysqlPool.query("SELECT id FROM states WHERE name = ? AND deleted_at IS NULL LIMIT 1", [state]);
+        if (stateRows.length > 0) {
+          query += " AND l.state_id = ?";
+          params.push(stateRows[0].id);
+        } else {
+          return res.json({ success: true, localities: [], message: `No localities found for state ${state}` });
+        }
+      }
+      
+      query += " ORDER BY l.name ASC";
+      const [rows] = await mysqlPool.query(query, params);
+      const names = rows.map(r => r.name);
+      return res.json({
+        success: true,
+        localities: names,
+        message: "Localities retrieved successfully"
+      });
+    } catch (err) {
+      console.error("Fetch localities from MySQL failed:", err);
+    }
+  }
+  
+  const fallbackLocalities = [
+    "Pratap Nagar", "Mansarovar", "Adarsh Nagar", "Raja Park", "Jagat Pura",
+    "Andheri East", "Andheri West", "Bandra", "Koramangala", "Indiranagar"
+  ];
+  res.json({
+    success: true,
+    localities: fallbackLocalities,
+    message: "Localities retrieved successfully (JSON fallback)"
   });
 });
 

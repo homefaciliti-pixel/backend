@@ -192,12 +192,21 @@ PUT /api/orders/:id/booking-flow
 ---------------------------------------------------------
 
 GET /api/states
-- Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully" }
+- Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully from database" }
+- Note: Queries the active database `states` table (returns names of states where status is active). Falls back to static configuration in JSON database fallback.
 
 GET /api/cities
 - Query Parameters:
-  - `state` (optional): Filter cities by state name (e.g. Maharashtra)
-- Response: { "success": true, "cities": ["Mumbai", "Pune", ...], "message": "Cities retrieved successfully" }
+  - `state` (optional): Filter cities by state name (e.g. Rajasthan)
+- Response: { "success": true, "cities": ["Jaipur", "Ahmedabad", ...], "message": "Cities retrieved successfully" }
+- Note: Queries the active database `cities` table dynamically filtering by state ID if the state query parameter is supplied.
+
+GET /api/localities
+- Query Parameters:
+  - `city` (optional): Filter localities by city name (e.g. Jaipur)
+  - `state` (optional): Filter localities by state name (e.g. Rajasthan)
+- Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
+- Note: Queries the active database `localities` table dynamically filtering by city ID or state ID if matching parameters are supplied.
 
 ---------------------------------------------------------
 8. Banners API
