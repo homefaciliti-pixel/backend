@@ -587,15 +587,15 @@ GET /api/payments/callback
   * Updates the DB order `status` to "Paid" and saves `razorpayPaymentId` to the order record.
   * Sets `bookingStatus` to "searching" to trigger partner auto-assignment flow.
   * Browser tab auto-closes after 3-second countdown.
-  * Flutter app detects browser tab closure and shows "Verify Payment" dialog.
-  * After verify → Flutter navigates to PaymentSuccessScreen (in-app animated confirmation).
+  * Flutter app automatically polls `/api/payments/verify/:orderId` every 2 seconds in the background.
+  * Once payment is verified, the app automatically closes the progress dialog and redirects the user directly to the PaymentSuccessScreen.
 
 
 ---------------------------------------------------------
 13c. Flutter PaymentSuccessScreen (In-App Confirmation)
 ---------------------------------------------------------
 
-This is a Flutter in-app screen (not an API endpoint) shown after the user taps "Verify Payment":
+This is a Flutter in-app screen (not an API endpoint) shown automatically upon successful payment verification:
   - Animated checkmark with elastic pop-in and green gradient glow ring
   - Amount badge (e.g. Rs.299) displayed in a gradient pill
   - Order ID (DB orderId) and Razorpay Payment ID shown

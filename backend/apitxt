@@ -386,6 +386,7 @@ Response: HTML page serving the Razorpay Standard Checkout UI or simulated sandb
 Endpoint: GET /api/payments/callback
 Parameters (Query): orderId (required), razorpay_payment_id / paymentId, status, mock
 Response: HTML page showing a beautiful payment success/failed tick animation screen and prompts to return to the app.
+Note: Updates the order to 'Paid' and triggers partner search. The browser tab auto-closes after 3 seconds. The Flutter app automatically polls verification in the background and redirects to the PaymentSuccessScreen.
 
 ---------------------------------------------------------
 8. Dynamic GET Checkout – Auto-Create, Auto-Address & Persistent Overrides
