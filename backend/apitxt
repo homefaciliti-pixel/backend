@@ -255,6 +255,32 @@ Response Payload / Available Time Slots (11 hourly slots):
 }
 
 ---------------------------------------------------------
+5a. Orders API
+---------------------------------------------------------
+
+Endpoint: GET /api/orders
+Headers: Authorization: Bearer <jwt_token>
+Response Payload:
+{
+  "success": true,
+  "orders": [
+    {
+      "id": 1,
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-29",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "status": "Paid",
+      "razorpayOrderId": "order_xyz123ABC"
+    }
+  ],
+  "list": [ ... ],
+  "orderlist": [ ... ],
+  "message": "Orders retrieved successfully"
+}
+Note: The response includes three aliases for the same orders array — `orders`, `list`, and `orderlist` — for maximum frontend compatibility.
+
+---------------------------------------------------------
 6. Policies & Information APIs
 ---------------------------------------------------------
 

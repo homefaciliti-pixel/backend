@@ -161,7 +161,7 @@ POST /api/referrals/apply
 
 GET /api/orders
 - Headers: Authorization: Bearer <jwt_token>
-- Response: { "success": true, "orders": [ ... ], "message": "Orders retrieved successfully" }
+- Response: { "success": true, "orders": [ ... ], "list": [ ... ], "orderlist": [ ... ], "message": "Orders retrieved successfully" }
 
 POST /api/orders
 - Headers: Authorization: Bearer <jwt_token>
