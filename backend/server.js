@@ -1912,7 +1912,7 @@ const handleVerifyPayment = async (req, res) => {
 
     const resolvedOrderId = order ? order.id : (orderId || 0);
 
-    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RkjwFXbGLMrTDs';
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
     const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
     
@@ -2053,8 +2053,9 @@ const handlePayPage = async (req, res) => {
     const rzpOrderId = order.razorpayOrderId;
     const userPhone = order.userPhone || "";
 
-    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RkjwFXbGLMrTDs';
-    const isMockMode = !rzpOrderId || rzpOrderId.startsWith('order_mock_') || razorpayKeyId === 'rzp_live_RkjwFXbGLMrTDs';
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
+    // isMockMode is true only when there is no real Razorpay Order ID (i.e. API call failed)
+    const isMockMode = !rzpOrderId || rzpOrderId.startsWith('order_mock_');
 
     res.send(`
       <!DOCTYPE html>
@@ -2940,7 +2941,7 @@ const handlePostCheckout = async (req, res) => {
     // Call Razorpay API to create a real Order ID if payment method is "Online"
     let razorpayOrderId = null;
     if (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay") {
-      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RkjwFXbGLMrTDs';
+      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
