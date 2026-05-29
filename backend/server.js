@@ -2293,7 +2293,7 @@ const handlePostCheckout = async (req, res) => {
           body: JSON.stringify({
             amount: Math.round(Number(foundService.price) * 100), // amount in paisa
             currency: 'INR',
-            receipt: `order_rcpt_${orderId}`
+            receipt: `order_${orderId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
           })
         });
         const rzpData = await rzpRes.json();
