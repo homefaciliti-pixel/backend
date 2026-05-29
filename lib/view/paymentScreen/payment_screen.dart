@@ -11,6 +11,8 @@ import '../../viewmodel/booking_flow_viewmodel.dart';
 import '../../viewmodel/service_viewmodel.dart';
 import '../booking_map/searching_partner_screen.dart';
 import '../../services/api_service.dart';
+import 'payment_success_screen.dart';
+
 
 
 class PaymentScreen extends StatefulWidget {
@@ -299,40 +301,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       if (!context.mounted) return;
                                       Navigator.pop(dialogContext); // Close payment-in-progress dialog
 
-                                      // Show success dialog
-                                      showDialog(
-                                        context: context,
-                                        barrierDismissible: false,
-                                        builder: (_) => AlertDialog(
-                                          title: const Text("Success"),
-                                          content: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              const Text("Payment Successful 🎉"),
-                                              const SizedBox(height: 10),
-                                              Text(
-                                                razorpayMsg,
-                                                style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
-                                              ),
-                                            ],
+                                      // Navigate to the full-screen payment confirmation page
+                                      final verifyRes2 = await ApiService.get('/api/payments/verify/$orderId');
+                                      final paymentId = verifyRes2?['paymentDetails']?['razorpay_payment_id']
+                                          ?? verifyRes2?['paymentDetails']?['id']
+                                          ?? 'Verified';
+                                      final orderData = verifyRes2?['order'] ?? {};
+
+                                      if (!context.mounted) return;
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => PaymentSuccessScreen(
+                                            orderId: orderId,
+                                            amount: (service?.price ?? 0).toDouble(),
+                                            serviceName: service?.title ?? 'Home Service',
+                                            paymentId: paymentId.toString(),
+                                            date: orderData['date']?.toString() ?? dateStr,
+                                            timeSlot: orderData['timeSlot']?.toString() ?? timeSlotStr,
                                           ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.pop(context); // dialog close
-                                                final bookingVM = Provider.of<BookingFlowViewModel>(context, listen: false);
-                                                bookingVM.startSearching(orderId);
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => const SearchingPartnerScreen(),
-                                                  ),
-                                                );
-                                              },
-                                              child: const Text("OK"),
-                                            )
-                                          ],
                                         ),
                                       );
                                     } else {
