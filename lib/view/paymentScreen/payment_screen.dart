@@ -207,8 +207,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     pincode: "N/A",
                   );
 
-                  /// ORDER CHECKOUT (returns generated order ID)
-                  final orderId = await orderVM.checkout(
+                  /// ORDER CHECKOUT — returns both DB orderId and Razorpay order ID dynamically
+                  final checkoutResult = await orderVM.checkout(
                     product: OrderModel(
                       serviceName: service?.title ?? "",
                       price: service?.price ?? 0,
@@ -224,7 +224,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     userId: authVM.user.phone.isNotEmpty ? authVM.user.phone : "9876543210",
                   );
 
-                  if (orderId == null) {
+                  if (checkoutResult == null) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Failed to place order. Please try again.")),
@@ -232,12 +232,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     return;
                   }
 
+                  // Extract both IDs from checkout response
+                  final int orderId = checkoutResult['orderId'] as int;
+                  // razorpayOrderId: the dynamic ID from Razorpay API (or mock fallback)
+                  final String? razorpayOrderId = checkoutResult['razorpayOrderId'] as String?;
+
                   if (!context.mounted) return;
 
                   if (selectedPayment.toLowerCase() != "cash") {
                     // --- ONLINE / RAZORPAY PAYMENT FLOW ---
+                    // Build payment URL using the internal DB order ID
+                    // The backend pay page uses this to look up razorpayOrderId and display checkout
                     final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/$orderId");
-                    
+
+                    debugPrint("[Payment] DB orderId=$orderId  razorpayOrderId=$razorpayOrderId");
+                    debugPrint("[Payment] Opening: $paymentUrl");
+
                     try {
                       await launchUrl(paymentUrl, mode: LaunchMode.externalApplication);
                     } catch (e) {
@@ -246,6 +256,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         SnackBar(content: Text("Could not open payment page: $e")),
                       );
                     }
+
 
                     if (!context.mounted) return;
 

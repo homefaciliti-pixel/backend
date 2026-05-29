@@ -50,7 +50,8 @@ class OrderViewmodel extends ChangeNotifier {
   }
 
   /// Checkout (collects product, address, payment, and user details, and generates order ID)
-  Future<int?> checkout({
+  /// Returns a Map with 'orderId' (DB ID) and 'razorpayOrderId' (Razorpay ID for payment)
+  Future<Map<String, dynamic>?> checkout({
     required OrderModel product,
     required AddressModel address,
     required String paymentMethod,
@@ -79,7 +80,12 @@ class OrderViewmodel extends ChangeNotifier {
         final newOrder = OrderModel.fromJson(res['order']);
         _orders.insert(0, newOrder);
         notifyListeners();
-        return res['orderId'] is int ? res['orderId'] : (res['orderId'] as num).toInt();
+        final orderId = res['orderId'] is int ? res['orderId'] : (res['orderId'] as num).toInt();
+        final razorpayOrderId = res['razorpayOrderId']?.toString();
+        return {
+          'orderId': orderId,
+          'razorpayOrderId': razorpayOrderId,
+        };
       }
     } catch (e) {
       debugPrint("Checkout failed: $e");
