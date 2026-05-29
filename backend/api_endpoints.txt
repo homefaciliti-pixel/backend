@@ -432,13 +432,77 @@ GET /api/checkout-api/:userId
     "status": "Pending",
     "bookingStatus": "searching",
     "partnerName": null,
-    "partnerDistance": null
+    "partnerDistance": null,
+    "addresses": [
+      {
+        "id": 1,
+        "userPhone": "9876543210",
+        "type": "Home",
+        "houseNo": "104",
+        "society": "Green Villa",
+        "floor": "1st",
+        "landmark": "Near Central Park",
+        "city": "Mumbai, Maharashtra",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": 26.9124,
+        "longitude": 75.7873
+      }
+    ],
+    "services": [
+      {
+        "productId": "Tap Repair",
+        "title": "Tap Repair",
+        "price": 299,
+        "description": "Fix leaking taps and water issues",
+        "image": "https://homefaciliti.com/uploads/services/1715694294.png"
+      }
+    ],
+    "products": [
+      {
+        "productId": "Tap Repair",
+        "title": "Tap Repair",
+        "price": 299,
+        "description": "Fix leaking taps and water issues",
+        "image": "https://homefaciliti.com/uploads/services/1715694294.png"
+      }
+    ],
+    "slots": [
+      "9:00 AM - 10:00 AM",
+      "10:00 AM - 11:00 AM",
+      "11:00 AM - 12:00 PM",
+      "12:00 PM - 1:00 PM",
+      "1:00 PM - 2:00 PM",
+      "2:00 PM - 3:00 PM",
+      "3:00 PM - 4:00 PM",
+      "4:00 PM - 5:00 PM",
+      "5:00 PM - 6:00 PM",
+      "6:00 PM - 7:00 PM",
+      "7:00 PM - 8:00 PM"
+    ],
+    "dates": [
+      {
+        "formattedDate": "2026-05-28",
+        "dayName": "Today",
+        "displayDate": "28 May"
+      },
+      {
+        "formattedDate": "2026-05-29",
+        "dayName": "Tomorrow",
+        "displayDate": "29 May"
+      }
+    ]
   }
 - Note: Retrieves the complete checkout summary for the specified user or order. The `:userId` path parameter accepts either a user phone number (userId) or a numeric orderId.
   - **Dynamic Date & Slot**: When a fallback order is auto-created (no existing order found), the date and timeSlot are computed dynamically from the current IST time — the next available hourly slot after the current hour is selected. If no slots remain today, it rolls over to tomorrow's first slot (9:00 AM).
   - **Auto-Create**: If no order exists in the database for the given user ID/order ID, a new order is automatically created with a proper auto-incremented ID and **persisted to the database** (so a 2nd call returns the same order).
   - **Auto-Address**: The user's latest saved address from the database is resolved and applied automatically. If no saved address exists, falls back to the user's profile `location`/`locality` fields (set via `PUT /api/auth/profile`), then to a default mock address.
   - **Persistent Overrides**: Query parameters `productId`, `date`, and `timeSlot` override the order fields AND are **persisted to the database** so subsequent calls without those parameters still return the overridden values.
+  - **Interactive Option Lists (NEW)**: Returns selectable choices to support dynamic frontend changes:
+    * `addresses`: All saved user addresses.
+    * `services` / `products`: All active services in the same category as the active service, returned under both keys.
+    * `slots`: Dynamically loaded available time slots for the checkout date.
+    * `dates`: Generates 7-day selection list of calendar dates.
 
 
 ---------------------------------------------------------

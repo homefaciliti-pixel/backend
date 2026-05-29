@@ -406,6 +406,14 @@ Key Behaviors:
      still returns the overridden values.
    - Example: GET /api/checkout/9876543210?productId=AC+Gas+Charging&date=2026-06-01&timeSlot=10:00+AM+-+11:00+AM
 
+4. Interactive Selection Choice Lists (NEW):
+   - The endpoint returns lists of available choices so the user can change options directly on the checkout screen:
+     * `addresses`: All saved addresses of the user retrieved dynamically from the `node_addresses` table.
+     * `services` & `products`: All active services in the same category as the selected service, queried dynamically from the MySQL `services` table, with fully resolved image URLs. Both keys contain identical data for Flutter compatibility.
+     * `slots`: List of available time slots for the selected date, retrieved from the `slots` database table.
+     * `dates`: Generates next 7 calendar dates (e.g. formattedDate: "2026-05-28", dayName: "Today"/"Tomorrow"/"Friday", displayDate: "28 May").
+
+
 
 ---------------------------------------------------------
 14. Database Configuration & Fallback Engine (MySQL + JSON)
