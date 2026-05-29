@@ -161,7 +161,15 @@ POST /api/referrals/apply
 
 GET /api/orders
 - Headers: Authorization: Bearer <jwt_token>
-- Response: { "success": true, "orders": [ ... ], "list": [ ... ], "orderlist": [ ... ], "message": "Orders retrieved successfully" }
+- Response:
+  {
+    "success": true,
+    "orders": [ { id, serviceName, price, date, timeSlot, status, address, payment, razorpayOrderId, ... } ],
+    "list": [ { "id": 1, "serviceName": "Tap Repair", "price": 299, "status": "Paid", "date": "2026-05-29", "timeSlot": "10:00 AM - 11:00 AM", "razorpayOrderId": "order_xyz123" } ],
+    "orderlist": { "total": 1, "data": [ { ...full order objects... } ] },
+    "message": "Orders retrieved successfully"
+  }
+- Note: `orders` = full order objects. `list` = compact summary (id, serviceName, price, status, date, timeSlot, razorpayOrderId). `orderlist` = { total: N, data: [...full orders] }.
 
 POST /api/orders
 - Headers: Authorization: Bearer <jwt_token>

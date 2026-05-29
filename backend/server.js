@@ -3530,11 +3530,29 @@ app.get('/api/orders', async (req, res) => {
     }
 
     const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
+
+    // Compact summary list (key fields only)
+    const list = userOrders.map(o => ({
+      id: o.id,
+      serviceName: o.serviceName,
+      price: o.price,
+      status: o.status,
+      date: o.date,
+      timeSlot: o.timeSlot,
+      razorpayOrderId: o.razorpayOrderId || null
+    }));
+
+    // Enriched orderlist with total count
+    const orderlist = {
+      total: userOrders.length,
+      data: userOrders
+    };
+
     res.json({
       success: true,
       orders: userOrders,
-      list: userOrders,
-      orderlist: userOrders,
+      list,
+      orderlist,
       message: "Orders retrieved successfully"
     });
   } catch (err) {

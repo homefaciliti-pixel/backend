@@ -271,14 +271,32 @@ Response Payload:
       "date": "2026-05-29",
       "timeSlot": "10:00 AM - 11:00 AM",
       "status": "Paid",
+      "razorpayOrderId": "order_xyz123ABC",
+      "address": { ... },
+      "payment": { ... }
+    }
+  ],
+  "list": [
+    {
+      "id": 1,
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "status": "Paid",
+      "date": "2026-05-29",
+      "timeSlot": "10:00 AM - 11:00 AM",
       "razorpayOrderId": "order_xyz123ABC"
     }
   ],
-  "list": [ ... ],
-  "orderlist": [ ... ],
+  "orderlist": {
+    "total": 1,
+    "data": [ { ...full order objects... } ]
+  },
   "message": "Orders retrieved successfully"
 }
-Note: The response includes three aliases for the same orders array — `orders`, `list`, and `orderlist` — for maximum frontend compatibility.
+Note:
+  - `orders`   = full order objects (all fields including address, payment)
+  - `list`     = compact summary (id, serviceName, price, status, date, timeSlot, razorpayOrderId)
+  - `orderlist` = { total: N, data: [...full orders] } — includes total count
 
 ---------------------------------------------------------
 6. Policies & Information APIs
