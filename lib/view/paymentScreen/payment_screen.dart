@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'package:userapp/viewmodel/order_viewmodel.dart';
 import 'package:userapp/viewmodel/wallet_viewmodel.dart';
 import 'package:userapp/viewmodel/address_viewmodel.dart';
@@ -265,86 +266,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       context: context,
                       barrierDismissible: false,
                       builder: (dialogContext) {
-                        bool verifying = false;
-                        return StatefulBuilder(
-                          builder: (context, setDialogState) {
-                            return AlertDialog(
-                              title: const Text("Payment in Progress"),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text("We have opened the secure checkout page in your browser. Please complete the payment there."),
-                                  if (verifying) ...[
-                                    const SizedBox(height: 20),
-                                    const CircularProgressIndicator(),
-                                    const SizedBox(height: 10),
-                                    const Text("Verifying your payment status...", style: TextStyle(fontSize: 12)),
-                                  ]
-                                ],
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: verifying ? null : () => Navigator.pop(dialogContext),
-                                  child: const Text("Cancel"),
-                                ),
-                                ElevatedButton(
-                                  onPressed: verifying ? null : () async {
-                                    setDialogState(() => verifying = true);
-                                    
-                                    bool paymentSuccess = false;
-                                    String razorpayMsg = "Payment not verified yet. Please complete the transaction in your browser.";
-
-                                    try {
-                                      final verifyRes = await ApiService.get('/api/payments/verify/$orderId');
-                                      if (verifyRes != null && verifyRes['success'] == true) {
-                                        if (verifyRes['paymentStatus'] == 'captured') {
-                                          paymentSuccess = true;
-                                          razorpayMsg = verifyRes['message'] ?? "Payment Successful";
-                                        }
-                                      }
-                                    } catch (e) {
-                                      debugPrint("Verification call failed: $e");
-                                    }
-
-                                    setDialogState(() => verifying = false);
-
-                                    if (paymentSuccess) {
-                                      if (!context.mounted) return;
-                                      Navigator.pop(dialogContext); // Close payment-in-progress dialog
-
-                                      // Navigate to the full-screen payment confirmation page
-                                      final verifyRes2 = await ApiService.get('/api/payments/verify/$orderId');
-                                      final paymentId = verifyRes2?['paymentDetails']?['razorpay_payment_id']
-                                          ?? verifyRes2?['paymentDetails']?['id']
-                                          ?? 'Verified';
-                                      final orderData = verifyRes2?['order'] ?? {};
-
-                                      if (!context.mounted) return;
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => PaymentSuccessScreen(
-                                            orderId: orderId,
-                                            amount: (service?.price ?? 0).toDouble(),
-                                            serviceName: service?.title ?? 'Home Service',
-                                            paymentId: paymentId.toString(),
-                                            date: orderData['date']?.toString() ?? dateStr,
-                                            timeSlot: orderData['timeSlot']?.toString() ?? timeSlotStr,
-                                          ),
-                                        ),
-                                      );
-                                    } else {
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(razorpayMsg)),
-                                      );
-                                    }
-                                  },
-                                  child: const Text("Verify Payment"),
-                                ),
-                              ],
-                            );
-                          },
+                        return PaymentInProgressDialog(
+                          orderId: orderId,
+                          amount: (service?.price ?? 0).toDouble(),
+                          serviceName: service?.title ?? 'Home Service',
+                          dateStr: dateStr,
+                          timeSlotStr: timeSlotStr,
                         );
                       },
                     );
@@ -382,6 +309,173 @@ class _PaymentScreenState extends State<PaymentScreen> {
           )
         ],
       ),
+    );
+  }
+}
+
+class PaymentInProgressDialog extends StatefulWidget {
+  final int orderId;
+  final double amount;
+  final String serviceName;
+  final String dateStr;
+  final String timeSlotStr;
+
+  const PaymentInProgressDialog({
+    super.key,
+    required this.orderId,
+    required this.amount,
+    required this.serviceName,
+    required this.dateStr,
+    required this.timeSlotStr,
+  });
+
+  @override
+  State<PaymentInProgressDialog> createState() => _PaymentInProgressDialogState();
+}
+
+class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
+  Timer? _timer;
+  bool _verifying = false;
+  bool _success = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start auto polling every 2 seconds
+    _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (!_verifying && !_success) {
+        _autoVerify();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _autoVerify() async {
+    if (!mounted) return;
+    try {
+      final verifyRes = await ApiService.get('/api/payments/verify/${widget.orderId}');
+      if (verifyRes != null && verifyRes['success'] == true) {
+        if (verifyRes['paymentStatus'] == 'captured') {
+          _success = true;
+          _timer?.cancel();
+          if (mounted) {
+            Navigator.pop(context); // Dismiss dialog
+            
+            final paymentId = verifyRes['paymentDetails']?['razorpay_payment_id']
+                ?? verifyRes['paymentDetails']?['id']
+                ?? 'Verified';
+            final orderData = verifyRes['order'] ?? {};
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PaymentSuccessScreen(
+                  orderId: widget.orderId,
+                  amount: widget.amount,
+                  serviceName: widget.serviceName,
+                  paymentId: paymentId.toString(),
+                  date: orderData['date']?.toString() ?? widget.dateStr,
+                  timeSlot: orderData['timeSlot']?.toString() ?? widget.timeSlotStr,
+                ),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("[AutoVerify] Error: $e");
+    }
+  }
+
+  Future<void> _manualVerify() async {
+    if (_verifying) return;
+    setState(() => _verifying = true);
+    
+    bool paymentSuccess = false;
+    String razorpayMsg = "Payment not verified yet. Please complete the transaction in your browser.";
+    dynamic verifyRes;
+
+    try {
+      verifyRes = await ApiService.get('/api/payments/verify/${widget.orderId}');
+      if (verifyRes != null && verifyRes['success'] == true) {
+        if (verifyRes['paymentStatus'] == 'captured') {
+          paymentSuccess = true;
+          _success = true;
+          _timer?.cancel();
+        }
+      }
+    } catch (e) {
+      debugPrint("Manual verification failed: $e");
+    }
+
+    if (mounted) {
+      setState(() => _verifying = false);
+    }
+
+    if (paymentSuccess) {
+      if (mounted) {
+        Navigator.pop(context); // Close dialog
+        
+        final paymentId = verifyRes['paymentDetails']?['razorpay_payment_id']
+            ?? verifyRes['paymentDetails']?['id']
+            ?? 'Verified';
+        final orderData = verifyRes['order'] ?? {};
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentSuccessScreen(
+              orderId: widget.orderId,
+              amount: widget.amount,
+              serviceName: widget.serviceName,
+              paymentId: paymentId.toString(),
+              date: orderData['date']?.toString() ?? widget.dateStr,
+              timeSlot: orderData['timeSlot']?.toString() ?? widget.timeSlotStr,
+            ),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(razorpayMsg)),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Payment in Progress"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text("We have opened the secure checkout page in your browser. Please complete the payment there."),
+          const SizedBox(height: 20),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 10),
+          Text(
+            _verifying ? "Verifying payment..." : "Waiting for payment confirmation...",
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _verifying ? null : () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
+        ElevatedButton(
+          onPressed: _verifying ? null : _manualVerify,
+          child: const Text("Verify Payment"),
+        ),
+      ],
     );
   }
 }
