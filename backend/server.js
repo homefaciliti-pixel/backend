@@ -2317,6 +2317,7 @@ const handlePaymentCallback = async (req, res) => {
           <title>Payment Successful</title>
           <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
           <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
               font-family: 'Outfit', sans-serif;
               background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
@@ -2325,58 +2326,48 @@ const handlePaymentCallback = async (req, res) => {
               justify-content: center;
               align-items: center;
               min-height: 100vh;
-              margin: 0;
             }
             .card {
-              background: rgba(30, 41, 59, 0.7);
-              backdrop-filter: blur(16px);
+              background: rgba(30, 41, 59, 0.85);
+              backdrop-filter: blur(20px);
               border: 1px solid rgba(255, 255, 255, 0.1);
-              padding: 40px;
-              border-radius: 24px;
-              box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+              padding: 44px 36px;
+              border-radius: 28px;
+              box-shadow: 0 32px 60px rgba(0,0,0,0.4);
               max-width: 400px;
-              width: 90%;
+              width: 92%;
               text-align: center;
               animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
             }
             @keyframes scaleUp {
-              from { transform: scale(0.9); opacity: 0; }
+              from { transform: scale(0.85); opacity: 0; }
               to { transform: scale(1); opacity: 1; }
             }
             .checkmark {
-              width: 80px;
-              height: 80px;
+              width: 90px;
+              height: 90px;
               border-radius: 50%;
-              background: #10b981;
+              background: linear-gradient(135deg, #10b981, #059669);
               display: flex;
               justify-content: center;
               align-items: center;
-              font-size: 40px;
+              font-size: 44px;
               color: white;
               margin: 0 auto 24px auto;
-              box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-              animation: pop 0.6s 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+              box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+              animation: pop 0.7s 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
             }
             @keyframes pop {
-              0% { transform: scale(0); }
-              100% { transform: scale(1); }
+              0% { transform: scale(0) rotate(-30deg); }
+              100% { transform: scale(1) rotate(0deg); }
             }
-            h2 {
-              color: #38bdf8;
-              font-size: 24px;
-              margin: 0 0 10px 0;
-            }
-            p {
-              color: #94a3b8;
-              font-size: 15px;
-              line-height: 1.6;
-              margin: 0 0 24px 0;
-            }
+            h2 { color: #10b981; font-size: 26px; margin-bottom: 8px; }
+            .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 28px; }
             .details {
-              background: rgba(255, 255, 255, 0.03);
-              border: 1px solid rgba(255, 255, 255, 0.05);
-              padding: 16px;
-              border-radius: 12px;
+              background: rgba(255, 255, 255, 0.04);
+              border: 1px solid rgba(255, 255, 255, 0.07);
+              padding: 18px;
+              border-radius: 14px;
               margin-bottom: 24px;
               font-size: 14px;
               text-align: left;
@@ -2384,54 +2375,91 @@ const handlePaymentCallback = async (req, res) => {
             .detail-row {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 8px;
+              align-items: center;
+              padding: 8px 0;
+              border-bottom: 1px solid rgba(255,255,255,0.05);
             }
-            .detail-row:last-child {
-              margin-bottom: 0;
-            }
-            .label { color: #64748b; }
+            .detail-row:last-child { border-bottom: none; }
+            .label { color: #64748b; font-size: 13px; }
             .value { color: #f8fafc; font-weight: 600; }
+            .status-badge {
+              background: rgba(16,185,129,0.15);
+              color: #10b981;
+              border: 1px solid rgba(16,185,129,0.3);
+              padding: 4px 10px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .countdown-box {
+              background: rgba(14, 165, 233, 0.1);
+              border: 1px solid rgba(14, 165, 233, 0.2);
+              border-radius: 12px;
+              padding: 12px 16px;
+              margin-bottom: 16px;
+              font-size: 13px;
+              color: #7dd3fc;
+            }
+            .countdown-num { font-weight: 700; color: #38bdf8; font-size: 16px; }
             .btn {
-              background: #10b981;
+              background: linear-gradient(135deg, #10b981, #0ea5e9);
               color: white;
               border: none;
-              padding: 14px 28px;
-              border-radius: 12px;
-              font-weight: 600;
+              padding: 15px 28px;
+              border-radius: 14px;
+              font-weight: 700;
               font-size: 15px;
               cursor: pointer;
               transition: all 0.2s ease;
               width: 100%;
+              letter-spacing: 0.3px;
             }
-            .btn:hover {
-              background: #059669;
-              transform: translateY(-1px);
-            }
+            .btn:hover { opacity: 0.9; transform: translateY(-2px); }
           </style>
         </head>
         <body>
           <div class="card">
             <div class="checkmark">✓</div>
             <h2>Payment Successful!</h2>
-            <p>Your order payment of ₹${order.price} has been verified.</p>
-            
+            <p class="subtitle">Your booking is confirmed 🎉</p>
+
             <div class="details">
               <div class="detail-row">
-                <span class="label">Order ID:</span>
+                <span class="label">Order ID</span>
                 <span class="value">#${orderId}</span>
               </div>
               <div class="detail-row">
-                <span class="label">Transaction ID:</span>
-                <span class="value">${finalPaymentId}</span>
+                <span class="label">Amount Paid</span>
+                <span class="value">₹${order.price}</span>
               </div>
               <div class="detail-row">
-                <span class="label">Status:</span>
-                <span class="value" style="color: #10b981;">Captured</span>
+                <span class="label">Transaction ID</span>
+                <span class="value" style="font-size:12px;">${finalPaymentId}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Status</span>
+                <span class="status-badge">✓ Captured</span>
               </div>
             </div>
 
-            <button class="btn" onclick="window.close()">Return to App</button>
+            <div class="countdown-box">
+              Returning to app in <span class="countdown-num" id="timer">3</span> seconds...
+            </div>
+
+            <button class="btn" onclick="window.close()">Return to App Now</button>
           </div>
+          <script>
+            let t = 3;
+            const el = document.getElementById('timer');
+            const interval = setInterval(() => {
+              t--;
+              el.textContent = t;
+              if (t <= 0) {
+                clearInterval(interval);
+                window.close();
+              }
+            }, 1000);
+          </script>
         </body>
         </html>
       `);
