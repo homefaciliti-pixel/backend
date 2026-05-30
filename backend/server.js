@@ -3085,7 +3085,7 @@ const handlePostCheckout = async (req, res) => {
       bookingStatus: "searching",
       partnerName: null,
       partnerDistance: null,
-      productId: productId,
+      productId: foundService.productId,
       description: foundService.description,
       timeSlot: timeSlot || (await getDynamicDateAndSlot()).timeSlot,
       address: resolvedAddress,
@@ -3317,13 +3317,51 @@ const normalizeDate = (dStr) => {
 
 const normalizeTimeSlot = (slotStr) => {
   if (!slotStr) return slotStr;
-  const cleanSlot = String(slotStr).toLowerCase().replace(/\s/g, '').replace(/to/g, '-');
+  
+  // Format clean up
+  let cleanSlot = String(slotStr).toLowerCase().replace(/\s/g, '').replace(/to/gi, '-');
+  cleanSlot = cleanSlot.replace(/:+(?!\d)/g, ''); // Fixes "10:am" -> "10am"
+
+  // Direct match
   for (const s of STATIC_BOOKING_SLOTS) {
-    const staticClean = s.time.toLowerCase().replace(/\s/g, '').replace(/to/g, '-');
+    const staticClean = s.time.toLowerCase().replace(/\s/g, '').replace(/to/gi, '-');
     if (cleanSlot === staticClean) {
       return s.time;
     }
   }
+
+  // Hours extraction and match (handles e.g. "9:00am to 10:am", "9am to 10am")
+  const extractHoursAndAmPm = (str) => {
+    const regex = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*[-]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i;
+    const match = str.match(regex);
+    if (match) {
+      const h1 = parseInt(match[1]);
+      const m1 = match[2] ? parseInt(match[2]) : 0;
+      const ap1 = match[3].toLowerCase();
+      const h2 = parseInt(match[4]);
+      const m2 = match[5] ? parseInt(match[5]) : 0;
+      const ap2 = match[6].toLowerCase();
+      return { h1, m1, ap1, h2, m2, ap2 };
+    }
+    return null;
+  };
+
+  const parsedInput = extractHoursAndAmPm(cleanSlot);
+  if (parsedInput) {
+    for (const s of STATIC_BOOKING_SLOTS) {
+      const parsedStatic = extractHoursAndAmPm(s.time.toLowerCase().replace(/\s/g, ''));
+      if (parsedStatic &&
+          parsedInput.h1 === parsedStatic.h1 &&
+          parsedInput.m1 === parsedStatic.m1 &&
+          parsedInput.ap1 === parsedStatic.ap1 &&
+          parsedInput.h2 === parsedStatic.h2 &&
+          parsedInput.m2 === parsedStatic.m2 &&
+          parsedInput.ap2 === parsedStatic.ap2) {
+        return s.time;
+      }
+    }
+  }
+
   return slotStr;
 };
 
@@ -3606,8 +3644,9 @@ const handleGetCheckout = async (req, res) => {
     }
     const resolvedServices = resolveServiceUrls(services, serverBaseUrl);
 
-    // Retrieve available booking slots for the selected date
-    const availableSlots = await getAvailableSlotsForDate(order.date);
+    // Retrieve available booking slots for the selected date (only show what the user can select)
+    const rawAvailableSlots = await getAvailableSlotsForDate(order.date);
+    const availableSlots = rawAvailableSlots.filter(s => s.available);
 
     // Generate available booking dates (next 7 days)
     const dates = [];
@@ -3949,7 +3988,7 @@ const handleGetAvailableSlots = async (req, res) => {
           slot.available = false;
         }
       }
-      slots = rawSlots;
+      slots = rawSlots.filter(s => s.available);
     } else {
       // No date provided — return all slots as available
       slots = bookingSlots.map(s => ({ ...s, available: true }));

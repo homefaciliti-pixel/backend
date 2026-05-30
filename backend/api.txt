@@ -553,5 +553,22 @@ Endpoint: GET /api/localities
 Query Parameters: city (optional; e.g. Jaipur), state (optional; e.g. Rajasthan)
 Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
 
+---------------------------------------------------------
+18. Parameter Normalization and Available Slot Filtering (NEW)
+---------------------------------------------------------
 
+All time slots, dates, and service/product names are automatically normalized before being processed, validated, or persisted to the database.
 
+1. Time Slot Normalization:
+   - Shorthand time slot formats (e.g., "9:00am to 10:am", "5:00pm to 6:00pm", or "5:00 pm - 6:00 pm") are automatically normalized to the standard catalog format (e.g., "9:00 AM - 10:00 AM").
+   - Colons not followed by digits (such as trailing colons, e.g., "10:am") are automatically stripped to "10am" before performing standard hour/AM-PM extraction.
+
+2. Date Normalization:
+   - Date parameters supplied in varying formats (e.g., "31/05/2026", "31-05-2026") are normalized to standard ISO format "YYYY-MM-DD" (e.g., "2026-05-31").
+
+3. Product/Service Name Normalization:
+   - Spelling typos (e.g., "lekage repair", "lekege repair") or formatting variations (e.g., "leakage-repair", "leakage_repair") are resolved to the correct catalog title (e.g., "Leakage Repair").
+   - Both order `productId` and `serviceName` fields are stored and returned in this normalized format.
+
+4. Slot Availability Filtering:
+   - Available slots lists returned in GET `/api/booking/available-slots` and GET `/api/checkout` are dynamically filtered to ONLY return slots that can actually be selected by the user (slots where `available === true`). Already booked/overlapping slots are excluded from the payload.
