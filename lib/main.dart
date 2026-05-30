@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:userapp/services/notification_service.dart';
 import 'package:userapp/view/auth/login_screen.dart';
 import 'package:userapp/view/auth/otp_screen.dart';
 import 'package:userapp/view/booking_map/tracking_screen.dart';
@@ -18,6 +19,8 @@ import 'package:userapp/viewmodel/wallet_viewmodel.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Initialize local notifications
+  await NotificationService().init();
   runApp(const MyApp());
 }
 

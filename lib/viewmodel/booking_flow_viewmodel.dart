@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../model/booking_status.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 
 class BookingFlowViewModel extends ChangeNotifier {
   BookingStatus _status = BookingStatus.idle;
@@ -81,8 +82,12 @@ class BookingFlowViewModel extends ChangeNotifier {
     }
   }
 
+  // Track previous status to detect transitions
+  BookingStatus? _prevPolledStatus;
+
   void _startPolling() {
     _pollingTimer?.cancel();
+    _prevPolledStatus = null;
     _pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
       if (_activeOrderId == null) {
         timer.cancel();
@@ -96,8 +101,19 @@ class BookingFlowViewModel extends ChangeNotifier {
           _partnerDistance = res['partnerDistance'];
 
           if (newStatus != _status) {
+            final oldStatus = _status;
             _status = newStatus;
             notifyListeners();
+
+            // 🔔 Fire local notification when partner is first assigned
+            if (newStatus == BookingStatus.assigned &&
+                oldStatus == BookingStatus.searching) {
+              NotificationService().showPartnerAssigned(
+                partnerName: _partnerName ?? 'Your Partner',
+                serviceName: 'your service',
+                distance: _partnerDistance ?? 'Nearby',
+              );
+            }
           }
 
           // Stop polling if we reached terminal state

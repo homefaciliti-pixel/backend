@@ -45,14 +45,33 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     if (status == 'Cancelled') return Colors.red;
     switch (bStatus) {
       case 'completed':
-        return Colors.green;
+        return const Color(0xFF10B981); // emerald
       case 'assigned':
       case 'accepted':
+        return const Color(0xFF6366F1); // indigo
       case 'onTheWay':
-        return AppColors.secondaryBlue;
+        return const Color(0xFF0EA5E9); // sky blue
+      case 'searching':
+        return const Color(0xFFF59E0B); // amber
+      default:
+        return const Color(0xFFF59E0B);
+    }
+  }
+
+  IconData _getStatusIcon(String bStatus, String status) {
+    if (status == 'Cancelled') return Icons.cancel_rounded;
+    switch (bStatus) {
+      case 'completed':
+        return Icons.check_circle_rounded;
+      case 'assigned':
+        return Icons.engineering_rounded;
+      case 'accepted':
+        return Icons.handshake_rounded;
+      case 'onTheWay':
+        return Icons.directions_run_rounded;
       case 'searching':
       default:
-        return Colors.orange;
+        return Icons.manage_search_rounded;
     }
   }
 
@@ -153,6 +172,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // ── Row 1: Service name + Status badge ──
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -168,49 +188,110 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+                                // ── Status badge with icon ──
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
                                     color: statusColor.withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: statusColor.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _getStatusIcon(bStatus, order.status),
+                                        size: 12,
+                                        color: statusColor,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        statusText,
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // ── Row 2: Price ──
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondaryBlue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    statusText,
+                                    "₹${order.price}",
                                     style: TextStyle(
-                                      color: statusColor,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 11,
+                                      color: AppColors.secondaryBlue,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Text(
-                                  "₹${order.price}",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.secondaryBlue,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Text("•", style: TextStyle(color: Colors.grey)),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    _formatDate(order.date),
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
+
+                            const SizedBox(height: 10),
+
+                            // ── Row 3: Date + Time Slot ──
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_month_rounded, size: 15, color: Colors.grey.shade600),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      _formatDate(order.date),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
+                                  if (order.timeSlot != null && order.timeSlot!.isNotEmpty) ...[
+                                    Container(
+                                      width: 1,
+                                      height: 14,
+                                      color: Colors.grey.shade300,
+                                      margin: const EdgeInsets.symmetric(horizontal: 10),
+                                    ),
+                                    Icon(Icons.access_time_rounded, size: 15, color: AppColors.secondaryBlue),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      order.timeSlot!,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.secondaryBlue,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                             
                             // Partner info preview if assigned

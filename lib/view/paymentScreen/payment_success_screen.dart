@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../services/notification_service.dart';
 import '../../viewmodel/booking_flow_viewmodel.dart';
 import '../booking_map/searching_partner_screen.dart';
+import '../home/order/order_history_screen.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
   final int orderId;
@@ -65,6 +67,15 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen>
     Future.delayed(const Duration(milliseconds: 300), () {
       _fadeController.forward();
       _slideController.forward();
+    });
+
+    // 🔔 Fire booking confirmed notification
+    Future.delayed(const Duration(milliseconds: 600), () {
+      NotificationService().showOrderConfirmed(
+        serviceName: widget.serviceName,
+        date: widget.date,
+        timeSlot: widget.timeSlot,
+      );
     });
   }
 
@@ -287,51 +298,104 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen>
                 ),
               ),
 
-              // Bottom CTA Button
+              // Bottom CTA Buttons
               FadeTransition(
                 opacity: _fadeAnim,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        final bookingVM =
-                            Provider.of<BookingFlowViewModel>(context, listen: false);
-                        bookingVM.startSearching(widget.orderId);
-                        // Replace whole stack with searching screen
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SearchingPartnerScreen(),
+                  child: Column(
+                    children: [
+                      // Primary: Track My Booking
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
                           ),
-                          (route) => route.isFirst,
-                        );
-                      },
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_rounded, size: 22),
-                          SizedBox(width: 10),
-                          Text(
-                            'Track My Booking',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          onPressed: () {
+                            final bookingVM = Provider.of<BookingFlowViewModel>(
+                                context,
+                                listen: false);
+                            bookingVM.startSearching(widget.orderId);
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SearchingPartnerScreen(),
+                              ),
+                              (route) => route.isFirst,
+                            );
+                          },
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.search_rounded, size: 22),
+                              SizedBox(width: 10),
+                              Text(
+                                'Track My Booking',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Secondary: Go to My Orders
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                        ],
+                          onPressed: () {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OrderHistoryScreen(),
+                              ),
+                              (route) => route.isFirst,
+                            );
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_rounded,
+                                size: 20,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Go to My Orders',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withOpacity(0.85),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
