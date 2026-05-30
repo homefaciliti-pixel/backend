@@ -28,7 +28,10 @@ class _AddressScreenState extends State<AddressScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      Provider.of<AddressViewmodel>(context, listen: false).fetchStates();
+      final addressVM = Provider.of<AddressViewmodel>(context, listen: false);
+      // ✅ Clear stale address from previous booking so each checkout is fresh
+      addressVM.clearAddress();
+      addressVM.fetchStates();
     });
   }
 

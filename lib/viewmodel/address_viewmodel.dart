@@ -18,6 +18,16 @@ class AddressViewmodel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// ✅ Clear all address state — call when address screen opens for a new booking
+  void clearAddress() {
+    address = null;
+    selectedState = null;
+    selectedCity = null;
+    selectedType = "Home";
+    cities = [];
+    notifyListeners();
+  }
+
   Future<void> saveAddress(AddressModel newAddress) async {
     address = newAddress;
     notifyListeners();

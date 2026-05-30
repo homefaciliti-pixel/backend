@@ -250,6 +250,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                     try {
                       await launchUrl(paymentUrl, mode: LaunchMode.externalApplication);
+                      // ✅ Reset booking selections after launching online payment
+                      if (context.mounted) {
+                        Provider.of<ServiceViewModel>(context, listen: false)
+                            .resetBookingSelections();
+                      }
                     } catch (e) {
                       debugPrint("Failed to launch payment URL: $e");
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -286,6 +291,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     }
 
                     if (!context.mounted) return;
+
+                    // ✅ Reset all booking selections after successful order
+                    Provider.of<ServiceViewModel>(context, listen: false)
+                        .resetBookingSelections();
 
                     Navigator.pushReplacement(
                       context,

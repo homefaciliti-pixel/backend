@@ -139,6 +139,10 @@ class ServiceViewModel extends ChangeNotifier {
 
   void selectService(ServiceModel service) {
     selectedService = service;
+    // ✅ Always reset date & slot when a new service is selected
+    // This prevents stale date/slot from a previous booking
+    selectedDate = null;
+    selectedSlot = null;
     notifyListeners();
   }
 
@@ -149,6 +153,14 @@ class ServiceViewModel extends ChangeNotifier {
 
   void setSlot(String slot) {
     selectedSlot = slot;
+    notifyListeners();
+  }
+
+  /// ✅ Full reset — call after checkout completes
+  void resetBookingSelections() {
+    selectedService = null;
+    selectedDate = null;
+    selectedSlot = null;
     notifyListeners();
   }
 }
