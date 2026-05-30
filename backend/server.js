@@ -1077,6 +1077,9 @@ app.post('/api/auth/send-otp', async (req, res) => {
   const senderId = process.env.SMS_SENDER_ID || 'WEBSMS';
   const rawTemplate = process.env.SMS_TEMPLATE_TEXT || 'Your OTP for Home Faciliti registration is {otp}.';
   const messageText = rawTemplate.replace('{otp}', otp);
+  const entityId = process.env.SMS_ENTITY_ID || '';
+  const dltTemplateId = process.env.SMS_DLT_TEMPLATE_ID || '';
+  const smsRoute = process.env.SMS_ROUTE || '2';
 
   // Format phone number: SMS Gateway Hub expects 91 prefix for Indian numbers without '+'
   let formattedPhone = phone.trim();
@@ -1100,11 +1103,13 @@ app.post('/api/auth/send-otp', async (req, res) => {
       body: JSON.stringify({
         APIKey: smsApiKey,
         senderid: senderId,
-        channel: "2",
+        channel: smsRoute,
         DCS: "0",
         flashsms: "0",
         number: formattedPhone,
-        text: messageText
+        text: messageText,
+        ...(entityId ? { EntityId: entityId } : {}),
+        ...(dltTemplateId ? { dlttemplateid: dltTemplateId } : {})
       })
     });
     const data = await response.json();
@@ -1125,7 +1130,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
       otp: otp 
     });
   } else {
-    console.warn(`[SMS] Failed to send SMS via SMSGatewayHub (${smsError}). Falling back to console/response delivery for OTP: ${otp}`);
+    console.warn(`[SMS] Failed to send SMS: ${smsError}. Payload details (excl. Key) -> senderid: "${senderId}", number: "${formattedPhone}", route: "${smsRoute}", text: "${messageText}", EntityId: "${entityId}", dlttemplateid: "${dltTemplateId}"`);
     res.json({ 
       success: true, 
       message: `OTP generated (SMS delivery failed: ${smsError || 'unknown error'})`,
