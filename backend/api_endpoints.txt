@@ -295,11 +295,12 @@ GET /api/booking/available-slots
 POST /api/bookings
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "productId": "string", "date": "string", "timeSlot": "string" }
+  * Note: `productId` is format- and spelling-insensitive (e.g., `lekage repair` or `leakage-repair` resolves to `Leakage Repair` automatically).
 - Response: {
     "success": true,
     "message": "Booking details validated and registered",
     "booking": {
-      "productId": "Plumbing Service",
+      "productId": "Leakage Repair",
       "date": "2026-05-27",
       "timeSlot": "2:00 PM - 3:00 PM"
     }
@@ -369,10 +370,10 @@ GET /api/addresses
 
 POST /api/checkout
 POST /api/checkout-api
-- Headers: Authorization: Bearer <jwt_token>
+- Headers: Authorization: Bearer <jwt_token>          (Required; verified OTP token strictly resolves the order owner)
 - Body: {
-    "userId": "string",                              (optional, resolves order owner)
-    "productId": "Tap Repair",
+    "userId": "string",                              (deprecated/ignored; owner is strictly retrieved from the authorization token)
+    "productId": "Tap Repair",                        (Required; format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`)
     "timeSlot": "4:00 PM - 5:00 PM",                (optional - auto-computed if omitted)
     "date": "2026-05-28",                            (optional - auto-computed if omitted)
     "payment": { "paymentMethod": "Online", "amountPaid": 0 }

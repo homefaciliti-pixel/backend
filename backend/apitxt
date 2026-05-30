@@ -457,7 +457,7 @@ Endpoint: GET /api/checkout-api
 Endpoint: GET /api/checkout/:userId
 Endpoint: GET /api/checkout-api/:userId
 Headers: Authorization: Bearer <jwt_token>
-Optional Query Parameters: productId, date, timeSlot
+Optional Query Parameters: productId (format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`), date, timeSlot
 
 Key Behaviors:
 
