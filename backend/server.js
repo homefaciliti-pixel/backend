@@ -2828,10 +2828,10 @@ const handlePostBooking = async (req, res) => {
 
     // Validate slot availability (no overlap with existing bookings on the same date for the same product)
     const allOrders = await DbLayer.getAllOrders();
-    const targetDate = date.split('T')[0];
+    const targetDate = normalizeDate(date.split('T')[0]);
     const matchingOrders = allOrders.filter(order => {
       if (!order.date) return false;
-      const orderDate = order.date.split('T')[0];
+      const orderDate = normalizeDate(order.date.split('T')[0]);
       const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
                            (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
       return orderDate === targetDate && matchProduct;
@@ -3166,14 +3166,19 @@ async function getBookingSlots() {
   return STATIC_BOOKING_SLOTS;
 }
 
-async function getAvailableSlotsForDate(dateStr) {
+async function getAvailableSlotsForDate(dateStr, excludeOrderId = null) {
   // Start with all slots marked available
   const bookingSlots = await getBookingSlots();
   const slots = bookingSlots.map(s => ({ ...s, available: true }));
   try {
     const allOrders = await DbLayer.getAllOrders();
-    const targetDate = dateStr.split('T')[0];
-    const matchingOrders = allOrders.filter(o => o.date && o.date.split('T')[0] === targetDate);
+    const targetDate = normalizeDate(dateStr.split('T')[0]);
+    const matchingOrders = allOrders.filter(o => {
+      if (!o.date) return false;
+      if (excludeOrderId && Number(o.id) === Number(excludeOrderId)) return false;
+      const orderDate = normalizeDate(o.date.split('T')[0]);
+      return orderDate === targetDate;
+    });
     const bookedRanges = matchingOrders.map(o => parseTimeRange(o.timeSlot)).filter(r => r !== null);
     for (const slot of slots) {
       const slotRange = parseTimeRange(slot.time);
@@ -3297,22 +3302,26 @@ const normalizeString = (str) => {
 
 const normalizeDate = (dStr) => {
   if (!dStr) return dStr;
-  const s = String(dStr).trim();
-  const match1 = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  
+  // Extract just the date part (first word or before T or space)
+  const clean = String(dStr).trim().split(/[T\s]/)[0];
+  
+  const match1 = clean.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2}|\d{4})$/);
   if (match1) {
     const day = match1[1].padStart(2, '0');
     const month = match1[2].padStart(2, '0');
-    const year = match1[3];
+    let year = match1[3];
+    if (year.length === 2) year = `20${year}`;
     return `${year}-${month}-${day}`;
   }
-  const match2 = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  const match2 = clean.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
   if (match2) {
     const year = match2[1];
     const month = match2[2].padStart(2, '0');
     const day = match2[3].padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  return s;
+  return clean;
 };
 
 const normalizeTimeSlot = (slotStr) => {
@@ -3644,8 +3653,8 @@ const handleGetCheckout = async (req, res) => {
     }
     const resolvedServices = resolveServiceUrls(services, serverBaseUrl);
 
-    // Retrieve available booking slots for the selected date (only show what the user can select)
-    const rawAvailableSlots = await getAvailableSlotsForDate(order.date);
+    // Retrieve available booking slots for the selected date (only show what the user can select, excluding user's own order)
+    const rawAvailableSlots = await getAvailableSlotsForDate(order.date, order.id);
     const availableSlots = rawAvailableSlots.filter(s => s.available);
 
     // Generate available booking dates (next 7 days)
@@ -3660,6 +3669,25 @@ const handleGetCheckout = async (req, res) => {
         dayName: i === 0 ? "Today" : (i === 1 ? "Tomorrow" : daysOfWeek[d.getDay()]),
         displayDate: `${d.getDate()} ${months[d.getMonth()]}`
       });
+    }
+
+    const hasOrderDate = dates.some(d => d.formattedDate === order.date);
+    if (!hasOrderDate && order.date) {
+      try {
+        const parts = order.date.split('-');
+        if (parts.length === 3) {
+          const year = parseInt(parts[0]);
+          const monthIndex = parseInt(parts[1]) - 1;
+          const day = parseInt(parts[2]);
+          dates.unshift({
+            formattedDate: order.date,
+            dayName: "Selected Date",
+            displayDate: `${day} ${months[monthIndex]}`
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse order date for dates list:", e);
+      }
     }
 
     res.json({
@@ -3945,8 +3973,9 @@ function timesOverlap(range1, range2) {
 }
 
 const handleGetAvailableSlots = async (req, res) => {
-  let date = req.query.date || req.query.dates || req.headers['x-date'];
+  let date = req.query.date || req.query.dates || req.body.date || req.body.dates || req.headers['x-date'];
   let productId = req.query.productId || req.query.product || req.query.product_id || req.query.serviceName ||
+                  req.body.productId || req.body.product || req.body.product_id || req.body.serviceName ||
                   req.headers['x-product-id'] || req.headers['x-product'];
 
   if (productId && typeof productId === 'object') {
@@ -3968,26 +3997,7 @@ const handleGetAvailableSlots = async (req, res) => {
     const bookingSlots = await getBookingSlots();
     if (date) {
       // Use shared helper which checks real DB bookings for the given date
-      const rawSlots = bookingSlots.map(s => ({ ...s, available: true }));
-      const allOrders = await DbLayer.getAllOrders();
-      const targetDate = date.split('T')[0];
-      const matchingOrders = allOrders.filter(order => {
-        if (!order.date) return false;
-        const orderDate = order.date.split('T')[0];
-        if (productId) {
-          const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
-                               (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
-          return orderDate === targetDate && matchProduct;
-        }
-        return orderDate === targetDate;
-      });
-      const bookedRanges = matchingOrders.map(o => parseTimeRange(o.timeSlot)).filter(r => r !== null);
-      for (const slot of rawSlots) {
-        const slotRange = parseTimeRange(slot.time);
-        if (slotRange && bookedRanges.some(b => timesOverlap(slotRange, b))) {
-          slot.available = false;
-        }
-      }
+      const rawSlots = await getAvailableSlotsForDate(date);
       slots = rawSlots.filter(s => s.available);
     } else {
       // No date provided — return all slots as available
