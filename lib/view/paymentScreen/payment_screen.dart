@@ -296,6 +296,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     Provider.of<ServiceViewModel>(context, listen: false)
                         .resetBookingSelections();
 
+                    // ✅ Prefetch orders list to include the new booking immediately
+                    Provider.of<OrderViewmodel>(context, listen: false).fetchOrders();
+
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -398,6 +401,9 @@ class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
                 ?? 'Verified';
             final orderData = verifyRes['order'] ?? {};
 
+            // ✅ Prefetch orders list to include the new booking immediately
+            Provider.of<OrderViewmodel>(context, listen: false).fetchOrders();
+
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -453,6 +459,9 @@ class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
             ?? verifyRes['paymentDetails']?['id']
             ?? 'Verified';
         final orderData = verifyRes['order'] ?? {};
+
+        // ✅ Prefetch orders list to include the new booking immediately
+        Provider.of<OrderViewmodel>(context, listen: false).fetchOrders();
 
         Navigator.push(
           context,
