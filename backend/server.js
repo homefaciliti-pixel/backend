@@ -3020,9 +3020,24 @@ const handlePostCheckout = async (req, res) => {
       }
     }
     
-    // Auto-increment simple numerical ID
-    const lastOrderId = await DbLayer.getLastOrderId();
-    const orderId = lastOrderId + 1;
+    // Check if there is already an existing pending order for this user
+    let existingOrder = null;
+    const userOrders = await DbLayer.getOrdersByUserPhone(phone);
+    const pendingOrders = userOrders.filter(o => o.status && o.status.toLowerCase() === "pending");
+    if (pendingOrders && pendingOrders.length > 0) {
+      existingOrder = pendingOrders[0];
+    }
+    
+    // Auto-increment simple numerical ID or reuse existing pending order ID
+    let orderId;
+    if (existingOrder) {
+      orderId = existingOrder.id;
+      console.log(`[Checkout] Reusing existing pending Order #${orderId} for phone ${phone}`);
+    } else {
+      const lastOrderId = await DbLayer.getLastOrderId();
+      orderId = lastOrderId + 1;
+      console.log(`[Checkout] Generating new Order #${orderId} for phone ${phone}`);
+    }
 
     // Parse payment method details
     let paymentMethod = "Wallet";
@@ -3030,11 +3045,18 @@ const handlePostCheckout = async (req, res) => {
     if (req.body.payment) {
       paymentMethod = req.body.payment.paymentMethod || "Wallet";
       amountPaid = Number(req.body.payment.amountPaid) || 0;
+    } else if (existingOrder && existingOrder.payment) {
+      paymentMethod = existingOrder.payment.paymentMethod || "Wallet";
+      amountPaid = Number(existingOrder.payment.amountPaid) || 0;
     }
 
     // Call Razorpay API to create a real Order ID if payment method is "Online"
     let razorpayOrderId = null;
-    if (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay") {
+    if (existingOrder && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
+      razorpayOrderId = existingOrder.razorpayOrderId;
+    }
+
+    if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
       try {
@@ -3073,32 +3095,55 @@ const handlePostCheckout = async (req, res) => {
         console.log(`[Razorpay] Generated perfect fallback mock ID: ${razorpayOrderId}`);
       }
     }
+
+    const resolvedDate = date || (existingOrder ? existingOrder.date : null) || new Date().toISOString().split('T')[0];
+    const resolvedTimeSlot = timeSlot || (existingOrder ? existingOrder.timeSlot : null) || (await getDynamicDateAndSlot()).timeSlot;
+    const resolvedAddressField = resolvedAddress || (existingOrder ? existingOrder.address : null);
     
-    const newOrder = {
+    const finalOrder = {
       id: orderId,
       userPhone: phone,
       userId: phone,
       serviceName: foundService.title,
       price: Number(foundService.price),
-      date: date || new Date().toISOString().split('T')[0],
+      date: resolvedDate,
       status: "Pending",
       bookingStatus: "searching",
       partnerName: null,
       partnerDistance: null,
       productId: foundService.productId,
       description: foundService.description,
-      timeSlot: timeSlot || (await getDynamicDateAndSlot()).timeSlot,
-      address: resolvedAddress,
+      timeSlot: resolvedTimeSlot,
+      address: resolvedAddressField,
       payment: { 
         paymentMethod: paymentMethod, 
         amountPaid: paymentMethod.toLowerCase() === "wallet" ? Number(foundService.price) : amountPaid 
       },
       razorpayOrderId: razorpayOrderId,
-      razorpayPaymentId: null,
+      razorpayPaymentId: (existingOrder ? existingOrder.razorpayPaymentId : null) || null,
       createdAt: Date.now()
     };
     
-    await DbLayer.createOrder(newOrder);
+    if (existingOrder) {
+      await DbLayer.updateOrder(orderId, {
+        serviceName: finalOrder.serviceName,
+        price: finalOrder.price,
+        date: finalOrder.date,
+        status: finalOrder.status,
+        bookingStatus: finalOrder.bookingStatus,
+        partnerName: finalOrder.partnerName,
+        partnerDistance: finalOrder.partnerDistance,
+        productId: finalOrder.productId,
+        description: finalOrder.description,
+        timeSlot: finalOrder.timeSlot,
+        address: finalOrder.address,
+        payment: finalOrder.payment,
+        razorpayOrderId: finalOrder.razorpayOrderId,
+        createdAt: finalOrder.createdAt
+      });
+    } else {
+      await DbLayer.createOrder(finalOrder);
+    }
     
     // Only simulate wallet balance deduction if paymentMethod is Wallet
     if (paymentMethod.toLowerCase() === "wallet") {
@@ -3115,7 +3160,7 @@ const handlePostCheckout = async (req, res) => {
       success: true,
       orderId: orderId,
       userId: phone,
-      order: { ...newOrder, userId: phone },
+      order: { ...finalOrder, userId: phone },
       razorpayOrderId: razorpayOrderId,
       message: "Checkout completed successfully and order placed"
     });
@@ -3170,6 +3215,7 @@ async function getAvailableSlotsForDate(dateStr, excludeOrderId = null) {
   // Start with all slots marked available
   const bookingSlots = await getBookingSlots();
   const slots = bookingSlots.map(s => ({ ...s, available: true }));
+  if (!dateStr) return slots;
   try {
     const allOrders = await DbLayer.getAllOrders();
     const targetDate = normalizeDate(dateStr.split('T')[0]);
@@ -3656,6 +3702,28 @@ const handleGetCheckout = async (req, res) => {
     // Retrieve available booking slots for the selected date (only show what the user can select, excluding user's own order)
     const rawAvailableSlots = await getAvailableSlotsForDate(order.date, order.id);
     const availableSlots = rawAvailableSlots.filter(s => s.available);
+
+    // Ensure the currently selected time slot is visible in the frontend list
+    if (order.timeSlot) {
+      const hasOrderSlot = availableSlots.some(s => s.time === order.timeSlot);
+      if (!hasOrderSlot) {
+        let startHour = 0;
+        try {
+          const parsed = parseTimeRange(order.timeSlot);
+          if (parsed) startHour = parsed.start;
+        } catch(e) {}
+        
+        availableSlots.push({
+          id: "slot_custom",
+          time: order.timeSlot,
+          start: startHour,
+          available: true
+        });
+        
+        // Sort slots chronologically
+        availableSlots.sort((a, b) => (a.start || 0) - (b.start || 0));
+      }
+    }
 
     // Generate available booking dates (next 7 days)
     const dates = [];
