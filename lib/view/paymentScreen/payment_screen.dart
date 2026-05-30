@@ -277,12 +277,27 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     );
                   } else {
                     // --- CASH PAYMENT FLOW ---
-                    final bookingVM = Provider.of<BookingFlowViewModel>(context, listen: false);
-                    bookingVM.startSearching(orderId);
-                    Navigator.push(
+                    // Confirm COD order with the backend API
+                    try {
+                      final codRes = await ApiService.post('/api/payments/cod/$orderId', {});
+                      debugPrint("[Payment] COD API response: $codRes");
+                    } catch (e) {
+                      debugPrint("Failed to call COD API: $e");
+                    }
+
+                    if (!context.mounted) return;
+
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const SearchingPartnerScreen(),
+                        builder: (_) => PaymentSuccessScreen(
+                          orderId: orderId,
+                          amount: (service?.price ?? 0).toDouble(),
+                          serviceName: service?.title ?? 'Home Service',
+                          paymentId: 'COD',
+                          date: dateStr,
+                          timeSlot: timeSlotStr,
+                        ),
                       ),
                     );
                   }

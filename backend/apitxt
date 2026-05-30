@@ -414,6 +414,22 @@ Response Payload:
   "message": "Payment checked successfully from Razorpay. Status: captured"
 }
 Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
+* For Cash / COD orders, verification immediately returns success with `paymentStatus: "cod"`.
+
+---------------------------------------------------------
+7c. Cash on Delivery (COD) Confirmation API
+---------------------------------------------------------
+
+Endpoint: POST /api/payments/cod/:orderId
+Parameters (Path): orderId (required; numeric database order ID)
+Response Payload:
+{
+  "success": true,
+  "orderId": 12,
+  "order": { ... },
+  "message": "COD order placed successfully"
+}
+Note: Updates the target order's status to "Pending" and bookingStatus to "searching". Used by the Flutter client to confirm order placement when "Cash on Delivery" is chosen.
 
 ---------------------------------------------------------
 7a. Hosted Payment Checkout Page URL

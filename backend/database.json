@@ -9,6 +9,17 @@
       "gender": "Male",
       "referralCode": "HIR707687",
       "walletBalance": 500
+    },
+    "9999922222": {
+      "name": "Hira",
+      "phone": "9999922222",
+      "email": "hira@hmail.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "HIR585820",
+      "walletBalance": 0,
+      "countryCode": "+91"
     }
   },
   "orders": [
@@ -83,6 +94,43 @@
       "partnerName": null,
       "partnerDistance": null,
       "createdAt": 1779813600000
+    },
+    {
+      "id": 7,
+      "userPhone": "9988776655",
+      "userId": "9988776655",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-30",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "address": {
+        "userPhone": "9988776655",
+        "type": "Home",
+        "houseNo": "123",
+        "society": "Green Villa",
+        "floor": "",
+        "landmark": "",
+        "city": "Jaipur",
+        "locality": "",
+        "pincode": "302012",
+        "latitude": 0,
+        "longitude": 0,
+        "name": "",
+        "alternateNumber": ""
+      },
+      "payment": {
+        "paymentMethod": "Cash",
+        "amountPaid": 0
+      },
+      "razorpayOrderId": null,
+      "razorpayPaymentId": null,
+      "createdAt": 1780122383262
     }
   ],
   "referralsApplied": {},
@@ -178,5 +226,22 @@
       "image": "/assets/categories/halwai.png"
     }
   ],
-  "addresses": []
+  "addresses": [
+    {
+      "userPhone": "9988776655",
+      "type": "Home",
+      "houseNo": "123",
+      "society": "Green Villa",
+      "floor": "",
+      "landmark": "",
+      "city": "Jaipur",
+      "locality": "",
+      "pincode": "302012",
+      "latitude": 0,
+      "longitude": 0,
+      "name": "",
+      "alternateNumber": ""
+    }
+  ],
+  "contacts": []
 }

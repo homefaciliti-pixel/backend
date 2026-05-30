@@ -1916,6 +1916,17 @@ const handleVerifyPayment = async (req, res) => {
 
     const resolvedOrderId = order ? order.id : (orderId || 0);
 
+    // If Cash / COD order, verify immediately as successful COD
+    if (order && order.payment && (order.payment.paymentMethod && (order.payment.paymentMethod.toLowerCase() === "cash" || order.payment.paymentMethod.toLowerCase() === "cod"))) {
+      return res.json({
+        success: true,
+        orderId: resolvedOrderId,
+        paymentStatus: "cod",
+        order: order,
+        message: "Cash on Delivery order verified successfully"
+      });
+    }
+
     const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
     const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
@@ -2588,6 +2599,40 @@ app.get('/api/payments/verify', handleVerifyPayment);
 app.post('/api/payments/verify', handleVerifyPayment);
 app.get('/api/payments/verify/:orderId', handleVerifyPayment);
 app.post('/api/payments/verify/:orderId', handleVerifyPayment);
+
+// COD Order Confirmation API
+app.post('/api/payments/cod/:orderId', async (req, res) => {
+  const orderIdStr = req.params.orderId;
+  if (!orderIdStr || isNaN(orderIdStr)) {
+    return res.status(400).json({ error: "Invalid Order ID" });
+  }
+  try {
+    const orderId = parseInt(orderIdStr);
+    const order = await DbLayer.getOrderById(orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    
+    // Set status to Pending and bookingStatus to searching for Cash orders
+    await DbLayer.updateOrder(orderId, {
+      status: "Pending",
+      bookingStatus: "searching"
+    });
+    
+    const updatedOrder = await DbLayer.getOrderById(orderId);
+    console.log(`[Payment] Order #${orderId} confirmed as Cash on Delivery`);
+    
+    res.json({
+      success: true,
+      orderId: orderId,
+      order: updatedOrder,
+      message: "COD order placed successfully"
+    });
+  } catch (err) {
+    console.error("COD confirmation API failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 
 // 10. Wallet: Get Balance

@@ -545,6 +545,23 @@ POST /api/payments/verify/:orderId
   `razorpay_order_id`. If `paymentId` is provided, it verifies that specific payment; otherwise checks
   payments for the saved `razorpayOrderId` on the order. Falls back to simulated validation if API keys
   are unauthenticated.
+  * Note for Cash / COD orders: Verification immediately returns success with `paymentStatus: "cod"`.
+
+
+---------------------------------------------------------
+13ab. Cash on Delivery (COD) Confirmation API
+---------------------------------------------------------
+
+POST /api/payments/cod/:orderId
+- Parameters (Path):
+  * `orderId` (required; numeric database order ID)
+- Response: {
+    "success": true,
+    "orderId": 12,
+    "order": { ... },
+    "message": "COD order placed successfully"
+  }
+- Note: Updates the target order's status to "Pending" and bookingStatus to "searching". Used by the Flutter client to confirm order placement when "Cash on Delivery" is chosen.
 
 
 ---------------------------------------------------------

@@ -78,6 +78,8 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool isCod = widget.paymentId.toUpperCase() == 'COD' || widget.paymentId.toUpperCase() == 'CASH';
+
     return WillPopScope(
       onWillPop: () async => false, // prevent back
       child: Scaffold(
@@ -129,9 +131,9 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen>
                             position: _slideAnim,
                             child: Column(
                               children: [
-                                const Text(
-                                  'Payment Successful!',
-                                  style: TextStyle(
+                                Text(
+                                  isCod ? 'Order Placed Successfully!' : 'Payment Successful!',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
@@ -140,7 +142,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Your booking is confirmed 🎉',
+                                  isCod ? 'Your order has been placed successfully 🎉' : 'Your booking is confirmed 🎉',
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.6),
                                     fontSize: 15,
@@ -167,7 +169,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen>
                               borderRadius: BorderRadius.circular(40),
                             ),
                             child: Text(
-                              '₹${widget.amount.toStringAsFixed(2)} Paid',
+                              isCod ? '₹${widget.amount.toStringAsFixed(2)} COD' : '₹${widget.amount.toStringAsFixed(2)} Paid',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
@@ -223,14 +225,20 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen>
                                   _divider(),
                                   _detailRow(
                                     Icons.credit_card_rounded,
-                                    'Transaction ID',
-                                    widget.paymentId.length > 18
-                                        ? '${widget.paymentId.substring(0, 18)}...'
-                                        : widget.paymentId,
+                                    isCod ? 'Payment Method' : 'Transaction ID',
+                                    isCod
+                                        ? 'Cash on Delivery'
+                                        : widget.paymentId.length > 18
+                                            ? '${widget.paymentId.substring(0, 18)}...'
+                                            : widget.paymentId,
                                   ),
                                   _divider(),
-                                  _detailRow(Icons.verified_rounded, 'Status', 'Paid ✓',
-                                      valueColor: const Color(0xFF10B981)),
+                                  _detailRow(
+                                    Icons.verified_rounded,
+                                    'Status',
+                                    isCod ? 'Pending Payment' : 'Paid ✓',
+                                    valueColor: isCod ? const Color(0xFFEAB308) : const Color(0xFF10B981),
+                                  ),
                                 ],
                               ),
                             ),
