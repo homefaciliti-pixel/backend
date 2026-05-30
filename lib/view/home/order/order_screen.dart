@@ -74,6 +74,9 @@ class _OrderScreenState extends State<OrderScreen> {
               bookingStatus: newBookingStatus,
               partnerName: partnerName,
               partnerDistance: partnerDistance,
+              productId: _currentOrder.productId,
+              description: _currentOrder.description,
+              timeSlot: _currentOrder.timeSlot,
             );
           });
 
