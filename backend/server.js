@@ -2802,6 +2802,13 @@ const handlePostBooking = async (req, res) => {
     productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
   }
 
+  if (productId) {
+    const resolvedProduct = await resolveServiceDetails(productId);
+    if (resolvedProduct) {
+      productId = resolvedProduct.productId;
+    }
+  }
+
   if (!productId || !date || !timeSlot) {
     return res.status(400).json({ error: "productId, date, and timeSlot are required" });
   }
@@ -2966,33 +2973,7 @@ const handlePostCheckout = async (req, res) => {
     }
     
     // Resolve service properties from dynamic database or fall back to hardcoded SERVICES_DATA
-    let foundService = null;
-    if (dbMode === "mysql" && mysqlPool !== null) {
-      try {
-        const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE LOWER(title) = ? OR id = ?", [productId.toLowerCase(), isNaN(productId) ? -1 : parseInt(productId)]);
-        if (srvRows.length > 0) {
-          const r = srvRows[0];
-          foundService = {
-            title: r.title,
-            price: parseFloat(r.price),
-            description: r.description
-          };
-        }
-      } catch (err) {
-        console.warn("[Checkout] DB query failed, falling back static:", err.message);
-      }
-    }
-
-    if (!foundService) {
-      for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
-        const match = services.find(s => s.title.toLowerCase() === productId.toLowerCase());
-        if (match) {
-          foundService = match;
-          break;
-        }
-      }
-    }
-    
+    const foundService = await resolveServiceDetails(productId);
     if (!foundService) {
       return res.status(404).json({ error: `Service/Product '${productId}' not found in catalog` });
     }
@@ -3296,16 +3277,41 @@ const resolveAddressForPhone = async (phone) => {
   };
 };
 
+const normalizeString = (str) => {
+  if (!str) return '';
+  return str.toLowerCase()
+    .replace(/\blekage\b/g, 'leakage')
+    .replace(/\blekege\b/g, 'leakage')
+    .replace(/[-_\s]/g, '')
+    .trim();
+};
+
 // Helper to resolve service details by productId or title
 const resolveServiceDetails = async (productId) => {
+  if (!productId) {
+    return {
+      productId: "Tap Repair",
+      serviceName: "Tap Repair",
+      title: "Tap Repair",
+      price: 299,
+      description: "Fix leaking taps and water issues"
+    };
+  }
+
+  const normProduct = normalizeString(productId);
+
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE LOWER(title) = ? OR id = ?", [productId ? productId.toLowerCase() : '', isNaN(productId) ? -1 : parseInt(productId)]);
+      const [srvRows] = await mysqlPool.query(
+        "SELECT * FROM services WHERE LOWER(title) = ? OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(title), '-', ''), '_', ''), ' ', ''), 'lekage', 'leakage'), 'lekege', 'leakage') = ? OR id = ?", 
+        [productId.toLowerCase(), normProduct, isNaN(productId) ? -1 : parseInt(productId)]
+      );
       if (srvRows.length > 0) {
         const r = srvRows[0];
         return {
           productId: r.title,
           serviceName: r.title,
+          title: r.title,
           price: parseFloat(r.price),
           description: r.description
         };
@@ -3315,26 +3321,20 @@ const resolveServiceDetails = async (productId) => {
     }
   }
 
-  if (productId) {
-    for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
-      const match = services.find(s => s.title.toLowerCase() === productId.toLowerCase());
-      if (match) {
-        return {
-          productId: match.title,
-          serviceName: match.title,
-          price: Number(match.price),
-          description: match.description
-        };
-      }
+  for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+    const match = services.find(s => normalizeString(s.title) === normProduct);
+    if (match) {
+      return {
+        productId: match.title,
+        serviceName: match.title,
+        title: match.title,
+        price: Number(match.price),
+        description: match.description
+      };
     }
   }
-  // Default fallback service
-  return {
-    productId: "Tap Repair",
-    serviceName: "Tap Repair",
-    price: 299,
-    description: "Fix leaking taps and water issues"
-  };
+  // Default fallback service - returning null as requested
+  return null;
 };
 
 // Checkout: Retrieve Checkout Summary (Get details)
@@ -3386,7 +3386,16 @@ const handleGetCheckout = async (req, res) => {
       // Dynamic fallback if no order exists for this user ID
       if (!order) {
         const resolvedAddr = await resolveAddressForPhone(targetPhone);
-        const resolvedProduct = await resolveServiceDetails(queryProductId);
+        let resolvedProduct = await resolveServiceDetails(queryProductId);
+        if (!resolvedProduct) {
+          resolvedProduct = await resolveServiceDetails("Tap Repair") || {
+            productId: "Tap Repair",
+            serviceName: "Tap Repair",
+            title: "Tap Repair",
+            price: 299,
+            description: "Fix leaking taps and water issues"
+          };
+        }
         const lastOrderId = await DbLayer.getLastOrderId();
         const orderId = lastOrderId + 1;
         
@@ -3426,7 +3435,16 @@ const handleGetCheckout = async (req, res) => {
       // Dynamic fallback if no order exists for this order ID
       if (!order) {
         const resolvedAddr = await resolveAddressForPhone(user.phone);
-        const resolvedProduct = await resolveServiceDetails(queryProductId);
+        let resolvedProduct = await resolveServiceDetails(queryProductId);
+        if (!resolvedProduct) {
+          resolvedProduct = await resolveServiceDetails("Tap Repair") || {
+            productId: "Tap Repair",
+            serviceName: "Tap Repair",
+            title: "Tap Repair",
+            price: 299,
+            description: "Fix leaking taps and water issues"
+          };
+        }
         order = {
           id: orderId,
           userPhone: user.phone,
@@ -3469,22 +3487,24 @@ const handleGetCheckout = async (req, res) => {
       // Explicit query overrides if dynamically specified on the request
       if (queryProductId && order.productId !== queryProductId) {
         const resolvedProduct = await resolveServiceDetails(queryProductId);
-        order.productId = resolvedProduct.productId;
-        order.serviceName = resolvedProduct.serviceName;
-        order.price = resolvedProduct.price;
-        order.description = resolvedProduct.description;
-        if (order.payment) {
-          order.payment.amountPaid = resolvedProduct.price;
+        if (resolvedProduct) {
+          order.productId = resolvedProduct.productId;
+          order.serviceName = resolvedProduct.serviceName;
+          order.price = resolvedProduct.price;
+          order.description = resolvedProduct.description;
+          if (order.payment) {
+            order.payment.amountPaid = resolvedProduct.price;
+          }
+          
+          updates.productId = resolvedProduct.productId;
+          updates.serviceName = resolvedProduct.serviceName;
+          updates.price = resolvedProduct.price;
+          updates.description = resolvedProduct.description;
+          if (order.payment) {
+            updates.payment = order.payment;
+          }
+          needsUpdate = true;
         }
-        
-        updates.productId = resolvedProduct.productId;
-        updates.serviceName = resolvedProduct.serviceName;
-        updates.price = resolvedProduct.price;
-        updates.description = resolvedProduct.description;
-        if (order.payment) {
-          updates.payment = order.payment;
-        }
-        needsUpdate = true;
       }
       if (queryDate && order.date !== queryDate) {
         order.date = queryDate;
@@ -3843,6 +3863,13 @@ const handleGetAvailableSlots = async (req, res) => {
 
   if (productId && typeof productId === 'object') {
     productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
+  }
+
+  if (productId) {
+    const resolvedProduct = await resolveServiceDetails(productId);
+    if (resolvedProduct) {
+      productId = resolvedProduct.productId;
+    }
   }
 
   try {
