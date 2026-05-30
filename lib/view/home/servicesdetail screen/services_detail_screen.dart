@@ -50,6 +50,8 @@ class ServiceDetailScreen extends StatelessWidget {
 
                       if (pickedDate != null) {
                         vm.setDate(pickedDate);
+                        final dateStr = pickedDate.toString().split(" ")[0];
+                        await vm.loadAvailableSlots(dateStr);
                         setState(() {});
                       }
                     },
@@ -77,26 +79,41 @@ class ServiceDetailScreen extends StatelessWidget {
                   SizedBox(height: 10),
 
                   /// SLOTS
-                  Wrap(
-                    spacing: 10,
-                    children: [
-                      "9 AM - 11 AM",
-                      "11 AM - 1 PM",
-                      "2 PM - 4 PM",
-                      "4 PM - 6 PM",
-                    ].map((slot) {
-                      final isSelected = vm.selectedSlot == slot;
+                  vm.isLoadingSlots
+                      ? const Center(child: CircularProgressIndicator())
+                      : vm.selectedDate == null
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 10),
+                              child: Text(
+                                "Please select a date first to see available slots",
+                                style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                              ),
+                            )
+                          : vm.availableSlots.isEmpty
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  child: Text(
+                                    "No available slots for this date",
+                                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                  ),
+                                )
+                              : Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: vm.availableSlots.map((slotObj) {
+                                    final slot = slotObj['time'] as String;
+                                    final isSelected = vm.selectedSlot == slot;
 
-                      return ChoiceChip(
-                        label: Text(slot),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          vm.setSlot(slot);
-                          setState(() {});
-                        },
-                      );
-                    }).toList(),
-                  ),
+                                    return ChoiceChip(
+                                      label: Text(slot),
+                                      selected: isSelected,
+                                      onSelected: (_) {
+                                        vm.setSlot(slot);
+                                        setState(() {});
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
 
                   SizedBox(height: 20),
 

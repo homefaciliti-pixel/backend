@@ -30,6 +30,12 @@ class ServiceViewModel extends ChangeNotifier {
   DateTime? selectedDate;
   String? selectedSlot;
 
+  List<Map<String, dynamic>> _availableSlots = [];
+  List<Map<String, dynamic>> get availableSlots => _availableSlots;
+
+  bool _isLoadingSlots = false;
+  bool get isLoadingSlots => _isLoadingSlots;
+
   /// Load Categories
   Future<void> loadCategories() async {
     try {
@@ -143,6 +149,7 @@ class ServiceViewModel extends ChangeNotifier {
     // This prevents stale date/slot from a previous booking
     selectedDate = null;
     selectedSlot = null;
+    _availableSlots = [];
     notifyListeners();
   }
 
@@ -156,11 +163,31 @@ class ServiceViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Fetch dynamic available slots for the selected date from the backend
+  Future<void> loadAvailableSlots(String dateStr) async {
+    _isLoadingSlots = true;
+    _availableSlots = [];
+    notifyListeners();
+    try {
+      final res = await ApiService.get('/api/booking/available-slots?date=$dateStr');
+      if (res != null && res['success'] == true) {
+        final list = res['slots'] as List;
+        _availableSlots = List<Map<String, dynamic>>.from(list);
+      }
+    } catch (e) {
+      debugPrint("Failed to load available slots from backend: $e");
+    } finally {
+      _isLoadingSlots = false;
+      notifyListeners();
+    }
+  }
+
   /// ✅ Full reset — call after checkout completes
   void resetBookingSelections() {
     selectedService = null;
     selectedDate = null;
     selectedSlot = null;
+    _availableSlots = [];
     notifyListeners();
   }
 }
