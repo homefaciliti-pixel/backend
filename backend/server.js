@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -79,7 +79,7 @@ async function initMySqlDb() {
     console.log("Successfully connected to MySQL. Creating tables if not exist...");
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS node_users (
+      CREATE TABLE IF NOT EXISTS node_users_v2 (
         phone VARCHAR(20) PRIMARY KEY,
         name VARCHAR(100) DEFAULT 'Hira',
         email VARCHAR(100) DEFAULT 'hira@hmail.com',
@@ -93,7 +93,7 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS node_orders (
+      CREATE TABLE IF NOT EXISTS node_orders_v2 (
         id INT PRIMARY KEY,
         userPhone VARCHAR(20) NOT NULL,
         serviceName VARCHAR(100) NOT NULL,
@@ -115,7 +115,7 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS node_referrals_applied (
+      CREATE TABLE IF NOT EXISTS node_referrals_applied_v2 (
         userPhone VARCHAR(20) PRIMARY KEY,
         referrerPhone VARCHAR(20) NOT NULL,
         appliedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -123,7 +123,7 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS node_addresses (
+      CREATE TABLE IF NOT EXISTS node_addresses_v2 (
         id INT AUTO_INCREMENT PRIMARY KEY,
         userPhone VARCHAR(20) NOT NULL,
         type VARCHAR(50) DEFAULT 'Home',
@@ -143,44 +143,44 @@ async function initMySqlDb() {
 
     // Schema migrations for name and alternateNumber columns
     try {
-      await conn.query("ALTER TABLE node_addresses ADD COLUMN name VARCHAR(255) DEFAULT ''");
+      await conn.query("ALTER TABLE node_addresses_v2 ADD COLUMN name VARCHAR(255) DEFAULT ''");
     } catch (err) {
       // Column might already exist
     }
     try {
-      await conn.query("ALTER TABLE node_addresses ADD COLUMN alternateNumber VARCHAR(50) DEFAULT ''");
+      await conn.query("ALTER TABLE node_addresses_v2 ADD COLUMN alternateNumber VARCHAR(50) DEFAULT ''");
     } catch (err) {
       // Column might already exist
     }
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS node_categories (
+      CREATE TABLE IF NOT EXISTS node_categories_v2 (
         id VARCHAR(100) PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
         image VARCHAR(255) DEFAULT ''
       )
     `);
 
-    const [rows] = await conn.query("SELECT COUNT(*) as count FROM node_categories");
+    const [rows] = await conn.query("SELECT COUNT(*) as count FROM node_categories_v2");
     if (rows[0].count === 0) {
       console.log("Seeding default categories in MySQL...");
       for (const cat of DEFAULT_CATEGORIES) {
         await conn.query(
-          "INSERT INTO node_categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
+          "INSERT INTO node_categories_v2 (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
           [cat.id, cat.name, cat.image]
         );
       }
     } else {
       for (const cat of DEFAULT_CATEGORIES) {
         await conn.query(
-          "INSERT INTO node_categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image=VALUES(image)",
+          "INSERT INTO node_categories_v2 (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE image=VALUES(image)",
           [cat.id, cat.name, cat.image]
         );
       }
     }
 
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS node_contacts (
+      CREATE TABLE IF NOT EXISTS node_contacts_v2 (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) NOT NULL,
@@ -236,14 +236,14 @@ const MySqlDbLayer = {
   },
 
   async getUserByPhone(phone) {
-    const row = await this.queryOne("SELECT * FROM node_users WHERE phone = ?", [phone]);
+    const row = await this.queryOne("SELECT * FROM node_users_v2 WHERE phone = ?", [phone]);
     if (!row) return null;
     row.walletBalance = parseFloat(row.walletBalance);
     return row;
   },
 
   async getUserByReferralCode(code) {
-    const row = await this.queryOne("SELECT * FROM node_users WHERE referralCode = ?", [code]);
+    const row = await this.queryOne("SELECT * FROM node_users_v2 WHERE referralCode = ?", [code]);
     if (!row) return null;
     row.walletBalance = parseFloat(row.walletBalance);
     return row;
@@ -260,7 +260,7 @@ const MySqlDbLayer = {
     const finalCountryCode = countryCode || "+91";
 
     await mysqlPool.query(
-      "INSERT INTO node_users (phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), location=VALUES(location), locality=VALUES(locality), gender=VALUES(gender), referralCode=VALUES(referralCode), walletBalance=VALUES(walletBalance), countryCode=VALUES(countryCode)",
+      "INSERT INTO node_users_v2 (phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), location=VALUES(location), locality=VALUES(locality), gender=VALUES(gender), referralCode=VALUES(referralCode), walletBalance=VALUES(walletBalance), countryCode=VALUES(countryCode)",
       [phone, finalName, finalEmail, finalLocation, finalLocality, finalGender, referralCode, finalWalletBalance, finalCountryCode]
     );
 
@@ -272,32 +272,32 @@ const MySqlDbLayer = {
     const keys = Object.keys(updates);
     const values = Object.values(updates);
     const setClause = keys.map(k => `${k} = ?`).join(", ");
-    await mysqlPool.query(`UPDATE node_users SET ${setClause} WHERE phone = ?`, [...values, phone]);
+    await mysqlPool.query(`UPDATE node_users_v2 SET ${setClause} WHERE phone = ?`, [...values, phone]);
     return this.getUserByPhone(phone);
   },
 
   async deleteUser(phone) {
-    await mysqlPool.query("DELETE FROM node_users WHERE phone = ?", [phone]);
-    await mysqlPool.query("DELETE FROM node_addresses WHERE userPhone = ?", [phone]);
+    await mysqlPool.query("DELETE FROM node_users_v2 WHERE phone = ?", [phone]);
+    await mysqlPool.query("DELETE FROM node_addresses_v2 WHERE userPhone = ?", [phone]);
     return true;
   },
 
   async createContact(contact) {
     const { name, email, phone, message } = contact;
     const [result] = await mysqlPool.query(
-      "INSERT INTO node_contacts (name, email, phone, message) VALUES (?, ?, ?, ?)",
+      "INSERT INTO node_contacts_v2 (name, email, phone, message) VALUES (?, ?, ?, ?)",
       [name, email, phone || "", message]
     );
     return { id: result.insertId, name, email, phone, message, createdAt: new Date() };
   },
 
   async countUsers() {
-    const row = await this.queryOne("SELECT COUNT(*) as count FROM node_users");
+    const row = await this.queryOne("SELECT COUNT(*) as count FROM node_users_v2");
     return row ? row.count : 0;
   },
 
   async getOrderById(id) {
-    const row = await this.queryOne("SELECT * FROM node_orders WHERE id = ?", [id]);
+    const row = await this.queryOne("SELECT * FROM node_orders_v2 WHERE id = ?", [id]);
     if (!row) return null;
     row.price = parseFloat(row.price);
     row.address = row.address ? JSON.parse(row.address) : null;
@@ -306,7 +306,7 @@ const MySqlDbLayer = {
   },
 
   async getOrderByRazorpayOrderId(rzpOrderId) {
-    const row = await this.queryOne("SELECT * FROM node_orders WHERE razorpayOrderId = ?", [rzpOrderId]);
+    const row = await this.queryOne("SELECT * FROM node_orders_v2 WHERE razorpayOrderId = ?", [rzpOrderId]);
     if (!row) return null;
     row.price = parseFloat(row.price);
     row.address = row.address ? JSON.parse(row.address) : null;
@@ -315,7 +315,7 @@ const MySqlDbLayer = {
   },
 
   async getOrdersByUserPhone(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_orders WHERE userPhone = ? ORDER BY id DESC", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 WHERE userPhone = ? ORDER BY id DESC", [phone]);
     return rows.map(row => {
       row.price = parseFloat(row.price);
       row.address = row.address ? JSON.parse(row.address) : null;
@@ -325,7 +325,7 @@ const MySqlDbLayer = {
   },
 
   async getAllOrders() {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_orders ORDER BY id DESC");
+    const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 ORDER BY id DESC");
     return rows.map(row => {
       row.price = parseFloat(row.price);
       row.address = row.address ? JSON.parse(row.address) : null;
@@ -348,7 +348,7 @@ const MySqlDbLayer = {
     const finalCreatedAt = createdAt || Date.now();
 
     await mysqlPool.query(
-      `INSERT INTO node_orders (
+      `INSERT INTO node_orders_v2 (
         id, userPhone, serviceName, price, date, status, bookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
         address, payment, razorpayOrderId, razorpayPaymentId, createdAt
@@ -380,22 +380,22 @@ const MySqlDbLayer = {
       return val;
     });
     const setClause = keys.map(k => `${k} = ?`).join(", ");
-    await mysqlPool.query(`UPDATE node_orders SET ${setClause} WHERE id = ?`, [...values, id]);
+    await mysqlPool.query(`UPDATE node_orders_v2 SET ${setClause} WHERE id = ?`, [...values, id]);
     return this.getOrderById(id);
   },
 
   async getLastOrderId() {
-    const row = await this.queryOne("SELECT MAX(id) as lastId FROM node_orders");
+    const row = await this.queryOne("SELECT MAX(id) as lastId FROM node_orders_v2");
     return row && row.lastId ? row.lastId : 0;
   },
 
   async countOrders() {
-    const row = await this.queryOne("SELECT COUNT(*) as count FROM node_orders");
+    const row = await this.queryOne("SELECT COUNT(*) as count FROM node_orders_v2");
     return row ? row.count : 0;
   },
 
   async getReferralApplied(phone) {
-    const row = await this.queryOne("SELECT * FROM node_referrals_applied WHERE userPhone = ?", [phone]);
+    const row = await this.queryOne("SELECT * FROM node_referrals_applied_v2 WHERE userPhone = ?", [phone]);
     return row;
   },
 
@@ -403,14 +403,14 @@ const MySqlDbLayer = {
     const { userPhone, referrerPhone, appliedAt } = referralApplied;
     const finalAppliedAt = appliedAt ? new Date(appliedAt) : new Date();
     await mysqlPool.query(
-      "INSERT INTO node_referrals_applied (userPhone, referrerPhone, appliedAt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE referrerPhone=VALUES(referrerPhone), appliedAt=VALUES(appliedAt)",
+      "INSERT INTO node_referrals_applied_v2 (userPhone, referrerPhone, appliedAt) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE referrerPhone=VALUES(referrerPhone), appliedAt=VALUES(appliedAt)",
       [userPhone, referrerPhone, finalAppliedAt]
     );
     return this.getReferralApplied(userPhone);
   },
 
   async getCategories() {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_categories");
+    const [rows] = await mysqlPool.query("SELECT * FROM node_categories_v2");
     return rows.map(r => ({
       id: r.id,
       name: r.name,
@@ -422,15 +422,15 @@ const MySqlDbLayer = {
     const { name, id, image } = categoryData;
     const finalId = id || name.toLowerCase().replace(/\s+/g, '_');
     await mysqlPool.query(
-      "INSERT INTO node_categories (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
+      "INSERT INTO node_categories_v2 (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
       [finalId, name, image || ""]
     );
-    const row = await this.queryOne("SELECT * FROM node_categories WHERE id = ?", [finalId]);
+    const row = await this.queryOne("SELECT * FROM node_categories_v2 WHERE id = ?", [finalId]);
     return row;
   },
 
   async getAddressesByUserPhone(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses WHERE userPhone = ?", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses_v2 WHERE userPhone = ?", [phone]);
     return rows.map(r => {
       r.latitude = r.latitude !== null ? parseFloat(r.latitude) : null;
       r.longitude = r.longitude !== null ? parseFloat(r.longitude) : null;
@@ -452,12 +452,12 @@ const MySqlDbLayer = {
     const finalAltNum = alternateNumber || alternate_number || "";
 
     await mysqlPool.query(
-      `INSERT INTO node_addresses (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber)
+      `INSERT INTO node_addresses_v2 (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [userPhone, finalType, finalHouseNo, finalSociety, finalFloor, finalLandmark, finalCity, finalLocality, finalPincode, latitude, longitude, finalName, finalAltNum]
     );
 
-    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses WHERE userPhone = ? ORDER BY id DESC LIMIT 1", [userPhone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses_v2 WHERE userPhone = ? ORDER BY id DESC LIMIT 1", [userPhone]);
     if (rows.length > 0) {
       rows[0].latitude = rows[0].latitude !== null ? parseFloat(rows[0].latitude) : null;
       rows[0].longitude = rows[0].longitude !== null ? parseFloat(rows[0].longitude) : null;

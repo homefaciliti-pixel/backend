@@ -222,6 +222,101 @@
         "amountPaid": 299
       },
       "createdAt": 1780135667615
+    },
+    {
+      "id": 10,
+      "userPhone": "9999922222",
+      "userId": "9999922222",
+      "serviceName": "Leakage Repair",
+      "price": 399,
+      "date": "2026-06-20",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Leakage Repair",
+      "description": "Solve leakage problems",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "address": null,
+      "payment": {
+        "paymentMethod": "Online",
+        "amountPaid": 399
+      },
+      "razorpayOrderId": "order_mock_teTAU71kQ",
+      "razorpayPaymentId": null,
+      "createdAt": 1780142800365
+    },
+    {
+      "id": 11,
+      "userPhone": "9999922222",
+      "userId": "9999922222",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-06-25",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "address": {
+        "type": "Home",
+        "houseNo": "104",
+        "society": "Green Villa",
+        "floor": "1st",
+        "landmark": "Near Central Park",
+        "city": "Mumbai, Maharashtra",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": 26.9124,
+        "longitude": 75.7873,
+        "name": "Mock Guest",
+        "alternateNumber": ""
+      },
+      "payment": {
+        "paymentMethod": "Online",
+        "amountPaid": 299
+      },
+      "razorpayOrderId": "order_mock_IoHgOTb5G",
+      "razorpayPaymentId": null,
+      "createdAt": 1780142800602
+    },
+    {
+      "id": 12,
+      "userPhone": "9999922222",
+      "userId": "9999922222",
+      "serviceName": "Leakage Repair",
+      "price": 399,
+      "date": "2026-05-31",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Leakage Repair",
+      "description": "Solve leakage problems",
+      "timeSlot": "05:00 AM - 06:00 AM",
+      "address": {
+        "type": "Home",
+        "houseNo": "104",
+        "society": "Green Villa",
+        "floor": "1st",
+        "landmark": "Near Central Park",
+        "city": "Mumbai, Maharashtra",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": 26.9124,
+        "longitude": 75.7873,
+        "name": "Mock Guest",
+        "alternateNumber": ""
+      },
+      "payment": {
+        "paymentMethod": "Wallet",
+        "amountPaid": 399
+      },
+      "razorpayOrderId": null,
+      "razorpayPaymentId": null,
+      "createdAt": 1780143514204
     }
   ],
   "referralsApplied": {},
