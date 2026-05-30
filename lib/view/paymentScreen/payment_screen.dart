@@ -242,8 +242,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                   if (selectedPayment.toLowerCase() != "cash") {
                     // --- ONLINE / RAZORPAY PAYMENT FLOW ---
-                    // Build payment URL using the Razorpay Order ID if present, otherwise DB orderId
-                    final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/${razorpayOrderId ?? orderId}");
+                    // Build payment URL using the DB orderId
+                    final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/$orderId");
 
                     debugPrint("[Payment] DB orderId=$orderId  razorpayOrderId=$razorpayOrderId");
                     debugPrint("[Payment] Opening: $paymentUrl");
@@ -375,7 +375,7 @@ class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
   Future<void> _autoVerify() async {
     if (!mounted) return;
     try {
-      final verifyId = widget.razorpayOrderId.isNotEmpty ? widget.razorpayOrderId : widget.orderId.toString();
+      final verifyId = widget.orderId.toString();
       final verifyRes = await ApiService.get('/api/payments/verify/$verifyId');
       if (verifyRes != null && verifyRes['success'] == true) {
         if (verifyRes['paymentStatus'] == 'captured') {
@@ -419,7 +419,7 @@ class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
     dynamic verifyRes;
 
     try {
-      final verifyId = widget.razorpayOrderId.isNotEmpty ? widget.razorpayOrderId : widget.orderId.toString();
+      final verifyId = widget.orderId.toString();
       verifyRes = await ApiService.get('/api/payments/verify/$verifyId');
       if (verifyRes != null && verifyRes['success'] == true) {
         if (verifyRes['paymentStatus'] == 'captured') {
