@@ -3350,8 +3350,10 @@ const handleGetCheckout = async (req, res) => {
     if (isNaN(idParam) || idParam.length >= 8) {
       const targetPhone = idParam === "me" ? user.phone : idParam;
       const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
-      if (userOrders && userOrders.length > 0) {
-        order = { ...userOrders[0] }; // Clone to allow safe mutation
+      // Filter for strictly Pending orders to avoid loading or corrupting past paid/completed bookings
+      const pendingOrders = userOrders.filter(o => o.status && o.status.toLowerCase() === "pending");
+      if (pendingOrders && pendingOrders.length > 0) {
+        order = { ...pendingOrders[0] }; // Clone to allow safe mutation
       }
       
       // Dynamic fallback if no order exists for this user ID
@@ -3429,7 +3431,7 @@ const handleGetCheckout = async (req, res) => {
     const updates = {};
     
     // Auto-resolve user's latest address from database (only if not just created to avoid redundant writes, and not guest fallback user)
-    if (!justCreated && order.userPhone !== "9876543210") {
+    if (!justCreated && order.userPhone !== "9876543210" && order.status && order.status.toLowerCase() === "pending") {
       const dbAddr = await resolveAddressForPhone(order.userPhone);
       if (dbAddr && JSON.stringify(order.address) !== JSON.stringify(dbAddr)) {
         order.address = dbAddr;
