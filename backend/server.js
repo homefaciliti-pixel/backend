@@ -2960,17 +2960,12 @@ const handlePostCheckout = async (req, res) => {
   }
   
   try {
-    // User validation: prioritize explicit userId/phone in body or query, then authenticated user, then fallback
-    let phone = req.body.userId || req.body.phone || req.body.userPhone || req.query.userId;
-    if (!phone) {
-      const authUser = await getAuthenticatedUser(req).catch(() => null);
-      if (authUser) {
-        phone = authUser.phone;
-      }
+    // User validation: strictly retrieve from verified authentication token (verify otp token)
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized: Missing or invalid authentication token" });
     }
-    if (!phone) {
-      phone = "9876543210"; // Default fallback
-    }
+    const phone = user.phone;
     
     // Resolve service properties from dynamic database or fall back to hardcoded SERVICES_DATA
     const foundService = await resolveServiceDetails(productId);
