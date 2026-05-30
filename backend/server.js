@@ -2788,19 +2788,26 @@ app.post('/api/referrals/apply', async (req, res) => {
 // Booking: Save/Register Booking Details
 const handlePostBooking = async (req, res) => {
   let productId = req.body.productId || req.query.productId || req.body.product_id || req.query.product_id || req.body.product || req.query.product || req.body.serviceName || req.query.serviceName;
-  let date = req.body.date || req.query.date || req.body.dates || req.query.dates;
-  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot || req.body.slots || req.query.slots || req.body.solt || req.query.solt || req.body.solts || req.query.solts;
+  let date = req.body.date || req.query.date || req.body.dates || req.query.dates || req.headers['x-date'];
+  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot || req.body.slots || req.query.slots || req.body.solt || req.query.solt || req.body.solts || req.query.solts ||
+                 req.headers['x-timeslot'] || req.headers['x-slot'] || req.headers['x-slots'] || req.headers['x-solt'] || req.headers['x-solts'];
 
-  // Support both destructured root parameters and nested 'product' object parameters
-  if (req.body.product) {
-    productId = productId || req.body.product.productId || req.body.product.product_id || req.body.product.product || req.body.product.serviceName;
-    date = date || req.body.product.date || req.body.product.dates;
-    timeSlot = timeSlot || req.body.product.timeSlot || req.body.product.slot || req.body.product.slots || req.body.product.solt || req.body.product.solts;
+  // Support nested structures: product, booking, order
+  for (const objKey of ['product', 'booking', 'order']) {
+    if (req.body[objKey]) {
+      productId = productId || req.body[objKey].productId || req.body[objKey].product_id || req.body[objKey].product || req.body[objKey].serviceName;
+      date = date || req.body[objKey].date || req.body[objKey].dates;
+      timeSlot = timeSlot || req.body[objKey].timeSlot || req.body[objKey].slot || req.body[objKey].slots || req.body[objKey].solt || req.body[objKey].solts;
+    }
   }
 
   if (productId && typeof productId === 'object') {
     productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
   }
+
+  // Normalize inputs
+  date = normalizeDate(date);
+  timeSlot = normalizeTimeSlot(timeSlot);
 
   if (productId) {
     const resolvedProduct = await resolveServiceDetails(productId);
@@ -2941,19 +2948,26 @@ app.get('/api/addresses', async (req, res) => {
 // Checkout: Place Order and Generate ID
 const handlePostCheckout = async (req, res) => {
   let productId = req.body.productId || req.query.productId || req.body.product_id || req.query.product_id || req.body.product || req.query.product || req.body.serviceName || req.query.serviceName;
-  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot || req.body.slots || req.query.slots || req.body.solt || req.query.solt || req.body.solts || req.query.solts;
-  let date = req.body.date || req.query.date || req.body.dates || req.query.dates;
+  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot || req.body.slots || req.query.slots || req.body.solt || req.query.solt || req.body.solts || req.query.solts ||
+                 req.headers['x-timeslot'] || req.headers['x-slot'] || req.headers['x-slots'] || req.headers['x-solt'] || req.headers['x-solts'];
+  let date = req.body.date || req.query.date || req.body.dates || req.query.dates || req.headers['x-date'];
 
-  // Support both destructured root parameters and nested 'product' object parameters
-  if (req.body.product) {
-    productId = productId || req.body.product.productId || req.body.product.product_id || req.body.product.product || req.body.product.serviceName;
-    timeSlot = timeSlot || req.body.product.timeSlot || req.body.product.slot || req.body.product.slots || req.body.product.solt || req.body.product.solts;
-    date = date || req.body.product.date || req.body.product.dates;
+  // Support nested structures: product, booking, order
+  for (const objKey of ['product', 'booking', 'order']) {
+    if (req.body[objKey]) {
+      productId = productId || req.body[objKey].productId || req.body[objKey].product_id || req.body[objKey].product || req.body[objKey].serviceName;
+      timeSlot = timeSlot || req.body[objKey].timeSlot || req.body[objKey].slot || req.body[objKey].slots || req.body[objKey].solt || req.body[objKey].solts;
+      date = date || req.body[objKey].date || req.body[objKey].dates;
+    }
   }
 
   if (productId && typeof productId === 'object') {
     productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
   }
+
+  // Normalize inputs
+  date = normalizeDate(date);
+  timeSlot = normalizeTimeSlot(timeSlot);
   
   if (!productId) {
     return res.status(400).json({ error: "productId is required in checkout body" });
@@ -3281,6 +3295,38 @@ const normalizeString = (str) => {
     .trim();
 };
 
+const normalizeDate = (dStr) => {
+  if (!dStr) return dStr;
+  const s = String(dStr).trim();
+  const match1 = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (match1) {
+    const day = match1[1].padStart(2, '0');
+    const month = match1[2].padStart(2, '0');
+    const year = match1[3];
+    return `${year}-${month}-${day}`;
+  }
+  const match2 = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  if (match2) {
+    const year = match2[1];
+    const month = match2[2].padStart(2, '0');
+    const day = match2[3].padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return s;
+};
+
+const normalizeTimeSlot = (slotStr) => {
+  if (!slotStr) return slotStr;
+  const cleanSlot = String(slotStr).toLowerCase().replace(/\s/g, '').replace(/to/g, '-');
+  for (const s of STATIC_BOOKING_SLOTS) {
+    const staticClean = s.time.toLowerCase().replace(/\s/g, '').replace(/to/g, '-');
+    if (cleanSlot === staticClean) {
+      return s.time;
+    }
+  }
+  return slotStr;
+};
+
 // Helper to resolve service details by productId or title
 const resolveServiceDetails = async (productId) => {
   if (!productId) {
@@ -3349,15 +3395,22 @@ const handleGetCheckout = async (req, res) => {
                        req.body.productId || req.body.product || req.body.product_id || req.body.serviceName ||
                        req.headers['x-product-id'] || req.headers['x-product'];
 
-  if (req.body.product) {
-    queryProductId = queryProductId || req.body.product.productId || req.body.product.product_id || req.body.product.product || req.body.product.serviceName;
-    querySlot = querySlot || req.body.product.timeSlot || req.body.product.slot || req.body.product.slots || req.body.product.solt || req.body.product.solts;
-    queryDate = queryDate || req.body.product.date || req.body.product.dates;
+  // Support nested structures: product, booking, order
+  for (const objKey of ['product', 'booking', 'order']) {
+    if (req.body[objKey]) {
+      queryProductId = queryProductId || req.body[objKey].productId || req.body[objKey].product_id || req.body[objKey].product || req.body[objKey].serviceName;
+      querySlot = querySlot || req.body[objKey].timeSlot || req.body[objKey].slot || req.body[objKey].slots || req.body[objKey].solt || req.body[objKey].solts;
+      queryDate = queryDate || req.body[objKey].date || req.body[objKey].dates;
+    }
   }
 
   if (queryProductId && typeof queryProductId === 'object') {
     queryProductId = queryProductId.productId || queryProductId.serviceName || queryProductId.product || queryProductId.product_id;
   }
+
+  // Normalize inputs
+  queryDate = normalizeDate(queryDate);
+  querySlot = normalizeTimeSlot(querySlot);
   
   try {
     const user = await getAuthenticatedUser(req);
@@ -3853,12 +3906,16 @@ function timesOverlap(range1, range2) {
 }
 
 const handleGetAvailableSlots = async (req, res) => {
-  const date = req.query.date || req.query.dates;
-  let productId = req.query.productId || req.query.product || req.query.product_id || req.query.serviceName;
+  let date = req.query.date || req.query.dates || req.headers['x-date'];
+  let productId = req.query.productId || req.query.product || req.query.product_id || req.query.serviceName ||
+                  req.headers['x-product-id'] || req.headers['x-product'];
 
   if (productId && typeof productId === 'object') {
     productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
   }
+
+  // Normalize inputs
+  date = normalizeDate(date);
 
   if (productId) {
     const resolvedProduct = await resolveServiceDetails(productId);
