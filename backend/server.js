@@ -2782,15 +2782,19 @@ app.post('/api/referrals/apply', async (req, res) => {
 
 // Booking: Save/Register Booking Details
 const handlePostBooking = async (req, res) => {
-  let productId = req.body.productId;
-  let date = req.body.date;
-  let timeSlot = req.body.timeSlot;
+  let productId = req.body.productId || req.query.productId || req.body.product_id || req.query.product_id || req.body.product || req.query.product || req.body.serviceName || req.query.serviceName;
+  let date = req.body.date || req.query.date || req.body.dates || req.query.dates;
+  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot || req.body.slots || req.query.slots || req.body.solt || req.query.solt || req.body.solts || req.query.solts;
 
   // Support both destructured root parameters and nested 'product' object parameters
-  if (!productId && req.body.product) {
-    productId = req.body.product.productId;
-    date = req.body.product.date;
-    timeSlot = req.body.product.timeSlot;
+  if (req.body.product) {
+    productId = productId || req.body.product.productId || req.body.product.product_id || req.body.product.product || req.body.product.serviceName;
+    date = date || req.body.product.date || req.body.product.dates;
+    timeSlot = timeSlot || req.body.product.timeSlot || req.body.product.slot || req.body.product.slots || req.body.product.solt || req.body.product.solts;
+  }
+
+  if (productId && typeof productId === 'object') {
+    productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
   }
 
   if (!productId || !date || !timeSlot) {
@@ -2924,15 +2928,19 @@ app.get('/api/addresses', async (req, res) => {
 
 // Checkout: Place Order and Generate ID
 const handlePostCheckout = async (req, res) => {
-  let productId = req.body.productId || req.query.productId;
-  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot;
-  let date = req.body.date || req.query.date;
+  let productId = req.body.productId || req.query.productId || req.body.product_id || req.query.product_id || req.body.product || req.query.product || req.body.serviceName || req.query.serviceName;
+  let timeSlot = req.body.timeSlot || req.query.timeSlot || req.body.slot || req.query.slot || req.body.slots || req.query.slots || req.body.solt || req.query.solt || req.body.solts || req.query.solts;
+  let date = req.body.date || req.query.date || req.body.dates || req.query.dates;
 
   // Support both destructured root parameters and nested 'product' object parameters
-  if (!productId && req.body.product) {
-    productId = req.body.product.productId;
-    timeSlot = req.body.product.timeSlot || req.body.product.slot || timeSlot;
-    date = req.body.product.date || date;
+  if (req.body.product) {
+    productId = productId || req.body.product.productId || req.body.product.product_id || req.body.product.product || req.body.product.serviceName;
+    timeSlot = timeSlot || req.body.product.timeSlot || req.body.product.slot || req.body.product.slots || req.body.product.solt || req.body.product.solts;
+    date = date || req.body.product.date || req.body.product.dates;
+  }
+
+  if (productId && typeof productId === 'object') {
+    productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
   }
   
   if (!productId) {
@@ -3332,10 +3340,24 @@ const handleGetCheckout = async (req, res) => {
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
   const idParam = req.params.userId || "me";
-  // Read date and timeSlot/slot from query, body, or headers
-  const queryDate = req.query.date || req.body.date || req.headers['x-date'];
-  const querySlot = req.query.timeSlot || req.query.slot || req.body.timeSlot || req.body.slot || req.headers['x-timeslot'] || req.headers['x-slot'];
-  const queryProductId = req.query.productId || req.query.product || req.body.productId || req.body.product || req.headers['x-product-id'] || req.headers['x-product'];
+  // Read date, slot, and product/service from query, body, headers, or nested product object
+  let queryDate = req.query.date || req.body.date || req.query.dates || req.body.dates || req.headers['x-date'];
+  let querySlot = req.query.timeSlot || req.query.slot || req.query.slots || req.query.solt || req.query.solts ||
+                  req.body.timeSlot || req.body.slot || req.body.slots || req.body.solt || req.body.solts ||
+                  req.headers['x-timeslot'] || req.headers['x-slot'] || req.headers['x-slots'] || req.headers['x-solt'] || req.headers['x-solts'];
+  let queryProductId = req.query.productId || req.query.product || req.query.product_id || req.query.serviceName ||
+                       req.body.productId || req.body.product || req.body.product_id || req.body.serviceName ||
+                       req.headers['x-product-id'] || req.headers['x-product'];
+
+  if (req.body.product) {
+    queryProductId = queryProductId || req.body.product.productId || req.body.product.product_id || req.body.product.product || req.body.product.serviceName;
+    querySlot = querySlot || req.body.product.timeSlot || req.body.product.slot || req.body.product.slots || req.body.product.solt || req.body.product.solts;
+    queryDate = queryDate || req.body.product.date || req.body.product.dates;
+  }
+
+  if (queryProductId && typeof queryProductId === 'object') {
+    queryProductId = queryProductId.productId || queryProductId.serviceName || queryProductId.product || queryProductId.product_id;
+  }
   
   try {
     const user = await getAuthenticatedUser(req);
@@ -3810,9 +3832,13 @@ function timesOverlap(range1, range2) {
   return range1.start < range2.end && range2.start < range1.end;
 }
 
-// 18b. Booking Availability: Available Time Slots
 const handleGetAvailableSlots = async (req, res) => {
-  const { date, productId } = req.query;
+  const date = req.query.date || req.query.dates;
+  let productId = req.query.productId || req.query.product || req.query.product_id || req.query.serviceName;
+
+  if (productId && typeof productId === 'object') {
+    productId = productId.productId || productId.serviceName || productId.product || productId.product_id;
+  }
 
   try {
     let slots;

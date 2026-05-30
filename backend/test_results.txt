@@ -1,0 +1,88 @@
+Database file path: D:\userapp\backend\database.json
+Server directory: D:\userapp\backend
+Cleaning up database test users...
+MySQL cleanup skipped or failed: Cannot find module 'dotenv'
+Starting server...
+[Server]: ◇ injected env (10) from .env
+[Server]: Attempting connection to MySQL at: homefaciliti.com:3306...
+[Server]: Backend server successfully listening at http://localhost:3005
+[Server]: Successfully connected to MySQL. Creating tables if not exist...
+[ServerErr]: Failed to connect to MySQL on startup. Falling back: Unknown column 'name' in 'field list'
+
+--- TEST 1: Dynamic mock order created for new user 1122334455 ---
+[Server]: [Auth] Registered fallback mock guest user for verified token: 1122334455
+[Server]: [DynamicSlot] date=2026-05-30 slot=4:00 PM - 5:00 PM (IST 15:37)
+[Server]: [DynamicSlot] date=2026-05-30 slot=4:00 PM - 5:00 PM (IST 15:37)
+[Server]: [GetCheckout] Created and persisted fallback order #8 for user 1122334455
+Status: 200
+Product: {
+  productId: 'Tap Repair',
+  serviceName: 'Tap Repair',
+  price: 299,
+  description: 'Fix leaking taps and water issues',
+  date: '2026-05-30',
+  timeSlot: '4:00 PM - 5:00 PM'
+}
+Address: {
+  type: 'Home',
+  houseNo: '104',
+  society: 'Green Villa',
+  floor: '1st',
+  landmark: 'Near Central Park',
+  city: 'Mumbai, Maharashtra',
+  locality: 'Andheri West',
+  pincode: '400053',
+  latitude: 26.9124,
+  longitude: 75.7873,
+  name: 'Mock Guest',
+  alternateNumber: ''
+}
+✓ Order persisted in DB. ID: 8 | Service: Tap Repair
+
+--- TEST 2: Query overrides (productId + date + timeSlot) ---
+[Server]: [GetCheckout] Persisted overrides to database for order #8
+Status: 200
+Product: {
+  productId: 'Home Cleaning',
+  serviceName: 'Home Cleaning',
+  price: 999,
+  description: 'Full house cleaning service',
+  date: '2026-06-15',
+  timeSlot: '11:00 AM - 12:00 PM'
+}
+2nd call (no query params) Product: {
+  productId: 'Home Cleaning',
+  serviceName: 'Home Cleaning',
+  price: 999,
+  description: 'Full house cleaning service',
+  date: '2026-06-15',
+  timeSlot: '11:00 AM - 12:00 PM'
+}
+✓ Overrides persisted — 2nd call without query params returns same values
+
+--- TEST 3: Profile location/locality fallback address for 5544332211 ---
+[Server]: [Auth] Registered fallback mock guest user for verified token: 5544332211
+[Server]: [ProfileUpdate] Synced updated location/locality to node_addresses for user 5544332211
+Profile updated for 5544332211
+[Server]: [DynamicSlot] date=2026-05-30 slot=4:00 PM - 5:00 PM (IST 15:37)
+[Server]: [DynamicSlot] date=2026-05-30 slot=4:00 PM - 5:00 PM (IST 15:37)
+[Server]: [GetCheckout] Created and persisted fallback order #9 for user 5544332211
+Status: 200
+Address: {
+  userPhone: '5544332211',
+  type: 'Home',
+  houseNo: '',
+  society: '',
+  floor: '',
+  landmark: '',
+  city: 'Noida, Uttar Pradesh',
+  locality: 'Sector 62',
+  pincode: '',
+  latitude: 26.9124,
+  longitude: 75.7873,
+  name: 'Guest User',
+  alternateNumber: ''
+}
+✓ Profile address fallback used and persisted. City: Noida, Uttar Pradesh
+
+✅ ALL 3 TESTS PASSED SUCCESSFULLY!

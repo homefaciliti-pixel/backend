@@ -1,5 +1,16 @@
 {
   "users": {
+    "1122334455": {
+      "name": "Guest User",
+      "phone": "1122334455",
+      "email": "guest@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "GUE667111",
+      "walletBalance": 0,
+      "countryCode": "+91"
+    },
     "9876543210": {
       "name": "Hira Lal",
       "phone": "9876543210",
@@ -18,6 +29,17 @@
       "locality": "",
       "gender": "Male",
       "referralCode": "HIR585820",
+      "walletBalance": 0,
+      "countryCode": "+91"
+    },
+    "5544332211": {
+      "name": "Guest User",
+      "phone": "5544332211",
+      "email": "guest@example.com",
+      "location": "Noida, Uttar Pradesh",
+      "locality": "Sector 62",
+      "gender": "Male",
+      "referralCode": "GUE667383",
       "walletBalance": 0,
       "countryCode": "+91"
     }
@@ -131,6 +153,75 @@
       "razorpayOrderId": null,
       "razorpayPaymentId": null,
       "createdAt": 1780122383262
+    },
+    {
+      "id": 8,
+      "userPhone": "1122334455",
+      "userId": "1122334455",
+      "serviceName": "Home Cleaning",
+      "price": 999,
+      "date": "2026-06-15",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Home Cleaning",
+      "description": "Full house cleaning service",
+      "timeSlot": "11:00 AM - 12:00 PM",
+      "address": {
+        "type": "Home",
+        "houseNo": "104",
+        "society": "Green Villa",
+        "floor": "1st",
+        "landmark": "Near Central Park",
+        "city": "Mumbai, Maharashtra",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": 26.9124,
+        "longitude": 75.7873,
+        "name": "Mock Guest",
+        "alternateNumber": ""
+      },
+      "payment": {
+        "paymentMethod": "Wallet",
+        "amountPaid": 999
+      },
+      "createdAt": 1780135667193
+    },
+    {
+      "id": 9,
+      "userPhone": "5544332211",
+      "userId": "5544332211",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-30",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "4:00 PM - 5:00 PM",
+      "address": {
+        "userPhone": "5544332211",
+        "type": "Home",
+        "houseNo": "",
+        "society": "",
+        "floor": "",
+        "landmark": "",
+        "city": "Noida, Uttar Pradesh",
+        "locality": "Sector 62",
+        "pincode": "",
+        "latitude": 26.9124,
+        "longitude": 75.7873,
+        "name": "Guest User",
+        "alternateNumber": ""
+      },
+      "payment": {
+        "paymentMethod": "Wallet",
+        "amountPaid": 299
+      },
+      "createdAt": 1780135667615
     }
   ],
   "referralsApplied": {},
@@ -240,6 +331,21 @@
       "latitude": 0,
       "longitude": 0,
       "name": "",
+      "alternateNumber": ""
+    },
+    {
+      "userPhone": "5544332211",
+      "type": "Home",
+      "houseNo": "",
+      "society": "",
+      "floor": "",
+      "landmark": "",
+      "city": "Noida, Uttar Pradesh",
+      "locality": "Sector 62",
+      "pincode": "",
+      "latitude": 26.9124,
+      "longitude": 75.7873,
+      "name": "Guest User",
       "alternateNumber": ""
     }
   ],
