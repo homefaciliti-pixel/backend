@@ -3508,7 +3508,74 @@ const normalizeTimeSlot = (slotStr) => {
     }
   }
 
-  return slotStr;
+};
+
+// Sanitizers to prevent Dart Type Null Errors on the client
+const sanitizeAddressObj = (addr) => {
+  if (!addr) {
+    return {
+      name: "",
+      alternateNumber: "",
+      type: "Home",
+      houseNo: "",
+      society: "",
+      floor: "",
+      landmark: "",
+      city: "",
+      locality: "",
+      pincode: ""
+    };
+  }
+  return {
+    name: String(addr.name || addr.userPhone || ""),
+    alternateNumber: String(addr.alternateNumber || addr.alternate_number || addr.altPhoneNumber || ""),
+    type: String(addr.type || "Home"),
+    houseNo: String(addr.houseNo || addr.house_no || ""),
+    society: String(addr.society || ""),
+    floor: String(addr.floor || ""),
+    landmark: String(addr.landmark || ""),
+    city: String(addr.city || ""),
+    locality: String(addr.locality || ""),
+    pincode: String(addr.pincode || "")
+  };
+};
+
+const sanitizeUserObj = (user) => {
+  if (!user) {
+    return {
+      name: "",
+      phone: "",
+      email: "",
+      walletBalance: 0
+    };
+  }
+  return {
+    name: String(user.name || ""),
+    phone: String(user.phone || ""),
+    email: String(user.email || ""),
+    walletBalance: parseFloat(user.walletBalance || 0)
+  };
+};
+
+const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
+  if (!prod) {
+    return {
+      productId: defaultTitle,
+      serviceName: defaultTitle,
+      price: 299,
+      description: "Fix issues and repair",
+      date: "",
+      timeSlot: ""
+    };
+  }
+  return {
+    productId: String(prod.productId || prod.serviceName || defaultTitle),
+    serviceName: String(prod.serviceName || prod.productId || defaultTitle),
+    price: Number(prod.price || 299),
+    description: String(prod.description || ""),
+    date: String(prod.date || ""),
+    timeSlot: String(prod.timeSlot || "")
+  };
 };
 
 // Helper to resolve service details by productId or title
@@ -3871,27 +3938,18 @@ const handleGetCheckout = async (req, res) => {
       success: true,
       orderId: order.id,
       userId: order.userPhone,
-      user: {
-        name: targetUser.name,
-        phone: targetUser.phone,
-        email: targetUser.email,
-        walletBalance: parseFloat(targetUser.walletBalance || 0)
+      user: sanitizeUserObj(targetUser),
+      product: sanitizeProductObj(order),
+      address: sanitizeAddressObj(order.address),
+      payment: {
+        paymentMethod: (order.payment && order.payment.paymentMethod) || "Online",
+        amountPaid: Number((order.payment && order.payment.amountPaid) || order.price || 0)
       },
-      product: {
-        productId: order.productId || order.serviceName,
-        serviceName: order.serviceName,
-        price: order.price,
-        description: order.description,
-        date: order.date,
-        timeSlot: order.timeSlot
-      },
-      address: order.address,
-      payment: order.payment || { paymentMethod: "Online", amountPaid: order.price },
-      status: order.status,
-      bookingStatus: order.bookingStatus,
-      partnerName: order.partnerName,
-      partnerDistance: order.partnerDistance,
-      addresses: addresses,
+      status: order.status || "Pending",
+      bookingStatus: order.bookingStatus || "searching",
+      partnerName: order.partnerName || null,
+      partnerDistance: order.partnerDistance || null,
+      addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
       products: resolvedServices,
       slots: availableSlots,
