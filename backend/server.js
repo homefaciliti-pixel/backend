@@ -2861,6 +2861,86 @@ const handlePostBooking = async (req, res) => {
     }
     
     console.log(`User ${user.phone} validated booking slot ${timeSlot} on ${date} for product ${productId}`);
+    
+    // Resolve dynamic service details
+    let resolvedProduct = await resolveServiceDetails(productId);
+    if (!resolvedProduct) {
+      resolvedProduct = {
+        productId: productId,
+        serviceName: productId,
+        title: productId,
+        price: 299,
+        description: "Service booking"
+      };
+    }
+
+    const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
+    const pendingOrders = userOrders.filter(o => o.status && o.status.toLowerCase() === "pending");
+
+    let order;
+    if (pendingOrders && pendingOrders.length > 0) {
+      const existingOrder = pendingOrders[0];
+      const updates = {
+        productId: resolvedProduct.productId,
+        serviceName: resolvedProduct.serviceName,
+        price: resolvedProduct.price,
+        description: resolvedProduct.description,
+        date: date,
+        timeSlot: timeSlot,
+      };
+      if (existingOrder.payment) {
+        updates.payment = {
+          ...existingOrder.payment,
+          amountPaid: resolvedProduct.price
+        };
+      } else {
+        updates.payment = {
+          paymentMethod: "Wallet",
+          amountPaid: resolvedProduct.price
+        };
+      }
+
+      // Auto-resolve user's address from database if missing
+      if (!existingOrder.address) {
+        const resolvedAddr = await resolveAddressForPhone(user.phone);
+        if (resolvedAddr) {
+          updates.address = resolvedAddr;
+        }
+      }
+
+      order = await DbLayer.updateOrder(existingOrder.id, updates);
+      console.log(`[handlePostBooking] Updated existing pending order #${existingOrder.id} with new booking details`);
+    } else {
+      // Create new pending order
+      const resolvedAddr = await resolveAddressForPhone(user.phone);
+      const lastOrderId = await DbLayer.getLastOrderId();
+      const orderId = lastOrderId + 1;
+
+      order = {
+        id: orderId,
+        userPhone: user.phone,
+        userId: user.phone,
+        serviceName: resolvedProduct.serviceName,
+        price: resolvedProduct.price,
+        date: date,
+        status: "Pending",
+        bookingStatus: "searching",
+        partnerName: null,
+        partnerDistance: null,
+        productId: resolvedProduct.productId,
+        description: resolvedProduct.description,
+        timeSlot: timeSlot,
+        address: resolvedAddr,
+        payment: {
+          paymentMethod: "Wallet",
+          amountPaid: resolvedProduct.price
+        },
+        createdAt: Date.now()
+      };
+      order = await DbLayer.createOrder(order);
+      console.log(`[handlePostBooking] Created new pending order #${order.id} for user ${user.phone}`);
+    }
+
     res.json({
       success: true,
       message: "Booking details validated and registered",

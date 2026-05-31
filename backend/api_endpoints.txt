@@ -296,6 +296,7 @@ POST /api/bookings
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "productId": "string", "date": "string", "timeSlot": "string" }
   * Note: `productId` is format- and spelling-insensitive (e.g., `lekage repair` or `leakage-repair` resolves to `Leakage Repair` automatically).
+  * Persistence (NEW): This API dynamically persists/registers the validated booking details directly in the database as the user's active pending checkout order. If a pending order already exists, it is updated in-place with the selected product, date, and slot. If no pending order exists, a new one is created automatically.
 - Response: {
     "success": true,
     "message": "Booking details validated and registered",
