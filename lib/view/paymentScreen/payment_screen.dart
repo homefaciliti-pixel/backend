@@ -32,6 +32,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   String selectedPayment = "Online";
 
+  String _formatDate(String dateStr) {
+    try {
+      final dt = DateTime.parse(dateStr);
+      final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -59,6 +69,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
     }
 
+    final addressVM = Provider.of<AddressViewmodel>(context);
+    final currentAddress = addressVM.address ?? AddressModel(
+      type: "Home",
+      houseNo: "N/A",
+      society: "N/A",
+      floor: "N/A",
+      landmark: "N/A",
+      city: "N/A",
+      locality: "N/A",
+      pincode: "N/A",
+    );
+
+    final String dateStr = vm.selectedDate != null
+        ? vm.selectedDate.toString().split(' ')[0]
+        : DateTime.now().toString().split(' ')[0];
+    final String timeSlotStr = vm.selectedSlot ?? "9 AM - 11 AM";
+
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
 
@@ -75,22 +102,138 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 children: [
 
-                  /// SERVICE CARD
+                  /// PREMIUM CHECKOUT SUMMARY CARD
                   Container(
-                    padding: EdgeInsets.all(16),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: [
-                        BoxShadow(color: Colors.black12, blurRadius: 5)
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Service Name: ${service?.title ?? ""}"),
-                        SizedBox(height: 8),
-                        Text("Price: ₹ $servicePrice"),
+                        // Header title
+                        Row(
+                          children: [
+                            Icon(Icons.shopping_bag_outlined, color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Order Summary",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 20, thickness: 0.8),
+                        
+                        // Service Title & Price
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                service?.title ?? "Home Service",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              "₹$servicePrice",
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Booking Schedule (Date & Time Slot)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_today_rounded, size: 16, color: Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _formatDate(dateStr),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade800,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              Container(height: 14, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 10)),
+                              Icon(Icons.access_time_rounded, size: 16, color: Colors.blue.shade700),
+                              const SizedBox(width: 6),
+                              Text(
+                                timeSlotStr,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade800,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 14),
+
+                        // Service Address
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 18, color: Colors.grey.shade600),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Service Address (${currentAddress.type})",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "${currentAddress.houseNo}, ${currentAddress.society}, ${currentAddress.locality}, ${currentAddress.city} - ${currentAddress.pincode}",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade800,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
