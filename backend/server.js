@@ -251,8 +251,8 @@ const MySqlDbLayer = {
 
   async createUser(user) {
     const { phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode } = user;
-    const finalName = name || "Hira";
-    const finalEmail = email || "hira@hmail.com";
+    const finalName = name || "";
+    const finalEmail = email || "";
     const finalLocation = location || "";
     const finalLocality = locality || "";
     const finalGender = gender || "Male";
@@ -544,9 +544,9 @@ const JsonDbLayer = {
   async createUser(user) {
     const data = this.readData();
     data.users[user.phone] = {
-      name: user.name || "Hira",
+      name: user.name || "",
       phone: user.phone,
-      email: user.email || "hira@hmail.com",
+      email: user.email || "",
       location: user.location || "",
       locality: user.locality || "",
       gender: user.gender || "Male",
@@ -1142,7 +1142,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
 // 2. Auth: Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
   const phone = req.body.phone || req.body.userId;
-  const { otp, countryCode } = req.body;
+  const { otp, countryCode, name, email } = req.body;
   if (!phone || !otp) {
     return res.status(400).json({ error: "Phone / userId and OTP are required" });
   }
@@ -1161,11 +1161,13 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
     if (!user) {
       isNewUser = true;
-      const refCode = generateReferralCode("Hira");
+      const finalName = name || "";
+      const finalEmail = email || "";
+      const refCode = generateReferralCode(finalName);
       user = {
-        name: "Hira",
+        name: finalName,
         phone: phone,
-        email: "hira@hmail.com",
+        email: finalEmail,
         location: "",
         locality: "",
         gender: "Male",
@@ -1175,6 +1177,15 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       };
       await DbLayer.createUser(user);
       console.log(`Created new profile for user: ${countryCode || "+91"}${phone} with referral: ${refCode}`);
+    } else {
+      // Dynamic profile update if user already exists but custom name/email is passed in the OTP verify body
+      if (name || email) {
+        const updates = {};
+        if (name) updates.name = name;
+        if (email) updates.email = email;
+        user = await DbLayer.updateUser(phone, updates);
+        console.log(`Dynamically updated existing user ${phone} profile on verify-otp:`, updates);
+      }
     }
 
     const token = jwt.sign({ phone: user.phone }, JWT_SECRET, { expiresIn: '7d' });
@@ -3478,7 +3489,7 @@ const handleGetCheckout = async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-  const idParam = req.params.userId || "me";
+  const idParam = req.params.userId || req.query.userId || req.query.phone || req.body.userId || req.body.phone || "me";
   // Read date, slot, and product/service from query, body, headers, or nested product object
   let queryDate = req.query.date || req.body.date || req.query.dates || req.body.dates || req.headers['x-date'];
   let querySlot = req.query.timeSlot || req.query.slot || req.query.slots || req.query.solt || req.query.solts ||
@@ -3511,6 +3522,7 @@ const handleGetCheckout = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
+    let targetPhone = user.phone;
     let order = null;
     let justCreated = false;
     
@@ -3758,15 +3770,32 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    // Resolve the target user profile dynamically for the final response
+    const checkoutPhone = order ? order.userPhone : targetPhone;
+    let targetUser = user;
+    if (checkoutPhone && checkoutPhone !== user.phone) {
+      const dbUser = await DbLayer.getUserByPhone(checkoutPhone);
+      if (dbUser) {
+        targetUser = dbUser;
+      } else {
+        targetUser = {
+          name: "",
+          phone: checkoutPhone,
+          email: "",
+          walletBalance: 0.0
+        };
+      }
+    }
+
     res.json({
       success: true,
       orderId: order.id,
       userId: order.userPhone,
       user: {
-        name: user.name,
-        phone: user.phone,
-        email: user.email,
-        walletBalance: parseFloat(user.walletBalance || 0)
+        name: targetUser.name,
+        phone: targetUser.phone,
+        email: targetUser.email,
+        walletBalance: parseFloat(targetUser.walletBalance || 0)
       },
       product: {
         productId: order.productId || order.serviceName,
