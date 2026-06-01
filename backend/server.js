@@ -2875,7 +2875,7 @@ const handlePostBooking = async (req, res) => {
     }
 
     const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
-    const pendingOrders = userOrders.filter(o => o.status && o.status.toLowerCase() === "pending");
+    const pendingOrders = userOrders.filter(o => o.bookingStatus && o.bookingStatus.toLowerCase() === "draft");
 
     let order;
     if (pendingOrders && pendingOrders.length > 0) {
@@ -2924,7 +2924,7 @@ const handlePostBooking = async (req, res) => {
         price: resolvedProduct.price,
         date: date,
         status: "Pending",
-        bookingStatus: "searching",
+        bookingStatus: "draft",
         partnerName: null,
         partnerDistance: null,
         productId: resolvedProduct.productId,
@@ -3111,10 +3111,10 @@ const handlePostCheckout = async (req, res) => {
       }
     }
     
-    // Check if there is already an existing pending order for this user
+    // Check if there is already an existing draft order for this user to confirm/place
     let existingOrder = null;
     const userOrders = await DbLayer.getOrdersByUserPhone(phone);
-    const pendingOrders = userOrders.filter(o => o.status && o.status.toLowerCase() === "pending");
+    const pendingOrders = userOrders.filter(o => o.bookingStatus && o.bookingStatus.toLowerCase() === "draft");
     if (pendingOrders && pendingOrders.length > 0) {
       existingOrder = pendingOrders[0];
     }
@@ -3677,8 +3677,8 @@ const handleGetCheckout = async (req, res) => {
     if (isNaN(idParam) || idParam.length >= 8) {
       const targetPhone = idParam === "me" ? user.phone : idParam;
       const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
-      // Filter for strictly Pending orders to avoid loading or corrupting past paid/completed bookings
-      const pendingOrders = userOrders.filter(o => o.status && o.status.toLowerCase() === "pending");
+      // Filter for strictly Draft checkout orders to avoid loading or corrupting past paid/completed bookings
+      const pendingOrders = userOrders.filter(o => o.bookingStatus && o.bookingStatus.toLowerCase() === "draft");
       if (pendingOrders && pendingOrders.length > 0) {
         order = { ...pendingOrders[0] }; // Clone to allow safe mutation
       }
@@ -3707,7 +3707,7 @@ const handleGetCheckout = async (req, res) => {
           price: resolvedProduct.price,
           date: queryDate || (await getDynamicDateAndSlot()).date,
           status: "Pending",
-          bookingStatus: "searching",
+          bookingStatus: "draft",
           partnerName: null,
           partnerDistance: null,
           productId: resolvedProduct.productId,
@@ -3753,7 +3753,7 @@ const handleGetCheckout = async (req, res) => {
           price: resolvedProduct.price,
           date: queryDate || (await getDynamicDateAndSlot()).date,
           status: "Pending",
-          bookingStatus: "searching",
+          bookingStatus: "draft",
           partnerName: null,
           partnerDistance: null,
           productId: resolvedProduct.productId,
@@ -3776,7 +3776,7 @@ const handleGetCheckout = async (req, res) => {
     const updates = {};
     
     // Auto-resolve user's latest address from database (only if not just created to avoid redundant writes, and not guest fallback user)
-    if (!justCreated && order.userPhone !== "9876543210" && order.status && order.status.toLowerCase() === "pending") {
+    if (!justCreated && order.userPhone !== "9876543210" && order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") {
       const dbAddr = await resolveAddressForPhone(order.userPhone);
       if (dbAddr && JSON.stringify(order.address) !== JSON.stringify(dbAddr)) {
         order.address = dbAddr;
@@ -3974,9 +3974,10 @@ app.get('/api/orders', async (req, res) => {
     }
 
     const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
+    const placedOrders = userOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
 
     // Compact summary list (key fields only)
-    const list = userOrders.map(o => ({
+    const list = placedOrders.map(o => ({
       id: o.id,
       serviceName: o.serviceName,
       price: o.price,
@@ -3988,13 +3989,13 @@ app.get('/api/orders', async (req, res) => {
 
     // Enriched orderlist with total count
     const orderlist = {
-      total: userOrders.length,
-      data: userOrders
+      total: placedOrders.length,
+      data: placedOrders
     };
 
     res.json({
       success: true,
-      orders: userOrders,
+      orders: placedOrders,
       list,
       orderlist,
       message: "Orders retrieved successfully"
