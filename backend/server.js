@@ -1943,8 +1943,8 @@ const handleVerifyPayment = async (req, res) => {
       });
     }
 
-    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
-    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
     const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
     
     let status = "pending";
@@ -2091,7 +2091,7 @@ const handlePayPage = async (req, res) => {
     const rzpOrderId = order.razorpayOrderId;
     const userPhone = order.userPhone || "";
 
-    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
     // isMockMode is true only when there is no real Razorpay Order ID (i.e. API call failed)
     const isMockMode = !rzpOrderId || rzpOrderId.startsWith('order_mock_');
 
@@ -3148,8 +3148,8 @@ const handlePostCheckout = async (req, res) => {
     }
 
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
-      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_RLno7eQMMUUT8A';
-      const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'e5cm1duM2Hnjr7iJNGuoF3bC';
+      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
+      const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
