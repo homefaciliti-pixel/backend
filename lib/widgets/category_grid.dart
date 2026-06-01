@@ -38,7 +38,7 @@ class CategoriesGrid extends StatelessWidget {
 
         return CategoryCard(
           title: category['name'],
-          image: category['image'],
+          imageUrl: category['image'],
           onTap: (){
 
             Navigator.push(context, MaterialPageRoute(builder:  (_)=> ServicesListScreen(categoryName: category["title"])));

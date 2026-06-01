@@ -1,20 +1,24 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:userapp/viewmodel/auth_viewmodel.dart';
-import '../../../utils/app_colors.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:userapp/viewmodel/booking_flow_viewmodel.dart';
-import 'package:userapp/view/booking_map/searching_partner_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:userapp/view/mainScreen/main_screen.dart';
+import '../../../utils/app_colors.dart';
+import '../order/order_screen.dart';
 
 class PaymentScreenNew extends StatefulWidget {
+  final String paymentOrderId;
+  final String userPhoneNumber;
+  final int orderId;
   final String productId;
   final String title;
   final String amount;
   const PaymentScreenNew({
     super.key,
+    required this.paymentOrderId,
+    required this.userPhoneNumber,
+    required this.orderId,
     required this.productId,
     required this.title,
     required this.amount,
@@ -22,10 +26,10 @@ class PaymentScreenNew extends StatefulWidget {
   @override
   State<PaymentScreenNew> createState() => _PaymentScreenState();
 }
+
 class _PaymentScreenState extends State<PaymentScreenNew> {
 
   int selectedPayment = 0;
-  int? _placedOrderId;
 
   late Razorpay _razorpay;
 
@@ -59,14 +63,125 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
 
     super.dispose();
   }
+  bool isPlacingOrder = false;
+
+  Future<void> placeCodOrder() async {
+    try {
+      setState(() {
+        isPlacingOrder = true;
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("token");
+
+      if (token == null || token.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Token not found. Please login again."),
+          ),
+        );
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse(
+          "https://backend-1-ux3b.onrender.com/api/payments/cod/${widget.orderId}",
+        ),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      debugPrint("Status Code : ${response.statusCode}");
+      debugPrint("Response : ${response.body}");
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201) {
+
+        await showOrderSuccessDialog();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data["message"] ??
+                  "Failed to place order",
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error : $e"),
+        ),
+      );
+    } finally {
+      setState(() {
+        isPlacingOrder = false;
+      });
+    }
+  }
+
+  Future<void> showOrderSuccessDialog() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 80,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Order Successful!",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Your order has been placed successfully.\nWe are currently searching for a service partner.",
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 15),
+            ],
+          ),
+        );
+      },
+    );
+
+    await Future.delayed(const Duration(seconds: 3));
+
+    if (!mounted) return;
+
+    Navigator.of(context).pop(); // dialog close
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MainScreen(),
+      ),
+          (route) => false,
+    );
+  }
 
   Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
     print("RAZORPAY PAYMENT SUCCESS: ${response.paymentId}");
-    if (_placedOrderId == null) {
-      _showErrorSnackBar("Payment succeeded but order ID is missing. Please contact support.");
-      return;
-    }
-
+    
     // Show a sleek loading dialog while verifying payment on server
     showDialog(
       context: context,
@@ -90,24 +205,26 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
           "Authorization": "Bearer $token",
         },
         body: jsonEncode({
-          "orderId": _placedOrderId,
+          "orderId": widget.orderId,
           "razorpay_payment_id": response.paymentId
         }),
       );
 
       // Dismiss loading dialog
-      if (mounted) {
-        Navigator.pop(context);
-      }
-
       if (verifyRes.statusCode == 200) {
         final data = jsonDecode(verifyRes.body);
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+        }
         if (data["success"] == true) {
-          _showSuccessDialog();
+          await showOrderSuccessDialog();
         } else {
           _showErrorSnackBar(data["message"] ?? "Payment verification failed on server");
         }
       } else {
+        if (mounted) {
+          Navigator.pop(context);
+        }
         _showErrorSnackBar("Payment verification returned status code ${verifyRes.statusCode}");
       }
     } catch (e) {
@@ -115,6 +232,17 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
         Navigator.pop(context);
       }
       _showErrorSnackBar("Payment verification connection error: $e");
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -143,181 +271,31 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
     print(response.walletName);
   }
 
-  Future<void> openCheckout() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(
-          color: Colors.green,
-        ),
-      ),
-    );
+  void openCheckout() {
+    var options = {
+      'key':  'rzp_live_SwFaJKQjU5ZOsH',
+      'amount': int.parse(widget.amount) * 100,
+      'currency': 'INR',
+      'name': 'HomeFaciliti',
+      'description': widget.title,
+      'order_id': widget.paymentOrderId, // Pass the real dynamic Razorpay Order ID from backend!
+      'prefill': {
+       'contact': widget.userPhoneNumber,
+      },
+      'notes': {
+        'product_id': widget.productId,
+        'order_id': widget.orderId.toString()
+      },
+      'theme': {
+        'color': '#1F5A93',
+      }
+    };
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token") ?? "";
-      final authVM = Provider.of<AuthViewmodel>(context, listen: false);
-      final userPhone = authVM.user.phone.isNotEmpty ? authVM.user.phone : (prefs.getString("phone") ?? '9199953391');
-      final userEmail = authVM.user.email.isNotEmpty ? authVM.user.email : 'test@gmail.com';
-      final parsedAmount = double.tryParse(widget.amount) ?? 0.0;
-      final amountInPaise = (parsedAmount * 100).toInt();
-
-      final response = await http.post(
-        Uri.parse("https://backend-1-ux3b.onrender.com/api/checkout-api"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          "productId": widget.productId,
-          "payment": {
-            "paymentMethod": "Online",
-            "amountPaid": parsedAmount
-          }
-        }),
-      );
-
-      if (mounted) {
-        Navigator.pop(context); // Dismiss loading dialog
-      }
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data["success"] == true && data["razorpayOrderId"] != null) {
-          _placedOrderId = data["orderId"];
-          final razorpayOrderId = data["razorpayOrderId"];
-
-          var options = {
-            'key': 'rzp_live_SwFaJKQjU5ZOsH',
-            'amount': amountInPaise > 0 ? amountInPaise : 100,
-            'currency': 'INR',
-            'name': 'HomeFaciliti',
-            'description': widget.title,
-            'order_id': razorpayOrderId,
-            'prefill': {
-              'contact': userPhone,
-              'email': userEmail,
-            },
-            'notes': {
-              'product_id': widget.productId,
-              'order_id': data["orderId"].toString()
-            },
-            'theme': {
-              'color': '#0000FF',
-            }
-          };
-
-          _razorpay.open(options);
-        } else {
-          final errMsg = data["error"] ?? data["message"] ?? "Failed to create checkout on server";
-          _showErrorSnackBar(errMsg);
-        }
-      } else {
-        _showErrorSnackBar("Server returned status code ${response.statusCode}");
-      }
+      _razorpay.open(options);
     } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-      _showErrorSnackBar("Checkout connection error: $e");
+      debugPrint("Checkout Error: $e");
     }
-  }
-
-  Future<void> placeCashOrder() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(
-          color: Colors.green,
-        ),
-      ),
-    );
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token") ?? "";
-
-      final response = await http.post(
-        Uri.parse("https://backend-1-ux3b.onrender.com/api/checkout-api"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          "productId": widget.productId,
-          "payment": {
-            "paymentMethod": "Cash",
-            "amountPaid": 0
-          }
-        }),
-      );
-
-      if (mounted) {
-        Navigator.pop(context); // Dismiss loading dialog
-      }
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data["success"] == true) {
-          _showSuccessDialog();
-        } else {
-          final errMsg = data["error"] ?? data["message"] ?? "Failed to place COD order";
-          _showErrorSnackBar(errMsg);
-        }
-      } else {
-        _showErrorSnackBar("Server returned status code ${response.statusCode}");
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-      _showErrorSnackBar("Connection error: $e");
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text("Success"),
-        content: const Text("Order Placed Successfully 🎉"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-
-              final bookingVM = Provider.of<BookingFlowViewModel>(
-                context,
-                listen: false,
-              );
-              bookingVM.startSearching();
-
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SearchingPartnerScreen(),
-                ),
-              );
-            },
-            child: const Text("OK"),
-          )
-        ],
-      ),
-    );
   }
 
   Widget paymentTile({
@@ -684,12 +662,13 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
               ),
 
               child: ElevatedButton(
-                onPressed: () {
-                  if (selectedPayment == 2) {
-                    placeCashOrder();
-                  } else {
-                    openCheckout();
-                  }
+
+                  onPressed: () async {
+                    if (selectedPayment == 2) {
+                      await placeCodOrder();
+                    } else {
+                      openCheckout();
+                    }
                 },
 
                 style:

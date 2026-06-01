@@ -5,6 +5,7 @@ class UserModel {
   String location;
   String locality;
   String gender;
+  String token;
   // referral
 
 
@@ -17,6 +18,7 @@ class UserModel {
     required this.location,
     required this.locality,
     required this.gender,
-    required this.referralCode
+    required this.referralCode,
+    required this.token
 });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:userapp/utils/app_colors.dart';
 import 'package:userapp/viewmodel/order_viewmodel.dart';
 import 'package:userapp/viewmodel/wallet_viewmodel.dart';
 import '../../model/order_model.dart';
@@ -19,7 +20,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   double walletUsed = 0;
   double finalAmount = 0;
 
-  bool useWallet = true; // 🔥 toggle (use wallet ON/OFF)
+  bool useWallet = true; //  toggle (use wallet ON/OFF)
 
   String selectedPayment = "Online";
 
@@ -35,7 +36,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     double walletBalance = walletVM.balance;
 
-    /// 🔥 CALCULATION (sirf yaha hota hai, deduct nahi)
+    ///  CALCULATION (sirf yaha hota hai, deduct nahi)
     walletUsed = 0;
     finalAmount = servicePrice;
 
@@ -151,90 +152,106 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
 
-          ///  PAY BUTTON
-          Container(
-            padding: EdgeInsets.all(16),
-            color: Colors.white,
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: InkWell(
-                onTap: () {
 
-                  final walletVM =
-                  Provider.of<WalletViewmodel>(context, listen: false);
+          /// PAY BUTTON
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isSmall = MediaQuery.of(context).size.width < 400;
+                  final buttonHeight = isSmall ? 40.0 : 50.0;
 
-                  ///  ACTUAL DEDUCTION YAHI HOGA
-                  if (walletUsed > 0) {
-                    walletVM.deductMoney(walletUsed);
-                  }
+                  return SizedBox(
+                    width: double.infinity,
+                    height: buttonHeight,
+                    child: Material(
+                      borderRadius: BorderRadius.circular(30),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () {
+                          final walletVM =
+                          Provider.of<WalletViewmodel>(context, listen: false);
 
-                  final serviceVM =
-                  Provider.of<ServiceViewModel>(context, listen: false);
+                          if (walletUsed > 0) {
+                            walletVM.deductMoney(walletUsed);
+                          }
 
-                  final orderVM =
-                  Provider.of<OrderViewmodel>(context, listen: false);
+                          final serviceVM =
+                          Provider.of<ServiceViewModel>(context, listen: false);
 
-                  final service = serviceVM.selectedService;
+                          final orderVM =
+                          Provider.of<OrderViewmodel>(context, listen: false);
 
-                  /// ORDER SAVE
-                  orderVM.addOrder(
-                    OrderModel(
-                      serviceName: service?.title ?? "",
-                      price: service?.price ?? 0,
-                      date: DateTime.now().toString(),
-                      status: "Pending",
-                    ),
-                  );
+                          final service = serviceVM.selectedService;
 
-                  /// SUCCESS POPUP
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: Text("Success"),
-                      content: Text("Payment Successful 🎉"),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context); // dialog close
+                          orderVM.addOrder(
+                            OrderModel(
+                              serviceName: service?.title ?? "",
+                              price: service?.price ?? 0,
+                              date: DateTime.now().toString(),
+                              status: "Pending",
+                            ),
+                          );
 
-                            final bookingVM =
-                            Provider.of<BookingFlowViewModel>(context, listen: false);
+                          showDialog(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text("Success"),
+                              content: const Text("Payment Successful 🎉"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
 
-                            bookingVM.startSearching();
+                                    final bookingVM =
+                                    Provider.of<BookingFlowViewModel>(
+                                      context,
+                                      listen: false,
+                                    );
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SearchingPartnerScreen(),
+                                    bookingVM.startSearching();
+
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                        const SearchingPartnerScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text("OK"),
+                                )
+                              ],
+                            ),
+                          );
+                        },
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(30),
+                            gradient: LinearGradient(
+                              colors: [AppColors.primaryButton, AppColors.secondaryButton],
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              "Pay Now",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmall ? 15 : 16,
                               ),
-                            );
-                          },
-                          child: Text("OK"),
-                        ) 
-                      ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    gradient: LinearGradient(
-                      colors: [Colors.blue, Colors.green],
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    "Pay Now",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );

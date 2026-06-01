@@ -37,6 +37,17 @@ class DrawerViewmodel extends ChangeNotifier {
     ),
 
     DrawerItemModel(
+      title: "Support and Enquiry",
+      icon: AppIcons.refundcancellation,
+      route: "/support",
+    ),
+
+    DrawerItemModel(
+      title: "Account Delete",
+      icon: AppIcons.refundcancellation,
+      route: "/accountDelete",
+    ),
+    DrawerItemModel(
       title: "Logout",
       icon: AppIcons.logout,
       route: "/logout", // special route for logout handling

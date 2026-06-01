@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:userapp/viewmodel/order_viewmodel.dart';
 
+import '../../../utils/app_colors.dart';
+
 class OrderHistoryScreen extends StatelessWidget {
   const OrderHistoryScreen({super.key});
 
@@ -12,7 +14,32 @@ class OrderHistoryScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("My Orders"),
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primaryButton,
+                AppColors.secondaryButton,
+              ],
+            ),
+          ),
+        ),
+
+        title: const Text(
+          "My Orders",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+
+        centerTitle: true,
       ),
 
       body: vm.orders.isEmpty     //  FIX

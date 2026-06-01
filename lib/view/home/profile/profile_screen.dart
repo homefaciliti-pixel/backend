@@ -121,7 +121,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
 
-      appBar: AppBar(title: const Text("Profile",style: TextStyle(fontWeight:FontWeight.bold,fontSize: 30),)),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+          title: const Text(
+            "Profile",style:
+          TextStyle(fontWeight:
+          FontWeight.bold,
+          )
+            ,
+          )
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -229,6 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   location: stateCityController.text,
                   locality: localityController.text,
                   gender: selectedGender, referralCode: '',
+                  token: "",
                 );
 
                 final authVM = Provider.of<AuthViewmodel>(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../utils/app_colors.dart';
 import '../../viewmodel/auth_viewmodel.dart';
 
 class ReferScreen extends StatelessWidget {
@@ -15,17 +16,51 @@ class ReferScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Refer & Earn"),
-      ),
+        automaticallyImplyLeading: false, // we will add custom back button
 
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primaryButton,
+                AppColors.secondaryButton,
+              ],
+            ),
+          ),
+        ),
+
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white, // ✅ white arrow
+            size: 20,
+          ),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+
+        title: const Text(
+          "Refer & Earn",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+
+        centerTitle: true,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-
             const SizedBox(height: 20),
-
             /// 🎯 TITLE
             const Text(
               "Invite Friends & Earn Rewards 💰",
@@ -37,7 +72,6 @@ class ReferScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-
             Text(
               "Share your referral code with friends and earn rewards when they join!",
               textAlign: TextAlign.center,
@@ -113,7 +147,6 @@ class ReferScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-
             _buildStep("1. Share your code with friends"),
             _buildStep("2. Friend signs up using your code"),
             _buildStep("3. You both earn rewards 🎉"),
