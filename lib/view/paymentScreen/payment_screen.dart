@@ -1,661 +1,754 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:async';
-import 'package:userapp/viewmodel/order_viewmodel.dart';
-import 'package:userapp/viewmodel/wallet_viewmodel.dart';
-import 'package:userapp/viewmodel/address_viewmodel.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:userapp/viewmodel/auth_viewmodel.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../model/order_model.dart';
-import '../../model/address_model.dart';
-import '../../viewmodel/booking_flow_viewmodel.dart';
-import '../../viewmodel/service_viewmodel.dart';
-import '../booking_map/searching_partner_screen.dart';
-import '../../services/api_service.dart';
-import 'payment_success_screen.dart';
+import '../../../utils/app_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:userapp/viewmodel/booking_flow_viewmodel.dart';
+import 'package:userapp/view/booking_map/searching_partner_screen.dart';
 
+class PaymentScreenNew extends StatefulWidget {
+  final String productId;
+  final String title;
+  final String amount;
+  const PaymentScreenNew({
+    super.key,
+    required this.productId,
+    required this.title,
+    required this.amount,
+  });
+  @override
+  State<PaymentScreenNew> createState() => _PaymentScreenState();
+}
+class _PaymentScreenState extends State<PaymentScreenNew> {
 
+  int selectedPayment = 0;
+  int? _placedOrderId;
 
-class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({super.key});
+  late Razorpay _razorpay;
 
   @override
-  State<PaymentScreen> createState() => _PaymentScreenState();
-}
+  void initState() {
 
-class _PaymentScreenState extends State<PaymentScreen> {
+    super.initState();
 
-  double walletUsed = 0;
-  double finalAmount = 0;
+    _razorpay = Razorpay();
 
-  bool useWallet = true; // 🔥 toggle (use wallet ON/OFF)
+    _razorpay.on(
+      Razorpay.EVENT_PAYMENT_SUCCESS,
+      _handlePaymentSuccess,
+    );
 
-  String selectedPayment = "Online";
+    _razorpay.on(
+      Razorpay.EVENT_PAYMENT_ERROR,
+      _handlePaymentError,
+    );
 
-  String _formatDate(String dateStr) {
-    try {
-      final dt = DateTime.parse(dateStr);
-      final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
-    } catch (_) {
-      return dateStr;
-    }
+    _razorpay.on(
+      Razorpay.EVENT_EXTERNAL_WALLET,
+      _handleExternalWallet,
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
+  void dispose() {
 
-    final walletVM = Provider.of<WalletViewmodel>(context);
+    _razorpay.clear();
 
-    final vm = Provider.of<ServiceViewModel>(context);
-    final service = vm.selectedService;
+    super.dispose();
+  }
 
-    double servicePrice = service?.price.toDouble() ?? 0;
-
-    double walletBalance = walletVM.balance;
-
-    /// 🔥 CALCULATION (sirf yaha hota hai, deduct nahi)
-    walletUsed = 0;
-    finalAmount = servicePrice;
-
-    if (useWallet && walletBalance > 0) {
-
-      if (walletBalance >= servicePrice) {
-        walletUsed = servicePrice;
-        finalAmount = 0;
-      } else {
-        walletUsed = walletBalance;
-        finalAmount = servicePrice - walletBalance;
-      }
+  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    print("RAZORPAY PAYMENT SUCCESS: ${response.paymentId}");
+    if (_placedOrderId == null) {
+      _showErrorSnackBar("Payment succeeded but order ID is missing. Please contact support.");
+      return;
     }
 
-    final addressVM = Provider.of<AddressViewmodel>(context);
-    final currentAddress = addressVM.address ?? AddressModel(
-      type: "Home",
-      houseNo: "N/A",
-      society: "N/A",
-      floor: "N/A",
-      landmark: "N/A",
-      city: "N/A",
-      locality: "N/A",
-      pincode: "N/A",
+    // Show a sleek loading dialog while verifying payment on server
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          color: Colors.green,
+        ),
+      ),
     );
 
-    final String dateStr = vm.selectedDate != null
-        ? vm.selectedDate.toString().split(' ')[0]
-        : DateTime.now().toString().split(' ')[0];
-    final String timeSlotStr = vm.selectedSlot ?? "9 AM - 11 AM";
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("token") ?? "";
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      // Call payment verification endpoint
+      final verifyRes = await http.post(
+        Uri.parse("https://backend-1-ux3b.onrender.com/api/payments/verify"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          "orderId": _placedOrderId,
+          "razorpay_payment_id": response.paymentId
+        }),
+      );
 
-      appBar: AppBar(
-        title: Text("Payment"),
+      // Dismiss loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      if (verifyRes.statusCode == 200) {
+        final data = jsonDecode(verifyRes.body);
+        if (data["success"] == true) {
+          _showSuccessDialog();
+        } else {
+          _showErrorSnackBar(data["message"] ?? "Payment verification failed on server");
+        }
+      } else {
+        _showErrorSnackBar("Payment verification returned status code ${verifyRes.statusCode}");
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      _showErrorSnackBar("Payment verification connection error: $e");
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+
+    print("====================================");
+    print("RAZORPAY PAYMENT ERROR");
+    print("Code       : ${response.code}");
+    print("Message    : ${response.message}");
+    print("Error Data : ${response.error}");
+    print("====================================");
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Payment Failed\n${response.message ?? 'Unknown Error'}",
+        ),
+        backgroundColor: Colors.red,
       ),
+    );
+  }
 
-      body: Column(
-        children: [
+  void _handleExternalWallet(
+      ExternalWalletResponse response) {
 
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
+    print(response.walletName);
+  }
 
-                  /// PREMIUM CHECKOUT SUMMARY CARD
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header title
-                        Row(
-                          children: [
-                            Icon(Icons.shopping_bag_outlined, color: Colors.blue.shade700, size: 20),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Order Summary",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 20, thickness: 0.8),
-                        
-                        // Service Title & Price
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                service?.title ?? "Home Service",
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              "₹$servicePrice",
-                              style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blueAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
+  Future<void> openCheckout() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          color: Colors.green,
+        ),
+      ),
+    );
 
-                        // Booking Schedule (Date & Time Slot)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.calendar_today_rounded, size: 16, color: Colors.blue.shade700),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _formatDate(dateStr),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade800,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              Container(height: 14, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 10)),
-                              Icon(Icons.access_time_rounded, size: 16, color: Colors.blue.shade700),
-                              const SizedBox(width: 6),
-                              Text(
-                                timeSlotStr,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade800,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 14),
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("token") ?? "";
+      final authVM = Provider.of<AuthViewmodel>(context, listen: false);
+      final userPhone = authVM.user.phone.isNotEmpty ? authVM.user.phone : (prefs.getString("phone") ?? '9199953391');
+      final userEmail = authVM.user.email.isNotEmpty ? authVM.user.email : 'test@gmail.com';
+      final parsedAmount = double.tryParse(widget.amount) ?? 0.0;
+      final amountInPaise = (parsedAmount * 100).toInt();
 
-                        // Service Address
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.location_on_outlined, size: 18, color: Colors.grey.shade600),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Service Address (${currentAddress.type})",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    "${currentAddress.houseNo}, ${currentAddress.society}, ${currentAddress.locality}, ${currentAddress.city} - ${currentAddress.pincode}",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade800,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+      final response = await http.post(
+        Uri.parse("https://backend-1-ux3b.onrender.com/api/checkout-api"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          "productId": widget.productId,
+          "payment": {
+            "paymentMethod": "Online",
+            "amountPaid": parsedAmount
+          }
+        }),
+      );
 
-                  SizedBox(height: 20),
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+      }
 
-                  ///  WALLET TOGGLE
-                  SwitchListTile(
-                    value: useWallet,
-                    onChanged: (value) {
-                      setState(() {
-                        useWallet = value;
-                      });
-                    },
-                    title: Text("Use Wallet"),
-                  ),
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["success"] == true && data["razorpayOrderId"] != null) {
+          _placedOrderId = data["orderId"];
+          final razorpayOrderId = data["razorpayOrderId"];
 
-                  ///  AMOUNT BREAKDOWN
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    color: Colors.green.shade50,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+          var options = {
+            'key': 'rzp_live_SwFaJKQjU5ZOsH',
+            'amount': amountInPaise > 0 ? amountInPaise : 100,
+            'currency': 'INR',
+            'name': 'HomeFaciliti',
+            'description': widget.title,
+            'order_id': razorpayOrderId,
+            'prefill': {
+              'contact': userPhone,
+              'email': userEmail,
+            },
+            'notes': {
+              'product_id': widget.productId,
+              'order_id': data["orderId"].toString()
+            },
+            'theme': {
+              'color': '#0000FF',
+            }
+          };
 
-                        Text("Service Price: ₹ $servicePrice"),
+          _razorpay.open(options);
+        } else {
+          final errMsg = data["error"] ?? data["message"] ?? "Failed to create checkout on server";
+          _showErrorSnackBar(errMsg);
+        }
+      } else {
+        _showErrorSnackBar("Server returned status code ${response.statusCode}");
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      _showErrorSnackBar("Checkout connection error: $e");
+    }
+  }
 
-                        SizedBox(height: 5),
+  Future<void> placeCashOrder() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          color: Colors.green,
+        ),
+      ),
+    );
 
-                        Text("Wallet Used: ₹ $walletUsed"),
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("token") ?? "";
 
-                        SizedBox(height: 5),
+      final response = await http.post(
+        Uri.parse("https://backend-1-ux3b.onrender.com/api/checkout-api"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          "productId": widget.productId,
+          "payment": {
+            "paymentMethod": "Cash",
+            "amountPaid": 0
+          }
+        }),
+      );
 
-                        Text(
-                          "Payable Amount: ₹ $finalAmount",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading dialog
+      }
 
-                  SizedBox(height: 20),
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["success"] == true) {
+          _showSuccessDialog();
+        } else {
+          final errMsg = data["error"] ?? data["message"] ?? "Failed to place COD order";
+          _showErrorSnackBar(errMsg);
+        }
+      } else {
+        _showErrorSnackBar("Server returned status code ${response.statusCode}");
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      _showErrorSnackBar("Connection error: $e");
+    }
+  }
 
-                  /// PAYMENT OPTIONS
-                  RadioListTile(
-                    value: "Online",
-                    groupValue: selectedPayment,
-                    onChanged: (value) {
-                      setState(() => selectedPayment = value.toString());
-                    },
-                    title: Text("Pay Online"),
-                  ),
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
-                  RadioListTile(
-                    value: "Cash",
-                    groupValue: selectedPayment,
-                    onChanged: (value) {
-                      setState(() => selectedPayment = value.toString());
-                    },
-                    title: Text("Cash on Delivery"),
-                  ),
-                ],
-              ),
-            ),
-          ),
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Success"),
+        content: const Text("Order Placed Successfully 🎉"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
 
-          ///  PAY BUTTON
-          Container(
-            padding: EdgeInsets.all(16),
-            color: Colors.white,
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: InkWell(
-                onTap: () async {
+              final bookingVM = Provider.of<BookingFlowViewModel>(
+                context,
+                listen: false,
+              );
+              bookingVM.startSearching();
 
-                  final walletVM =
-                  Provider.of<WalletViewmodel>(context, listen: false);
-
-                  ///  ACTUAL DEDUCTION YAHI HOGA
-                  if (walletUsed > 0) {
-                    await walletVM.deductMoney(walletUsed);
-                  }
-
-                  final serviceVM =
-                  Provider.of<ServiceViewModel>(context, listen: false);
-
-                  final orderVM =
-                  Provider.of<OrderViewmodel>(context, listen: false);
-
-                  final addressVM =
-                  Provider.of<AddressViewmodel>(context, listen: false);
-
-                  final authVM =
-                  Provider.of<AuthViewmodel>(context, listen: false);
-
-                  final service = serviceVM.selectedService;
-                  
-                  final String dateStr = serviceVM.selectedDate != null
-                      ? serviceVM.selectedDate.toString().split(' ')[0]
-                      : DateTime.now().toString().split(' ')[0];
-                  final String timeSlotStr = serviceVM.selectedSlot ?? "9 AM - 11 AM";
-
-                  final currentAddress = addressVM.address ?? AddressModel(
-                    type: "Home",
-                    houseNo: "N/A",
-                    society: "N/A",
-                    floor: "N/A",
-                    landmark: "N/A",
-                    city: "N/A",
-                    locality: "N/A",
-                    pincode: "N/A",
-                  );
-
-                  /// ORDER CHECKOUT — returns both DB orderId and Razorpay order ID dynamically
-                  final checkoutResult = await orderVM.checkout(
-                    product: OrderModel(
-                      serviceName: service?.title ?? "",
-                      price: service?.price ?? 0,
-                      date: dateStr,
-                      status: "Pending",
-                      productId: service?.title,
-                      description: service?.description,
-                      timeSlot: timeSlotStr,
-                    ),
-                    address: currentAddress,
-                    paymentMethod: selectedPayment,
-                    amountPaid: walletUsed,
-                    userId: authVM.user.phone.isNotEmpty ? authVM.user.phone : "9876543210",
-                  );
-
-                  if (checkoutResult == null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Failed to place order. Please try again.")),
-                    );
-                    return;
-                  }
-
-                  // Extract both IDs from checkout response
-                  final int orderId = checkoutResult['orderId'] as int;
-                  // razorpayOrderId: the dynamic ID from Razorpay API (or mock fallback)
-                  final String? razorpayOrderId = checkoutResult['razorpayOrderId'] as String?;
-
-                  if (!context.mounted) return;
-
-                  if (selectedPayment.toLowerCase() != "cash") {
-                    // --- ONLINE / RAZORPAY PAYMENT FLOW ---
-                    // Build payment URL using the DB orderId
-                    final paymentUrl = Uri.parse("${ApiService.baseUrl}/api/payments/pay/$orderId");
-
-                    debugPrint("[Payment] DB orderId=$orderId  razorpayOrderId=$razorpayOrderId");
-                    debugPrint("[Payment] Opening: $paymentUrl");
-
-                    try {
-                      await launchUrl(paymentUrl, mode: LaunchMode.externalApplication);
-                      // ✅ Reset booking selections after launching online payment
-                      if (context.mounted) {
-                        Provider.of<ServiceViewModel>(context, listen: false)
-                            .resetBookingSelections();
-                      }
-                    } catch (e) {
-                      debugPrint("Failed to launch payment URL: $e");
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Could not open payment page: $e")),
-                      );
-                    }
-
-
-                    if (!context.mounted) return;
-
-                    // Show dialog asking user to verify payment once done in browser
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (dialogContext) {
-                        return PaymentInProgressDialog(
-                          orderId: orderId,
-                          razorpayOrderId: razorpayOrderId ?? '',
-                          amount: (service?.price ?? 0).toDouble(),
-                          serviceName: service?.title ?? 'Home Service',
-                          dateStr: dateStr,
-                          timeSlotStr: timeSlotStr,
-                        );
-                      },
-                    );
-                  } else {
-                    // --- CASH PAYMENT FLOW ---
-                    // Confirm COD order with the backend API
-                    try {
-                      final codRes = await ApiService.post('/api/payments/cod/$orderId', {});
-                      debugPrint("[Payment] COD API response: $codRes");
-                    } catch (e) {
-                      debugPrint("Failed to call COD API: $e");
-                    }
-
-                    if (!context.mounted) return;
-
-                    // ✅ Reset all booking selections after successful order
-                    Provider.of<ServiceViewModel>(context, listen: false)
-                        .resetBookingSelections();
-
-                    // ✅ Prefetch orders list to include the new booking immediately
-                    Provider.of<OrderViewmodel>(context, listen: false).fetchOrders();
-
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PaymentSuccessScreen(
-                          orderId: orderId,
-                          amount: (service?.price ?? 0).toDouble(),
-                          serviceName: service?.title ?? 'Home Service',
-                          paymentId: 'COD',
-                          date: dateStr,
-                          timeSlot: timeSlotStr,
-                        ),
-                      ),
-                    );
-                  }
-                },
-
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    gradient: LinearGradient(
-                      colors: [Colors.blue, Colors.green],
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    "Pay Now",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SearchingPartnerScreen(),
                 ),
-              ),
-            ),
+              );
+            },
+            child: const Text("OK"),
           )
         ],
       ),
     );
   }
-}
 
-class PaymentInProgressDialog extends StatefulWidget {
-  final int orderId;
-  final String razorpayOrderId;
-  final double amount;
-  final String serviceName;
-  final String dateStr;
-  final String timeSlotStr;
+  Widget paymentTile({
 
-  const PaymentInProgressDialog({
-    super.key,
-    required this.orderId,
-    required this.razorpayOrderId,
-    required this.amount,
-    required this.serviceName,
-    required this.dateStr,
-    required this.timeSlotStr,
-  });
+    required int index,
+    required IconData icon,
+    required String title,
 
-  @override
-  State<PaymentInProgressDialog> createState() => _PaymentInProgressDialogState();
-}
+  }) {
 
-class _PaymentInProgressDialogState extends State<PaymentInProgressDialog> {
-  Timer? _timer;
-  bool _verifying = false;
-  bool _success = false;
+    return GestureDetector(
 
-  @override
-  void initState() {
-    super.initState();
-    // Start auto polling every 2 seconds
-    _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (!_verifying && !_success) {
-        _autoVerify();
-      }
-    });
-  }
+      onTap: () {
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
+        setState(() {
+          selectedPayment = index;
+        });
+      },
 
-  Future<void> _autoVerify() async {
-    if (!mounted) return;
-    try {
-      final verifyId = widget.orderId.toString();
-      final verifyRes = await ApiService.get('/api/payments/verify/$verifyId');
-      if (verifyRes != null && verifyRes['success'] == true) {
-        if (verifyRes['paymentStatus'] == 'captured') {
-          _success = true;
-          _timer?.cancel();
-          if (mounted) {
-            Navigator.pop(context); // Dismiss dialog
-            
-            final paymentId = verifyRes['paymentDetails']?['razorpay_payment_id']
-                ?? verifyRes['paymentDetails']?['id']
-                ?? 'Verified';
-            final orderData = verifyRes['order'] ?? {};
+      child: Container(
 
-            // ✅ Prefetch orders list to include the new booking immediately
-            Provider.of<OrderViewmodel>(context, listen: false).fetchOrders();
+        margin:
+        const EdgeInsets.only(bottom: 14),
 
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PaymentSuccessScreen(
-                  orderId: widget.orderId,
-                  amount: widget.amount,
-                  serviceName: widget.serviceName,
-                  paymentId: paymentId.toString(),
-                  date: orderData['date']?.toString() ?? widget.dateStr,
-                  timeSlot: orderData['timeSlot']?.toString() ?? widget.timeSlotStr,
+        padding:
+        const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+
+        decoration: BoxDecoration(
+
+          color: Colors.white,
+
+          border: Border.all(
+
+            color: selectedPayment == index
+                ? Colors.green
+                : Colors.grey.shade300,
+
+            width: 1.5,
+          ),
+
+          borderRadius:
+          BorderRadius.circular(16),
+        ),
+
+        child: Row(
+
+          children: [
+
+            Icon(
+              icon,
+              size: 28,
+              color: Colors.green,
+            ),
+
+            const SizedBox(width: 14),
+
+            Expanded(
+
+              child: Text(
+
+                title,
+
+                style: const TextStyle(
+
+                  fontSize: 15,
+
+                  fontWeight:
+                  FontWeight.w600,
                 ),
               ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("[AutoVerify] Error: $e");
-    }
-  }
-
-  Future<void> _manualVerify() async {
-    if (_verifying) return;
-    setState(() => _verifying = true);
-    
-    bool paymentSuccess = false;
-    String razorpayMsg = "Payment not verified yet. Please complete the transaction in your browser.";
-    dynamic verifyRes;
-
-    try {
-      final verifyId = widget.orderId.toString();
-      verifyRes = await ApiService.get('/api/payments/verify/$verifyId');
-      if (verifyRes != null && verifyRes['success'] == true) {
-        if (verifyRes['paymentStatus'] == 'captured') {
-          paymentSuccess = true;
-          _success = true;
-          _timer?.cancel();
-        }
-      }
-    } catch (e) {
-      debugPrint("Manual verification failed: $e");
-    }
-
-    if (mounted) {
-      setState(() => _verifying = false);
-    }
-
-    if (paymentSuccess) {
-      if (mounted) {
-        Navigator.pop(context); // Close dialog
-        
-        final paymentId = verifyRes['paymentDetails']?['razorpay_payment_id']
-            ?? verifyRes['paymentDetails']?['id']
-            ?? 'Verified';
-        final orderData = verifyRes['order'] ?? {};
-
-        // ✅ Prefetch orders list to include the new booking immediately
-        Provider.of<OrderViewmodel>(context, listen: false).fetchOrders();
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentSuccessScreen(
-              orderId: widget.orderId,
-              amount: widget.amount,
-              serviceName: widget.serviceName,
-              paymentId: paymentId.toString(),
-              date: orderData['date']?.toString() ?? widget.dateStr,
-              timeSlot: orderData['timeSlot']?.toString() ?? widget.timeSlotStr,
             ),
-          ),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(razorpayMsg)),
-        );
-      }
-    }
+
+            Radio(
+
+              value: index,
+
+              groupValue: selectedPayment,
+
+              activeColor: Colors.green,
+
+              onChanged: (value) {
+
+                setState(() {
+                  selectedPayment = value!;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Payment in Progress"),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text("We have opened the secure checkout page in your browser. Please complete the payment there."),
-          const SizedBox(height: 20),
-          const CircularProgressIndicator(),
-          const SizedBox(height: 10),
-          Text(
-            _verifying ? "Verifying payment..." : "Waiting for payment confirmation...",
-            style: const TextStyle(fontSize: 12),
+
+    return Scaffold(
+
+      backgroundColor: Colors.grey.shade100,
+
+      appBar: AppBar(
+
+        elevation: 0,
+
+        backgroundColor: Colors.white,
+
+        centerTitle: true,
+
+        title: const Text(
+
+          "Payment",
+
+          style: TextStyle(
+
+            color: Colors.black,
+
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+
+        leading: IconButton(
+
+          onPressed: () {
+            Navigator.pop(context);
+          },
+
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.black,
+          ),
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _verifying ? null : () => Navigator.pop(context),
-          child: const Text("Cancel"),
+
+      body: SafeArea(
+
+        child: SingleChildScrollView(
+
+          padding: const EdgeInsets.all(16),
+
+          child: Column(
+
+            children: [
+
+              /// PRODUCT CARD
+              Container(
+
+                padding: const EdgeInsets.all(16),
+
+                decoration: BoxDecoration(
+
+                  color: Colors.white,
+
+                  borderRadius:
+                  BorderRadius.circular(20),
+
+                  boxShadow: const [
+
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+
+                child: Row(
+
+                  children: [
+
+                    Container(
+
+                      height: 70,
+                      width: 70,
+
+                      decoration: BoxDecoration(
+
+                        color: Colors.green.shade50,
+
+                        borderRadius:
+                        BorderRadius.circular(14),
+                      ),
+
+                      child: const Icon(
+
+                        Icons.home_repair_service,
+
+                        color: Colors.green,
+
+                        size: 35,
+                      ),
+                    ),
+
+                    const SizedBox(width: 14),
+
+                    Expanded(
+
+                      child: Column(
+
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+
+                        children: [
+
+                          Text(
+
+                            widget.title,
+
+                            style: const TextStyle(
+
+                              fontSize: 16,
+
+                              fontWeight:
+                              FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Text(
+
+                            "₹ ${widget.amount}",
+
+                            style: const TextStyle(
+
+                              fontSize: 18,
+
+                              color: Colors.green,
+
+                              fontWeight:
+                              FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              /// PAYMENT METHODS
+              Container(
+
+                padding: const EdgeInsets.all(16),
+
+                decoration: BoxDecoration(
+
+                  color: Colors.white,
+
+                  borderRadius:
+                  BorderRadius.circular(20),
+
+                  boxShadow: const [
+
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+
+                child: Column(
+
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+
+                  children: [
+
+                    const Text(
+
+                      "Payment Method",
+
+                      style: TextStyle(
+
+                        fontSize: 16,
+
+                        fontWeight:
+                        FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    paymentTile(
+
+                      index: 0,
+
+                      icon:
+                      Icons.account_balance_wallet,
+
+                      title: "UPI ",
+                    ),
+
+                    paymentTile(
+
+                      index: 1,
+
+                      icon: Icons.credit_card,
+
+                      title:
+                      "Credit / Debit Card",
+                    ),
+
+                    paymentTile(
+
+                      index: 2,
+
+                      icon: Icons.payments,
+
+                      title: "Cash on Service",
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
-        ElevatedButton(
-          onPressed: _verifying ? null : _manualVerify,
-          child: const Text("Verify Payment"),
+      ),
+
+      /// BOTTOM BUTTON
+      bottomNavigationBar: Container(
+
+        padding: const EdgeInsets.all(16),
+
+        decoration: const BoxDecoration(
+
+          color: Colors.white,
+
+          borderRadius: BorderRadius.only(
+
+            topLeft: Radius.circular(25),
+
+            topRight: Radius.circular(25),
+          ),
         ),
-      ],
+
+        child: SafeArea(
+
+          child: SizedBox(
+
+            height: 56,
+
+            child: Container(
+
+              decoration: BoxDecoration(
+
+                gradient:  LinearGradient(
+
+                  colors: [
+
+                    AppColors.primaryButton,
+
+                    AppColors.secondaryButton,
+                  ],
+                ),
+
+                borderRadius:
+                BorderRadius.circular(30),
+              ),
+
+              child: ElevatedButton(
+                onPressed: () {
+                  if (selectedPayment == 2) {
+                    placeCashOrder();
+                  } else {
+                    openCheckout();
+                  }
+                },
+
+                style:
+                ElevatedButton.styleFrom(
+
+                  backgroundColor:
+                  Colors.transparent,
+
+                  shadowColor:
+                  Colors.transparent,
+
+                  shape: RoundedRectangleBorder(
+
+                    borderRadius:
+                    BorderRadius.circular(30),
+                  ),
+                ),
+
+                child: Row(
+
+                  mainAxisAlignment:
+                  MainAxisAlignment.center,
+
+                  children: [
+
+                    Icon(
+
+                      selectedPayment == 2
+                          ? Icons.shopping_bag
+                          : Icons.lock,
+
+                      color: Colors.white,
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    Text(
+
+                      selectedPayment == 2
+                          ? "Place Order"
+                          : "Pay ₹${widget.amount}",
+
+                      style: const TextStyle(
+
+                        color: Colors.white,
+
+                        fontSize: 17,
+
+                        fontWeight:
+                        FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
