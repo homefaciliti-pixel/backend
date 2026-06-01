@@ -1150,8 +1150,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   const storedData = activeOTPs.get(phone);
   const isValidDynamic = storedData && storedData.otp === otp && storedData.expiresAt > Date.now();
 
-  // Allow '1234' as the universal mock OTP, or check the dynamic OTP
-  if (otp !== "1234" && !isValidDynamic) {
+  // Check the dynamic OTP
+  if (!isValidDynamic) {
     return res.status(400).json({ error: "Invalid OTP or OTP expired" });
   }
 
