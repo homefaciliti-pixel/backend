@@ -1094,25 +1094,26 @@ app.post('/api/auth/send-otp', async (req, res) => {
   let smsError = null;
 
   try {
-    const url = 'https://www.smsgatewayhub.com/api/mt/SendSMS';
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        APIKey: smsApiKey,
-        senderid: senderId,
-        channel: smsRoute,
-        DCS: "0",
-        flashsms: "0",
-        number: formattedPhone,
-        text: messageText,
-        ...(entityId ? { EntityId: entityId } : {}),
-        ...(dltTemplateId ? { dlttemplateid: dltTemplateId } : {})
-      })
+    // Build GET URL for SMSGatewayHub (more reliable than JSON POST)
+    const params = new URLSearchParams({
+      APIKey: smsApiKey,
+      senderid: senderId,
+      channel: '2',           // 2 = Transactional (required for DLT OTP)
+      DCS: '0',
+      flashsms: '0',
+      number: formattedPhone,
+      text: messageText,
+      EntityId: entityId,
+      dlttemplateid: dltTemplateId,
+      route: '2'
     });
-    const data = await response.json();
+    const url = `https://www.smsgatewayhub.com/api/mt/SendSMS?${params.toString()}`;
+    console.log('[SMS] Sending to:', url.replace(smsApiKey, '***'));
+    const response = await fetch(url, { method: 'GET' });
+    const rawText = await response.text();
+    console.log('[SMS] Raw response:', rawText);
+    let data;
+    try { data = JSON.parse(rawText); } catch(_) { data = { rawText }; }
     if (data && (data.ErrorCode === '000' || data.ErrorCode === '0' || data.ErrorMessage === 'Success')) {
       smsSent = true;
     } else {
@@ -1120,6 +1121,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
     }
   } catch (err) {
     smsError = err.message;
+    console.error('[SMS] Exception:', err);
   }
 
   if (smsSent) {
