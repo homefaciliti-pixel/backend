@@ -7,14 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static String get baseUrl {
     if (kDebugMode) {
-      // Local development configuration (port 3005 is active on host machine)
+      // Local development configuration (port 3000 is active on host machine)
       if (kIsWeb) {
-        return 'http://localhost:3005';
+        return 'http://localhost:3000';
       } else if (Platform.isAndroid) {
         // Connect to host machine localhost from Android emulator
-        return 'http://10.0.2.2:3005';
+        return 'http://10.0.2.2:3000';
       } else {
-        return 'http://localhost:3005';
+        return 'http://localhost:3000';
       }
     }
     // Production Render URL
