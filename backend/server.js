@@ -436,7 +436,7 @@ const MySqlDbLayer = {
   async getCategories() {
     // Read directly from categories table instead of node_categories_v2
     const [rows] = await mysqlPool.query(
-      "SELECT * FROM categories WHERE (parent = 'None' OR parent = 'Main Category' OR parent IS NULL OR parent = '') AND status = 1"
+      "SELECT * FROM categories WHERE status = 1"
     );
     return rows.map(r => {
       let img = r.image || "";
