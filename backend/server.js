@@ -179,6 +179,30 @@ async function initMySqlDb() {
       }
     }
 
+    // Ensure Categories table exists (matching Admin Panel schema)
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        parent VARCHAR(255) NOT NULL DEFAULT 'None',
+        image VARCHAR(500) NOT NULL DEFAULT '',
+        status TINYINT(1) NOT NULL DEFAULT 1
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // Seed default categories into the categories table if empty
+    const [catCountRows] = await conn.query("SELECT COUNT(*) as count FROM categories");
+    if (catCountRows[0].count === 0) {
+      console.log("Seeding default categories in MySQL categories table...");
+      for (const cat of DEFAULT_CATEGORIES) {
+        await conn.query(
+          "INSERT INTO categories (title, parent, image, status) VALUES (?, 'None', ?, 1)",
+          [cat.name, cat.image]
+        );
+      }
+    }
+
+
     await conn.query(`
       CREATE TABLE IF NOT EXISTS node_contacts_v2 (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -410,23 +434,40 @@ const MySqlDbLayer = {
   },
 
   async getCategories() {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_categories_v2");
-    return rows.map(r => ({
-      id: r.id,
-      name: r.name,
-      image: r.image || ""
-    }));
+    // Read directly from categories table instead of node_categories_v2
+    const [rows] = await mysqlPool.query(
+      "SELECT * FROM categories WHERE (parent = 'None' OR parent IS NULL OR parent = '') AND status = 1"
+    );
+    return rows.map(r => {
+      let img = r.image || "";
+      if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+        img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+      }
+      return {
+        id: String(r.id),
+        name: r.title,
+        image: img
+      };
+    });
   },
 
   async addCategory(categoryData) {
     const { name, id, image } = categoryData;
-    const finalId = id || name.toLowerCase().replace(/\s+/g, '_');
     await mysqlPool.query(
-      "INSERT INTO node_categories_v2 (id, name, image) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), image=VALUES(image)",
-      [finalId, name, image || ""]
+      "INSERT INTO categories (title, parent, image, status) VALUES (?, 'None', ?, 1)",
+      [name, image || ""]
     );
-    const row = await this.queryOne("SELECT * FROM node_categories_v2 WHERE id = ?", [finalId]);
-    return row;
+    const row = await this.queryOne("SELECT * FROM categories WHERE title = ?", [name]);
+    if (!row) return null;
+    let img = row.image || "";
+    if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+      img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+    }
+    return {
+      id: String(row.id),
+      name: row.title,
+      image: img
+    };
   },
 
   async getAddressesByUserPhone(phone) {
@@ -1411,11 +1452,41 @@ const BANNERS_DATA = [
 ];
 
 // Dropdown: Get Banners
-app.get('/api/banners', (req, res) => {
+app.get('/api/banners', async (req, res) => {
   const host = req.get('host');
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [rows] = await mysqlPool.query("SELECT * FROM banners WHERE status = 1");
+      if (rows.length > 0) {
+        const banners = rows.map(r => {
+          let img = r.image || "";
+          if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+            img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+          }
+          return {
+            id: String(r.id),
+            image: img,
+            title: r.title,
+            category: "",
+            badge: "",
+            subtitle: "",
+            buttonText: ""
+          };
+        });
+        return res.json({
+          success: true,
+          banners: banners,
+          message: "Banners retrieved successfully from DB"
+        });
+      }
+    } catch (err) {
+      console.warn("[DynamicBanners] DB query failed, falling back to static:", err.message);
+    }
+  }
 
   const resolvedBanners = BANNERS_DATA.map(b => {
     let img = b.image;
