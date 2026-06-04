@@ -1370,10 +1370,13 @@ app.get('/api/categories', async (req, res) => {
     const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-    // Map / Merge with DEFAULT_CATEGORIES to override static properties (names and images)
     const categories = dbCategories.map(c => {
+      const cleanDbName = c.name.toLowerCase().replace(/[\s\-_]/g, '');
       const defaultMatch = DEFAULT_CATEGORIES.find(
-        dc => dc.id === c.id || dc.name.toLowerCase() === c.name.toLowerCase()
+        dc => dc.id === c.id || 
+              dc.name.toLowerCase() === c.name.toLowerCase() ||
+              dc.id.toLowerCase().replace(/[\s\-_]/g, '') === cleanDbName ||
+              dc.name.toLowerCase().replace(/[\s\-_]/g, '') === cleanDbName
       );
       let img = c.image;
       let name = c.name;
@@ -1518,11 +1521,13 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
+  const cleanCategory = category.toLowerCase().replace(/[\s\-_]/g, '');
+
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
       const [catRows] = await mysqlPool.query(
-        "SELECT * FROM node_categories WHERE LOWER(title) = ? OR id = ?",
-        [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
+        "SELECT * FROM node_categories WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
+        [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category), cleanCategory]
       );
 
       if (catRows.length > 0) {
@@ -1537,7 +1542,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
         }
 
         const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-        const services = srvRows.map(r => {
+        const dbServices = srvRows.map(r => {
           const dbPrice = parseFloat(r.price);
           const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
           let finalPrice = dbPrice;
@@ -1562,11 +1567,29 @@ app.get('/api/categories/:category/services', async (req, res) => {
           };
         });
 
+        // Resolve matching static category services
+        const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
+          key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
+        );
+        let staticServices = matchedStaticCategory ? SERVICES_DATA[matchedStaticCategory] : [];
+
+        if (search) {
+          const query = search.toString().toLowerCase();
+          staticServices = staticServices.filter(
+            s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query)
+          );
+        }
+
+        // Merge DB services and static services, avoiding duplicate titles
+        const dbTitles = new Set(dbServices.map(s => s.title.toLowerCase()));
+        const uniqueStatic = staticServices.filter(s => !dbTitles.has(s.title.toLowerCase()));
+        const mergedServices = [...dbServices, ...uniqueStatic];
+
         return res.json({
           success: true,
           category: cat.title,
-          total: services.length,
-          services: resolveServiceUrls(services, serverBaseUrl)
+          total: mergedServices.length,
+          services: resolveServiceUrls(mergedServices, serverBaseUrl)
         });
       }
     } catch (err) {
@@ -1576,7 +1599,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
 
   // Case-insensitive match against known categories in SERVICES_DATA
   const matchedCategory = Object.keys(SERVICES_DATA).find(
-    key => key.toLowerCase() === category.toLowerCase()
+    key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
   );
 
   if (!matchedCategory) {
@@ -1651,6 +1674,8 @@ app.get('/api/services', async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
+  const cleanCategory = category ? category.toLowerCase().replace(/[\s\-_]/g, '') : "";
+
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
       let queryStr = "SELECT * FROM node_services WHERE status = 1";
@@ -1659,12 +1684,14 @@ app.get('/api/services', async (req, res) => {
       if (category) {
         // Try to resolve category ID
         const [catRows] = await mysqlPool.query(
-          "SELECT id FROM node_categories WHERE LOWER(title) = ? OR id = ?",
-          [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
+          "SELECT id FROM node_categories WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
+          [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category), cleanCategory]
         );
         if (catRows.length > 0) {
           queryStr += " AND category_id = ?";
           queryParams.push(catRows[0].id);
+        } else {
+          queryStr += " AND category_id = -1";
         }
       }
 
@@ -1675,7 +1702,7 @@ app.get('/api/services', async (req, res) => {
       }
 
       const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-      const services = srvRows.map(r => {
+      const dbServices = srvRows.map(r => {
         const dbPrice = parseFloat(r.price);
         const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
         let finalPrice = dbPrice;
@@ -1700,9 +1727,31 @@ app.get('/api/services', async (req, res) => {
         };
       });
 
+      // Merge with static services
+      let staticList = [];
+      if (category) {
+        const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
+          key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
+        );
+        if (matchedStaticCategory) {
+          staticList = SERVICES_DATA[matchedStaticCategory] || [];
+        }
+      } else {
+        staticList = Object.values(SERVICES_DATA).flat();
+      }
+
+      if (search) {
+        const query = search.toString().toLowerCase();
+        staticList = staticList.filter(s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query));
+      }
+
+      const dbTitles = new Set(dbServices.map(s => s.title.toLowerCase()));
+      const uniqueStatic = staticList.filter(s => !dbTitles.has(s.title.toLowerCase()));
+      const mergedServices = [...dbServices, ...uniqueStatic];
+
       return res.json({
         success: true,
-        services: resolveServiceUrls(services, serverBaseUrl)
+        services: resolveServiceUrls(mergedServices, serverBaseUrl)
       });
     } catch (err) {
       console.warn("[DynamicServices] DB query all failed, falling back to static:", err.message);
@@ -1712,7 +1761,10 @@ app.get('/api/services', async (req, res) => {
   // FALLBACK: Static
   let list = [];
   if (category) {
-    list = shuffleArray(SERVICES_DATA[category] || []);
+    const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
+      key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
+    );
+    list = shuffleArray(matchedStaticCategory ? SERVICES_DATA[matchedStaticCategory] : []);
   } else {
     list = shuffleArray(Object.values(SERVICES_DATA).flat());
   }
@@ -1725,6 +1777,7 @@ app.get('/api/services', async (req, res) => {
   res.json({ success: true, services: resolveServiceUrls(list, serverBaseUrl) });
 });
 
+
 // 8. Services: Trending (Returns 5 random shuffled items)
 app.get('/api/services/trending', async (req, res) => {
   const host = req.get('host');
@@ -1735,7 +1788,7 @@ app.get('/api/services/trending', async (req, res) => {
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
       const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE status = 1 ORDER BY RAND() LIMIT 5");
-      const services = srvRows.map(r => {
+      const dbServices = srvRows.map(r => {
         const dbPrice = parseFloat(r.price);
         const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
         let finalPrice = dbPrice;
@@ -1759,7 +1812,21 @@ app.get('/api/services/trending', async (req, res) => {
           isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : ""
         };
       });
-      return res.json({ success: true, services: resolveServiceUrls(services, serverBaseUrl) });
+
+      if (dbServices.length < 5) {
+        const allStatic = Object.values(SERVICES_DATA).flat();
+        const shuffledStatic = shuffleArray(allStatic);
+        const dbTitles = new Set(dbServices.map(s => s.title.toLowerCase()));
+        for (const s of shuffledStatic) {
+          if (dbServices.length >= 5) break;
+          if (!dbTitles.has(s.title.toLowerCase())) {
+            dbServices.push(s);
+            dbTitles.add(s.title.toLowerCase());
+          }
+        }
+      }
+
+      return res.json({ success: true, services: resolveServiceUrls(dbServices, serverBaseUrl) });
     } catch (err) {
       console.warn("[DynamicServices] DB trending failed, falling back static:", err.message);
     }
@@ -1781,10 +1848,13 @@ const handleServiceDetail = async (req, res) => {
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
-
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE LOWER(title) = ? OR id = ?", [title.toLowerCase(), isNaN(title) ? -1 : parseInt(title)]);
+      const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
+      const [srvRows] = await mysqlPool.query(
+        "SELECT * FROM node_services WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
+        [title.toLowerCase(), isNaN(title) ? -1 : parseInt(title), cleanTitle]
+      );
       if (srvRows.length > 0) {
         const r = srvRows[0];
         
@@ -1898,7 +1968,7 @@ app.get('/api/services/detail/:title', handleServiceDetail);
 app.get('/api/services/detail', handleServiceDetail);
 
 // 9. Search: Global search across services AND categories
-app.get('/api/search', (req, res) => {
+app.get('/api/search', async (req, res) => {
   const { q, query } = req.query;
   const searchTerm = (q || query || '').toString().trim();
 
@@ -1915,6 +1985,125 @@ app.get('/api/search', (req, res) => {
   }
 
   const lowerTerm = searchTerm.toLowerCase();
+
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      // 1. Search categories in DB
+      const [catRows] = await mysqlPool.query(
+        "SELECT * FROM node_categories WHERE status = 1 AND LOWER(title) LIKE ?",
+        [`%${lowerTerm}%`]
+      );
+      const dbCategories = catRows.map(c => {
+        const cleanName = c.title.toLowerCase().replace(/[\s\-_]/g, '');
+        const defaultMatch = DEFAULT_CATEGORIES.find(dc => {
+          const cleanDcId = dc.id.toLowerCase().replace(/[\s\-_]/g, '');
+          const cleanDcName = dc.name.toLowerCase().replace(/[\s\-_]/g, '');
+          return cleanDcId === cleanName || cleanDcName === cleanName || String(c.id) === String(dc.id);
+        });
+        let img = c.image || "";
+        if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+          img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+        }
+        let name = c.title;
+        let id = String(c.id);
+        if (defaultMatch) {
+          id = defaultMatch.id;
+          name = defaultMatch.name;
+          img = defaultMatch.image;
+        }
+        if (img && img.startsWith('/assets/')) {
+          img = `${serverBaseUrl}${img}`;
+        }
+        return { id, name, image: img };
+      });
+
+      // 2. Search services in DB
+      const [srvRows] = await mysqlPool.query(
+        `SELECT s.*, c.title as category_title 
+         FROM node_services s 
+         LEFT JOIN node_categories c ON s.category_id = c.id 
+         WHERE s.status = 1 AND (LOWER(s.title) LIKE ? OR LOWER(s.description) LIKE ? OR LOWER(c.title) LIKE ?)`,
+        [`%${lowerTerm}%`, `%${lowerTerm}%`, `%${lowerTerm}%`]
+      );
+      const dbServices = srvRows.map(r => {
+        const dbPrice = parseFloat(r.price);
+        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+        let finalPrice = dbPrice;
+        let cutPrice = dbPrice;
+        let displayDiscount = 0;
+        if (discountVal > 0) {
+          finalPrice = Math.max(0, dbPrice - discountVal);
+          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
+          displayDiscount = Math.min(100, displayDiscount);
+        }
+        return {
+          productId: r.title,
+          title: r.title,
+          price: finalPrice,
+          description: r.description,
+          image: r.image,
+          discount: displayDiscount,
+          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
+          reviewsCount: 120,
+          cutPrice: cutPrice,
+          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "",
+          category: r.category_title || ""
+        };
+      });
+
+      // Merge with static search results
+      const staticCategories = CATEGORIES_DATA.filter(cat => cat.toLowerCase().includes(lowerTerm));
+      const staticServices = [];
+      for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+        for (const service of services) {
+          if (
+            service.title.toLowerCase().includes(lowerTerm) ||
+            service.description.toLowerCase().includes(lowerTerm) ||
+            categoryName.toLowerCase().includes(lowerTerm)
+          ) {
+            staticServices.push({
+              ...service,
+              category: categoryName
+            });
+          }
+        }
+      }
+
+      // Merge categories
+      const catNames = new Set(dbCategories.map(c => c.name.toLowerCase()));
+      const uniqueStaticCats = staticCategories.filter(cat => !catNames.has(cat.toLowerCase())).map(cat => {
+        const defaultMatch = DEFAULT_CATEGORIES.find(dc => dc.name.toLowerCase() === cat.toLowerCase());
+        let img = defaultMatch ? defaultMatch.image : "";
+        if (img && img.startsWith('/assets/')) {
+          img = `${serverBaseUrl}${img}`;
+        }
+        return {
+          id: defaultMatch ? defaultMatch.id : cat.toLowerCase().replace(/\s+/g, '_'),
+          name: cat,
+          image: img
+        };
+      });
+      const finalCategories = [...dbCategories, ...uniqueStaticCats];
+
+      // Merge services
+      const srvTitles = new Set(dbServices.map(s => s.title.toLowerCase()));
+      const uniqueStaticSrvs = staticServices.filter(s => !srvTitles.has(s.title.toLowerCase()));
+      const finalServices = [...dbServices, ...uniqueStaticSrvs];
+
+      return res.json({
+        success: true,
+        query: searchTerm,
+        results: {
+          categories: finalCategories,
+          services: resolveServiceUrls(finalServices, serverBaseUrl),
+          totalCategories: finalCategories.length,
+          totalServices: finalServices.length
+        }
+      });
+    } catch (err) {
+      console.warn("[Search] DB search failed, falling back static:", err.message);
+    }
+  }
 
   // Search across categories
   const matchedCategories = CATEGORIES_DATA.filter(
@@ -1942,7 +2131,18 @@ app.get('/api/search', (req, res) => {
     success: true,
     query: searchTerm,
     results: {
-      categories: matchedCategories,
+      categories: matchedCategories.map(cat => {
+        const defaultMatch = DEFAULT_CATEGORIES.find(dc => dc.name.toLowerCase() === cat.toLowerCase());
+        let img = defaultMatch ? defaultMatch.image : "";
+        if (img && img.startsWith('/assets/')) {
+          img = `${serverBaseUrl}${img}`;
+        }
+        return {
+          id: defaultMatch ? defaultMatch.id : cat.toLowerCase().replace(/\s+/g, '_'),
+          name: cat,
+          image: img
+        };
+      }),
       services: resolveServiceUrls(matchedServices, serverBaseUrl),
       totalCategories: matchedCategories.length,
       totalServices: matchedServices.length
