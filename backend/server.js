@@ -4629,8 +4629,13 @@ const STATES_CITIES = {
 app.get('/api/states', async (req, res) => {
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [rows] = await mysqlPool.query("SELECT name FROM states WHERE status = 1 AND deleted_at IS NULL ORDER BY name ASC");
-      const states = rows.map(r => r.name);
+      const [rows] = await mysqlPool.query("SELECT name FROM states WHERE status = 1 AND deleted_at IS NULL");
+      const [nodeRows] = await mysqlPool.query("SELECT name FROM node_states WHERE status = 1");
+      const allStatesSet = new Set([
+        ...rows.map(r => r.name),
+        ...nodeRows.map(r => r.name)
+      ]);
+      const states = Array.from(allStatesSet).sort();
       return res.json({
         success: true,
         states: states,
@@ -4658,23 +4663,32 @@ app.get('/api/cities', async (req, res) => {
       let query = "SELECT c.name FROM cities c WHERE c.status = 1 AND c.deleted_at IS NULL";
       const params = [];
       
+      let nodeQuery = "SELECT c.cityName as name FROM node_cities c WHERE c.status = 1";
+      const nodeParams = [];
+
       if (state) {
         const [stateRows] = await mysqlPool.query("SELECT id FROM states WHERE name = ? AND deleted_at IS NULL LIMIT 1", [state]);
         if (stateRows.length > 0) {
           query += " AND c.state_id = ?";
           params.push(stateRows[0].id);
         } else {
-          return res.status(404).json({
-            success: false,
-            error: "State not found",
-            message: `State ${state} not found`
-          });
+          // If state is not found in standard table, Laravel query should return empty
+          query += " AND c.state_id = -1";
         }
+        
+        nodeQuery += " AND LOWER(c.stateName) = ?";
+        nodeParams.push(state.toLowerCase());
       }
       
-      query += " ORDER BY c.name ASC";
       const [rows] = await mysqlPool.query(query, params);
-      const cities = rows.map(r => r.name);
+      const [nodeRows] = await mysqlPool.query(nodeQuery, nodeParams);
+      
+      const allCitiesSet = new Set([
+        ...rows.map(r => r.name),
+        ...nodeRows.map(r => r.name)
+      ]);
+      const cities = Array.from(allCitiesSet).sort();
+
       return res.json({
         success: true,
         cities: cities,
@@ -4718,27 +4732,42 @@ app.get('/api/localities', async (req, res) => {
       let query = "SELECT l.name FROM localities l WHERE l.status = 1 AND l.deleted_at IS NULL";
       const params = [];
       
+      let nodeQuery = "SELECT l.localityName as name FROM node_localities l WHERE l.status = 1";
+      const nodeParams = [];
+
       if (city) {
         const [cityRows] = await mysqlPool.query("SELECT id FROM cities WHERE name = ? AND deleted_at IS NULL LIMIT 1", [city]);
         if (cityRows.length > 0) {
           query += " AND l.city_id = ?";
           params.push(cityRows[0].id);
         } else {
-          return res.json({ success: true, localities: [], message: `No localities found for city ${city}` });
+          query += " AND l.city_id = -1";
         }
+        
+        nodeQuery += " AND LOWER(l.cityName) = ?";
+        nodeParams.push(city.toLowerCase());
       } else if (state) {
         const [stateRows] = await mysqlPool.query("SELECT id FROM states WHERE name = ? AND deleted_at IS NULL LIMIT 1", [state]);
         if (stateRows.length > 0) {
           query += " AND l.state_id = ?";
           params.push(stateRows[0].id);
         } else {
-          return res.json({ success: true, localities: [], message: `No localities found for state ${state}` });
+          query += " AND l.state_id = -1";
         }
+        
+        nodeQuery += " AND LOWER(l.stateName) = ?";
+        nodeParams.push(state.toLowerCase());
       }
       
-      query += " ORDER BY l.name ASC";
       const [rows] = await mysqlPool.query(query, params);
-      const names = rows.map(r => r.name);
+      const [nodeRows] = await mysqlPool.query(nodeQuery, nodeParams);
+      
+      const allLocalitiesSet = new Set([
+        ...rows.map(r => r.name),
+        ...nodeRows.map(r => r.name)
+      ]);
+      const names = Array.from(allLocalitiesSet).sort();
+
       return res.json({
         success: true,
         localities: names,
