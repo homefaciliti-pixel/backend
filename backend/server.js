@@ -1095,7 +1095,8 @@ app.get('/', async (req, res) => {
       </html>
     `);
   } catch (err) {
-    res.status(500).send("Error loading server status");
+    console.error("Error on root route:", err);
+    res.status(500).send("Error loading server status: " + err.message);
   }
 });
 
