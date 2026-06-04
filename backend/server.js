@@ -1067,8 +1067,10 @@ app.post('/api/auth/send-otp', async (req, res) => {
   }
   const prefix = countryCode || "+91";
   
-  // Generate random 4-digit OTP
-  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  // Generate OTP (static 1234 only for test number 9199953391)
+  const TEST_PHONE = '9199953391';
+  const isTestNumber = phone === TEST_PHONE || phone === '91' + TEST_PHONE || phone === '+91' + TEST_PHONE;
+  const otp = isTestNumber ? '1234' : Math.floor(1000 + Math.random() * 9000).toString();
   
   // Store OTP in-memory with 5 minutes expiry
   activeOTPs.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
