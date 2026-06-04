@@ -582,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                children: serviceVM.categories.take(8).map((category) {
+                children: serviceVM.categories.map((category) {
                   return CategoryCard(
                     title: category.title,
                     image: category.image.isNotEmpty ? category.image : null,
