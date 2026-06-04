@@ -181,7 +181,7 @@ async function initMySqlDb() {
 
     // Ensure Categories table exists (matching Admin Panel schema)
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS categories (
+      CREATE TABLE IF NOT EXISTS node_categories (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         parent VARCHAR(255) NOT NULL DEFAULT 'None',
@@ -191,12 +191,12 @@ async function initMySqlDb() {
     `);
 
     // Seed default categories into the categories table if empty
-    const [catCountRows] = await conn.query("SELECT COUNT(*) as count FROM categories");
+    const [catCountRows] = await conn.query("SELECT COUNT(*) as count FROM node_categories");
     if (catCountRows[0].count === 0) {
-      console.log("Seeding default categories in MySQL categories table...");
+      console.log("Seeding default categories in MySQL node_categories table...");
       for (const cat of DEFAULT_CATEGORIES) {
         await conn.query(
-          "INSERT INTO categories (title, parent, image, status) VALUES (?, 'None', ?, 1)",
+          "INSERT INTO node_categories (title, parent, image, status) VALUES (?, 'None', ?, 1)",
           [cat.name, cat.image]
         );
       }
@@ -434,9 +434,9 @@ const MySqlDbLayer = {
   },
 
   async getCategories() {
-    // Read directly from categories table instead of node_categories_v2
+    // Read directly from node_categories table
     const [rows] = await mysqlPool.query(
-      "SELECT * FROM categories WHERE status = 1"
+      "SELECT * FROM node_categories WHERE status = 1"
     );
     return rows.map(r => {
       let img = r.image || "";
@@ -454,10 +454,10 @@ const MySqlDbLayer = {
   async addCategory(categoryData) {
     const { name, id, image } = categoryData;
     await mysqlPool.query(
-      "INSERT INTO categories (title, parent, image, status) VALUES (?, 'None', ?, 1)",
+      "INSERT INTO node_categories (title, parent, image, status) VALUES (?, 'None', ?, 1)",
       [name, image || ""]
     );
-    const row = await this.queryOne("SELECT * FROM categories WHERE title = ?", [name]);
+    const row = await this.queryOne("SELECT * FROM node_categories WHERE title = ?", [name]);
     if (!row) return null;
     let img = row.image || "";
     if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
@@ -1461,7 +1461,7 @@ app.get('/api/banners', async (req, res) => {
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [rows] = await mysqlPool.query("SELECT * FROM banners WHERE status = 1");
+      const [rows] = await mysqlPool.query("SELECT * FROM node_banners WHERE status = 1");
       if (rows.length > 0) {
         const banners = rows.map(r => {
           let img = r.image || "";
@@ -1521,13 +1521,13 @@ app.get('/api/categories/:category/services', async (req, res) => {
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
       const [catRows] = await mysqlPool.query(
-        "SELECT * FROM categories WHERE LOWER(title) = ? OR LOWER(slug) = ? OR id = ?",
-        [category.toLowerCase(), category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
+        "SELECT * FROM node_categories WHERE LOWER(title) = ? OR id = ?",
+        [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
       );
 
       if (catRows.length > 0) {
         const cat = catRows[0];
-        let queryStr = "SELECT * FROM services WHERE (category_id = ? OR sub_category_id = ?) AND status = 1";
+        let queryStr = "SELECT * FROM node_services WHERE (category_id = ? OR sub_category_id = ?) AND status = 1";
         const queryParams = [cat.id, cat.id];
 
         if (search) {
@@ -1537,17 +1537,30 @@ app.get('/api/categories/:category/services', async (req, res) => {
         }
 
         const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-        const services = srvRows.map(r => ({
-          productId: r.title,
-          title: r.title,
-          price: parseFloat(r.price),
-          description: r.description,
-          image: r.image,
-          discount: 0,
-          rating: 4.8,
-          reviewsCount: 120,
-          cutPrice: parseFloat(r.price)
-        }));
+        const services = srvRows.map(r => {
+          const dbPrice = parseFloat(r.price);
+          const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+          let finalPrice = dbPrice;
+          let cutPrice = dbPrice;
+          let displayDiscount = 0;
+          if (discountVal > 0) {
+            finalPrice = Math.max(0, dbPrice - discountVal);
+            displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
+            displayDiscount = Math.min(100, displayDiscount);
+          }
+          return {
+            productId: r.title,
+            title: r.title,
+            price: finalPrice,
+            description: r.description,
+            image: r.image,
+            discount: displayDiscount,
+            rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
+            reviewsCount: 120,
+            cutPrice: cutPrice,
+            isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : ""
+          };
+        });
 
         return res.json({
           success: true,
@@ -1604,6 +1617,7 @@ function shuffleArray(array) {
 
 // Helper: Resolve relative service image URLs dynamically
 function resolveServiceUrls(services, serverBaseUrl) {
+  const adminBaseUrl = 'https://adminbackend-1-h03r.onrender.com';
   const uploadBaseUrl = serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2')
     ? 'https://homefaciliti.com'
     : serverBaseUrl;
@@ -1614,7 +1628,11 @@ function resolveServiceUrls(services, serverBaseUrl) {
       if (img.startsWith('/assets/')) {
         img = `${serverBaseUrl}${img}`;
       } else if (!img.startsWith('http') && !img.startsWith('https')) {
-        img = `${uploadBaseUrl}/uploads/services/${img}`;
+        if (!img.includes('/')) {
+          img = `${adminBaseUrl}/uploads/${img}`;
+        } else {
+          img = `${uploadBaseUrl}/uploads/services/${img}`;
+        }
       }
     }
     return {
@@ -1635,14 +1653,14 @@ app.get('/api/services', async (req, res) => {
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      let queryStr = "SELECT * FROM services WHERE status = 1";
+      let queryStr = "SELECT * FROM node_services WHERE status = 1";
       const queryParams = [];
 
       if (category) {
         // Try to resolve category ID
         const [catRows] = await mysqlPool.query(
-          "SELECT id FROM categories WHERE LOWER(title) = ? OR LOWER(slug) = ? OR id = ?",
-          [category.toLowerCase(), category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
+          "SELECT id FROM node_categories WHERE LOWER(title) = ? OR id = ?",
+          [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
         );
         if (catRows.length > 0) {
           queryStr += " AND (category_id = ? OR sub_category_id = ?)";
@@ -1657,17 +1675,30 @@ app.get('/api/services', async (req, res) => {
       }
 
       const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-      const services = srvRows.map(r => ({
-        productId: r.title,
-        title: r.title,
-        price: parseFloat(r.price),
-        description: r.description,
-        image: r.image,
-        discount: 0,
-        rating: 4.8,
-        reviewsCount: 120,
-        cutPrice: parseFloat(r.price)
-      }));
+      const services = srvRows.map(r => {
+        const dbPrice = parseFloat(r.price);
+        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+        let finalPrice = dbPrice;
+        let cutPrice = dbPrice;
+        let displayDiscount = 0;
+        if (discountVal > 0) {
+          finalPrice = Math.max(0, dbPrice - discountVal);
+          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
+          displayDiscount = Math.min(100, displayDiscount);
+        }
+        return {
+          productId: r.title,
+          title: r.title,
+          price: finalPrice,
+          description: r.description,
+          image: r.image,
+          discount: displayDiscount,
+          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
+          reviewsCount: 120,
+          cutPrice: cutPrice,
+          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : ""
+        };
+      });
 
       return res.json({
         success: true,
@@ -1703,18 +1734,31 @@ app.get('/api/services/trending', async (req, res) => {
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE status = 1 ORDER BY RAND() LIMIT 5");
-      const services = srvRows.map(r => ({
-        productId: r.title,
-        title: r.title,
-        price: parseFloat(r.price),
-        description: r.description,
-        image: r.image,
-        discount: 0,
-        rating: 4.8,
-        reviewsCount: 120,
-        cutPrice: parseFloat(r.price)
-      }));
+      const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE status = 1 ORDER BY RAND() LIMIT 5");
+      const services = srvRows.map(r => {
+        const dbPrice = parseFloat(r.price);
+        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+        let finalPrice = dbPrice;
+        let cutPrice = dbPrice;
+        let displayDiscount = 0;
+        if (discountVal > 0) {
+          finalPrice = Math.max(0, dbPrice - discountVal);
+          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
+          displayDiscount = Math.min(100, displayDiscount);
+        }
+        return {
+          productId: r.title,
+          title: r.title,
+          price: finalPrice,
+          description: r.description,
+          image: r.image,
+          discount: displayDiscount,
+          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
+          reviewsCount: 120,
+          cutPrice: cutPrice,
+          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : ""
+        };
+      });
       return res.json({ success: true, services: resolveServiceUrls(services, serverBaseUrl) });
     } catch (err) {
       console.warn("[DynamicServices] DB trending failed, falling back static:", err.message);
@@ -1740,7 +1784,7 @@ const handleServiceDetail = async (req, res) => {
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [srvRows] = await mysqlPool.query("SELECT * FROM services WHERE LOWER(title) = ? OR id = ?", [title.toLowerCase(), isNaN(title) ? -1 : parseInt(title)]);
+      const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE LOWER(title) = ? OR id = ?", [title.toLowerCase(), isNaN(title) ? -1 : parseInt(title)]);
       if (srvRows.length > 0) {
         const r = srvRows[0];
         
@@ -1749,22 +1793,38 @@ const handleServiceDetail = async (req, res) => {
           if (resolvedImage.startsWith('/assets/')) {
             resolvedImage = `${serverBaseUrl}${resolvedImage}`;
           } else if (!resolvedImage.startsWith('http') && !resolvedImage.startsWith('https')) {
-            resolvedImage = `${serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2') ? 'https://homefaciliti.com' : serverBaseUrl}/uploads/services/${resolvedImage}`;
+            if (!resolvedImage.includes('/')) {
+              resolvedImage = `https://adminbackend-1-h03r.onrender.com/uploads/${resolvedImage}`;
+            } else {
+              resolvedImage = `${serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2') ? 'https://homefaciliti.com' : serverBaseUrl}/uploads/services/${resolvedImage}`;
+            }
           }
+        }
+
+        const dbPrice = parseFloat(r.price);
+        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+        let finalPrice = dbPrice;
+        let cutPrice = dbPrice;
+        let displayDiscount = 0;
+        if (discountVal > 0) {
+          finalPrice = Math.max(0, dbPrice - discountVal);
+          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
+          displayDiscount = Math.min(100, displayDiscount);
         }
 
         const enrichedService = {
           productId: r.title,
           title: r.title,
-          price: parseFloat(r.price),
+          price: finalPrice,
           description: r.description,
           image: resolvedImage,
-          category: r.category_id.toString(),
+          category: r.category_id ? r.category_id.toString() : "",
           duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
-          rating: 4.8,
+          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
           reviewsCount: 124,
-          discount: 0,
-          cutPrice: parseFloat(r.price),
+          discount: displayDiscount,
+          cutPrice: cutPrice,
+          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "",
           highlights: [
             "Includes background-checked & certified partner",
             "30-day post-service warranty cover included",
@@ -3671,16 +3731,22 @@ const resolveServiceDetails = async (productId) => {
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
       const [srvRows] = await mysqlPool.query(
-        "SELECT * FROM services WHERE LOWER(title) = ? OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(title), '-', ''), '_', ''), ' ', ''), 'lekage', 'leakage'), 'lekege', 'leakage') = ? OR id = ?", 
+        "SELECT * FROM node_services WHERE LOWER(title) = ? OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(title), '-', ''), '_', ''), ' ', ''), 'lekage', 'leakage'), 'lekege', 'leakage') = ? OR id = ?", 
         [productId.toLowerCase(), normProduct, isNaN(productId) ? -1 : parseInt(productId)]
       );
       if (srvRows.length > 0) {
         const r = srvRows[0];
+        const dbPrice = parseFloat(r.price);
+        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+        let finalPrice = dbPrice;
+        if (discountVal > 0) {
+          finalPrice = Math.max(0, dbPrice - discountVal);
+        }
         return {
           productId: r.title,
           serviceName: r.title,
           title: r.title,
-          price: parseFloat(r.price),
+          price: finalPrice,
           description: r.description
         };
       }
@@ -3906,17 +3972,33 @@ const handleGetCheckout = async (req, res) => {
     let services = [];
     if (dbMode === "mysql" && mysqlPool !== null) {
       try {
-        const [srvRows] = await mysqlPool.query("SELECT category_id FROM services WHERE LOWER(title) = ? OR id = ?", [order.serviceName.toLowerCase(), isNaN(order.productId) ? -1 : parseInt(order.productId)]);
+        const [srvRows] = await mysqlPool.query("SELECT category_id FROM node_services WHERE LOWER(title) = ? OR id = ?", [order.serviceName.toLowerCase(), isNaN(order.productId) ? -1 : parseInt(order.productId)]);
         if (srvRows.length > 0) {
           const categoryId = srvRows[0].category_id;
-          const [catSrvRows] = await mysqlPool.query("SELECT * FROM services WHERE category_id = ? AND status = 1", [categoryId]);
-          services = catSrvRows.map(r => ({
-            productId: r.title,
-            title: r.title,
-            price: parseFloat(r.price),
-            description: r.description,
-            image: r.image
-          }));
+          const [catSrvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE category_id = ? AND status = 1", [categoryId]);
+          services = catSrvRows.map(r => {
+            const dbPrice = parseFloat(r.price);
+            const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+            let finalPrice = dbPrice;
+            let cutPrice = dbPrice;
+            let displayDiscount = 0;
+            if (discountVal > 0) {
+              finalPrice = Math.max(0, dbPrice - discountVal);
+              displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
+              displayDiscount = Math.min(100, displayDiscount);
+            }
+            return {
+              productId: r.title,
+              title: r.title,
+              price: finalPrice,
+              description: r.description,
+              image: r.image,
+              discount: displayDiscount,
+              rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
+              cutPrice: cutPrice,
+              isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : ""
+            };
+          });
         }
       } catch (err) {
         console.warn("[GetCheckout] Failed to load dynamic services list:", err.message);
