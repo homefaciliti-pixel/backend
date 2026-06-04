@@ -961,9 +961,9 @@ app.get('/', async (req, res) => {
     const orderCount = await DbLayer.countOrders();
     
     const activeLayer = DbLayer.getLayer();
-    const dbStatus = activeLayer === JsonDbLayer 
-      ? "JSON File Database (database.json)" 
-      : `MongoDB (${mongoose.connection.host || 'localhost'})`;
+    const dbStatus = activeLayer === MySqlDbLayer 
+      ? "MySQL Database (homefaciliti.com)" 
+      : (activeLayer === JsonDbLayer ? "JSON File Database (database.json)" : "Unknown Database");
 
     res.send(`
       <!DOCTYPE html>
