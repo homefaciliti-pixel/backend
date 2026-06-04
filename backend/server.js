@@ -1527,8 +1527,8 @@ app.get('/api/categories/:category/services', async (req, res) => {
 
       if (catRows.length > 0) {
         const cat = catRows[0];
-        let queryStr = "SELECT * FROM node_services WHERE (category_id = ? OR sub_category_id = ?) AND status = 1";
-        const queryParams = [cat.id, cat.id];
+        let queryStr = "SELECT * FROM node_services WHERE category_id = ? AND status = 1";
+        const queryParams = [cat.id];
 
         if (search) {
           queryStr += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ?)";
@@ -1663,8 +1663,8 @@ app.get('/api/services', async (req, res) => {
           [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category)]
         );
         if (catRows.length > 0) {
-          queryStr += " AND (category_id = ? OR sub_category_id = ?)";
-          queryParams.push(catRows[0].id, catRows[0].id);
+          queryStr += " AND category_id = ?";
+          queryParams.push(catRows[0].id);
         }
       }
 
