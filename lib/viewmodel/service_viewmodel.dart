@@ -129,17 +129,54 @@ class ServiceViewModel extends ChangeNotifier {
 
   /// Load Banners
   Future<void> loadBanners() async {
+    // Hardcoded fallback banners - hamesha available
+    final fallbackBanners = [
+      BannerModel(
+        id: 'banner1',
+        image: 'https://backend-1-ux3b.onrender.com/assets/banners/ac_services_banner.png',
+        title: 'AC Foam Jet Service',
+        category: 'AcRepair',
+        badge: '100% FREE',
+        subtitle: 'Professional foam jet deep cleaning for your AC - absolutely FREE!',
+        buttonText: 'Book Now',
+      ),
+      BannerModel(
+        id: 'banner2',
+        image: 'https://backend-1-ux3b.onrender.com/assets/banners/refer_earn_banner.png',
+        title: 'Refer Friends, Earn Cash',
+        category: 'refer',
+        badge: 'REFER & EARN',
+        subtitle: 'Invite your friends and earn instant wallet rewards',
+        buttonText: 'Refer Now',
+      ),
+      BannerModel(
+        id: 'banner3',
+        image: 'https://backend-1-ux3b.onrender.com/assets/banners/amc_services_banner.png',
+        title: 'Annual Maintenance Cover',
+        category: '',
+        badge: 'COMING SOON',
+        subtitle: 'Complete peace of mind for your home appliances',
+        buttonText: 'Learn More',
+      ),
+    ];
+
+    // Pehle fallback set karo taaki turant dikhein
+    _banners = fallbackBanners;
+    notifyListeners();
+
     try {
       final res = await ApiService.get('/api/banners');
       if (res['success'] == true) {
         final list = res['banners'] as List;
-        _banners = list.map((item) => BannerModel.fromJson(item)).toList();
-        notifyListeners();
+        final loaded = list.map((item) => BannerModel.fromJson(item)).toList();
+        if (loaded.isNotEmpty) {
+          _banners = loaded;
+          notifyListeners();
+        }
       }
     } catch (e) {
-      debugPrint("Failed to load banners: $e");
-      _banners = [];
-      notifyListeners();
+      debugPrint("Failed to load banners from API, using fallback: $e");
+      // fallback already set above
     }
   }
 
