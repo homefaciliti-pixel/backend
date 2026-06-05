@@ -1778,16 +1778,30 @@ app.get('/api/services', async (req, res) => {
 });
 
 
-// 8. Services: Trending (Returns 5 random shuffled items)
+// 8. Services: Trending (1st = AC Free Checkup ₹0 fixed, rest 4 = random from DB)
 app.get('/api/services/trending', async (req, res) => {
   const host = req.get('host');
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
+  // AC Free Checkup - always first, always ₹0
+  const acFreeService = {
+    productId: 'AC Free Checkup',
+    title: 'AC Free Checkup',
+    price: 0,
+    description: 'Get your AC checked by our expert technicians absolutely FREE. Includes basic inspection and cleaning assessment.',
+    image: `${serverBaseUrl}/assets/categories/ac_repair.png`,
+    discount: 100,
+    rating: 4.9,
+    reviewsCount: 240,
+    cutPrice: 299,
+    category: 'AcRepair'
+  };
+
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE status = 1 ORDER BY RAND() LIMIT 5");
+      const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE status = 1 ORDER BY RAND() LIMIT 4");
       const dbServices = srvRows.map(r => {
         const dbPrice = parseFloat(r.price);
         const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
@@ -1813,12 +1827,13 @@ app.get('/api/services/trending', async (req, res) => {
         };
       });
 
-      if (dbServices.length < 5) {
+      // If less than 4 from DB, fill with static services
+      if (dbServices.length < 4) {
         const allStatic = Object.values(SERVICES_DATA).flat();
         const shuffledStatic = shuffleArray(allStatic);
         const dbTitles = new Set(dbServices.map(s => s.title.toLowerCase()));
         for (const s of shuffledStatic) {
-          if (dbServices.length >= 5) break;
+          if (dbServices.length >= 4) break;
           if (!dbTitles.has(s.title.toLowerCase())) {
             dbServices.push(s);
             dbTitles.add(s.title.toLowerCase());
@@ -1826,16 +1841,17 @@ app.get('/api/services/trending', async (req, res) => {
         }
       }
 
-      return res.json({ success: true, services: resolveServiceUrls(dbServices, serverBaseUrl) });
+      return res.json({ success: true, services: resolveServiceUrls([acFreeService, ...dbServices], serverBaseUrl) });
     } catch (err) {
       console.warn("[DynamicServices] DB trending failed, falling back static:", err.message);
     }
   }
 
   const allServices = Object.values(SERVICES_DATA).flat();
-  const trending = shuffleArray(allServices).slice(0, 5);
+  const trending = [acFreeService, ...shuffleArray(allServices).slice(0, 4)];
   res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl) });
 });
+
 
 // 8a. Services: Get detailed specifications of a service
 const handleServiceDetail = async (req, res) => {
