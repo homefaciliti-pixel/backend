@@ -1429,10 +1429,10 @@ const BANNERS_DATA = [
   {
     id: "banner1",
     image: "/assets/banners/ac_services_banner.png",
-    title: "Premium AC Services",
+    title: "AC Foam Jet Service",
     category: "AcRepair",
-    badge: "SPECIAL OFFER",
-    subtitle: "Get 50% off professional filter cleaning & repairs",
+    badge: "100% FREE",
+    subtitle: "Professional foam jet deep cleaning for your AC - absolutely FREE!",
     buttonText: "Book Now"
   },
   {
