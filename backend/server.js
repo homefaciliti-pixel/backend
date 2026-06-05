@@ -1462,11 +1462,21 @@ app.get('/api/banners', async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
+  // Static banners - hamesha dikhenge (purane 3 banners)
+  const staticBanners = BANNERS_DATA.map(b => {
+    let img = b.image;
+    if (img && img.startsWith('/assets/')) {
+      img = `${serverBaseUrl}${img}`;
+    }
+    return { ...b, image: img };
+  });
+
+  // MySQL se extra banners (agar ho to append karein)
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [rows] = await mysqlPool.query("SELECT * FROM node_banners WHERE status = 1");
+      const [rows] = await mysqlPool.query("SELECT * FROM node_banners WHERE status = 1 ORDER BY id ASC");
       if (rows.length > 0) {
-        const banners = rows.map(r => {
+        const dbBanners = rows.map(r => {
           let img = r.image || "";
           if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
             img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
@@ -1474,41 +1484,32 @@ app.get('/api/banners', async (req, res) => {
           return {
             id: String(r.id),
             image: img,
-            title: r.title,
-            category: "",
-            badge: "",
-            subtitle: "",
-            buttonText: ""
+            title: r.title || "",
+            category: r.category || "",
+            badge: r.badge || "",
+            subtitle: r.subtitle || "",
+            buttonText: r.buttonText || ""
           };
         });
+        // Static banners pehle, phir DB banners
         return res.json({
           success: true,
-          banners: banners,
-          message: "Banners retrieved successfully from DB"
+          banners: [...staticBanners, ...dbBanners],
+          message: "Banners retrieved successfully"
         });
       }
     } catch (err) {
-      console.warn("[DynamicBanners] DB query failed, falling back to static:", err.message);
+      console.warn("[DynamicBanners] DB query failed, using static banners:", err.message);
     }
   }
 
-  const resolvedBanners = BANNERS_DATA.map(b => {
-    let img = b.image;
-    if (img && img.startsWith('/assets/')) {
-      img = `${serverBaseUrl}${img}`;
-    }
-    return {
-      ...b,
-      image: img
-    };
-  });
-
   res.json({
     success: true,
-    banners: resolvedBanners,
+    banners: staticBanners,
     message: "Banners retrieved successfully"
   });
 });
+
 
 
 // Categories: Get Services by Category name
@@ -1785,17 +1786,17 @@ app.get('/api/services/trending', async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-  // AC Free Checkup - always first, always ₹0
+  // AC Foam Jet Service - always first, always ₹0
   const acFreeService = {
-    productId: 'AC Free Checkup',
-    title: 'AC Free Checkup',
+    productId: 'AC Foam Jet Service',
+    title: 'AC Foam Jet Service',
     price: 0,
-    description: 'Get your AC checked by our expert technicians absolutely FREE. Includes basic inspection and cleaning assessment.',
+    description: 'Deep clean your AC with professional foam jet technology. Removes dust, bacteria & improves cooling efficiency - absolutely FREE.',
     image: `${serverBaseUrl}/assets/categories/ac_repair.png`,
     discount: 100,
     rating: 4.9,
     reviewsCount: 240,
-    cutPrice: 299,
+    cutPrice: 499,
     category: 'AcRepair'
   };
 
