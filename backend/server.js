@@ -18,6 +18,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Active OTPs in-memory storage (phone -> { otp, expiresAt })
 const activeOTPs = new Map();
+let lastSmsDebug = { timestamp: null, url: null, response: null, error: null };
 
 // (Removed Mongoose/MongoDB Schemas, Models and MongoDbLayer)
 
@@ -1100,6 +1101,22 @@ app.get('/', async (req, res) => {
   }
 });
 
+// Debug endpoint for SMS config and last sent status
+app.get('/api/debug/sms-config', (req, res) => {
+  res.json({
+    config: {
+      smsApiKey: (process.env.SMS_API_KEY || 'b395HRZTRUGZThPOeRSnVg').substring(0, 4) + '***',
+      senderId: process.env.SMS_SENDER_ID || 'HMFCLI',
+      entityId: process.env.SMS_ENTITY_ID || '1201173444411453897',
+      dltTemplateId: process.env.SMS_DLT_TEMPLATE_ID || '1207173589889308632',
+      smsRoute: process.env.SMS_ROUTE || '2',
+      rawTemplate: process.env.SMS_TEMPLATE_TEXT || 'Your OTP for registering on HomeFaciliti is: {otp}. This code is valid for the next 10 minutes. Thank You, Super Home Technology pvt Ltd'
+    },
+    lastSmsDebug
+  });
+});
+
+
 // 1. Auth: Send OTP
 app.post('/api/auth/send-otp', async (req, res) => {
   const phone = req.body.phone || req.body.userId;
@@ -1158,19 +1175,28 @@ app.post('/api/auth/send-otp', async (req, res) => {
       route: '2'
     });
     const url = `https://www.smsgatewayhub.com/api/mt/SendSMS?${params.toString()}`;
+    lastSmsDebug = {
+      timestamp: new Date().toISOString(),
+      url: url.replace(smsApiKey, '***'),
+      response: null,
+      error: null
+    };
     console.log('[SMS] Sending to:', url.replace(smsApiKey, '***'));
     const response = await fetch(url, { method: 'GET' });
     const rawText = await response.text();
     console.log('[SMS] Raw response:', rawText);
+    lastSmsDebug.response = rawText;
     let data;
     try { data = JSON.parse(rawText); } catch(_) { data = { rawText }; }
     if (data && (data.ErrorCode === '000' || data.ErrorCode === '0' || data.ErrorMessage === 'Success')) {
       smsSent = true;
     } else {
       smsError = data.ErrorMessage || JSON.stringify(data);
+      lastSmsDebug.error = smsError;
     }
   } catch (err) {
     smsError = err.message;
+    lastSmsDebug.error = err.message;
     console.error('[SMS] Exception:', err);
   }
 
