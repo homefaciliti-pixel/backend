@@ -1118,12 +1118,18 @@ app.post('/api/auth/send-otp', async (req, res) => {
   activeOTPs.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
   
   const smsApiKey = process.env.SMS_API_KEY || 'b395HRZTRUGZThPOeRSnVg';
-  const senderId = process.env.SMS_SENDER_ID || 'WEBSMS';
-  const rawTemplate = process.env.SMS_TEMPLATE_TEXT || 'Your OTP for Home Faciliti registration is {otp}.';
-  const messageText = rawTemplate.replace('{otp}', otp);
-  const entityId = process.env.SMS_ENTITY_ID || '';
-  const dltTemplateId = process.env.SMS_DLT_TEMPLATE_ID || '';
+  const senderId = process.env.SMS_SENDER_ID || 'HMFCLI';
+  const entityId = process.env.SMS_ENTITY_ID || '1201173444411453897';
+  const dltTemplateId = process.env.SMS_DLT_TEMPLATE_ID || '1207173589889308632';
   const smsRoute = process.env.SMS_ROUTE || '2';
+  const rawTemplate = process.env.SMS_TEMPLATE_TEXT || 'Your OTP for registering on HomeFaciliti is: {otp}. This code is valid for the next 10 minutes. Thank You, Super Home Technology pvt Ltd';
+  
+  let messageText = rawTemplate.replace('{otp}', otp);
+
+  // Force correct DLT template text if using the default HomeFaciliti template ID to prevent carrier block
+  if (dltTemplateId === '1207173589889308632') {
+    messageText = `Your OTP for registering on HomeFaciliti is: ${otp}. This code is valid for the next 10 minutes. Thank You, Super Home Technology pvt Ltd`;
+  }
 
   // Format phone number: SMS Gateway Hub expects 91 prefix for Indian numbers without '+'
   let formattedPhone = phone.trim();
