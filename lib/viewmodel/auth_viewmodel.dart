@@ -1,153 +1,307 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:userapp/model/user_model.dart';
-import 'package:userapp/services/api_service.dart';
 import 'package:userapp/viewmodel/wallet_viewmodel.dart';
 
 class AuthViewmodel extends ChangeNotifier {
-  String generateReferralCode(String name) {
-    return name.substring(0, 3).toUpperCase() +
-        DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+
+
+  String generateReferralCode(String name){
+    return name.substring(0, 3).toUpperCase()+
+    DateTime.now().millisecondsSinceEpoch.toString().substring(7);
   }
+  Future<bool> sendOtp({
+    required String phone,
+    required String countryCode,
+  }) async {
+    _loading = true;
+    _message = null;
+    notifyListeners();
+
+    try {
+      final body = {
+        "phone": phone,
+        "countryCode": countryCode,
+      };
+
+      print("BODY => ${jsonEncode(body)}");
+
+      final response = await http.post(
+        Uri.parse(
+          'https://backend-1-ux3b.onrender.com/api/auth/send-otp',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      final data = jsonDecode(response.body);
+
+      debugPrint("SEND OTP RESPONSE : $data");
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201) {
+        _message =
+            data["message"] ?? "OTP sent successfully";
+
+        return true;
+      } else {
+        _message =
+            data["message"] ?? "Failed to send OTP";
+
+        return false;
+      }
+    } catch (e) {
+      debugPrint("SEND OTP ERROR : $e");
+
+      _message = "Something went wrong";
+
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+  Future<bool> verifyOtp({
+    required String phone,
+    required String otp,
+    required String countryCode,
+  }) async {
+    _loading = true;
+    _message = null;
+    notifyListeners();
+
+    try {
+      final body = {
+        "phone": phone,
+        "otp": otp,
+        "countryCode": countryCode,
+      };
+
+      print("VERIFY OTP BODY => ${jsonEncode(body)}");
+
+      final response = await http.post(
+        Uri.parse(
+          'https://backend-1-ux3b.onrender.com/api/auth/verify-otp',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      final data = jsonDecode(response.body);
+
+      print("VERIFY OTP RESPONSE => $data");
+
+      if (response.statusCode == 200 &&
+          data["success"] == true) {
+
+        // save token
+        final prefs = await SharedPreferences.getInstance();
+
+        await prefs.setString(
+          "token",
+          data["token"] ?? "",
+        );
+
+        // save login state
+        await prefs.setBool("isLogin", true);
+
+        // save user data
+        final userData = data["user"];
+
+        user = UserModel(
+          name: userData["name"] ?? "",
+          phone: userData["phone"] ?? "",
+          email: userData["email"] ?? "",
+          location: userData["location"] ?? "",
+          locality: userData["locality"] ?? "",
+          gender: userData["gender"] ?? "",
+          token: userData["token"] ?? '',
+          referralCode: userData["referralCode"] ?? "",
+        );
+
+        // Save user fields to SharedPreferences
+        await prefs.setString("name", user.name);
+        await prefs.setString("phone", user.phone);
+        await prefs.setString("email", user.email);
+        await prefs.setString("location", user.location);
+        await prefs.setString("locality", user.locality);
+        await prefs.setString("gender", user.gender);
+        await prefs.setString("refCode", user.referralCode);
+
+        _isLoggedIn = true;
+
+        _message =
+            data["message"] ??
+                "OTP verified successfully";
+
+        notifyListeners();
+
+        return true;
+      } else {
+        _message =
+            data["message"] ?? "Invalid OTP";
+
+        return false;
+      }
+    } catch (e) {
+      print("VERIFY OTP ERROR => $e");
+
+      _message = "Something went wrong";
+
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+  //
+  // Future<bool> sendOtp(
+  //
+  //     {required String phone,required String countryCode}
+  //
+  //     ) async {
+  //   _loading = true;
+  //   _message = null;
+  //   notifyListeners();
+  //
+  //   try {
+  //     final response = await http.post(
+  //       Uri.parse(
+  //         'https://backend-8onr.onrender.com/api/auth/send-otp',
+  //       ),
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: jsonEncode({
+  //         "phone": phone,
+  //         "countryCode": countryCode,
+  //       }),
+  //         print("BODY => ${jsonEncode(body)}");
+  //     );
+  //
+  //     final data = jsonDecode(response.body);
+  //
+  //     debugPrint("SEND OTP RESPONSE : $data");
+  //
+  //     if (response.statusCode == 200 ||
+  //         response.statusCode == 201) {
+  //       _message =
+  //           data["message"] ?? "OTP sent successfully";
+  //
+  //       return true;
+  //     } else {
+  //       _message =
+  //           data["message"] ?? "Failed to send OTP";
+  //
+  //       return false;
+  //     }
+  //   } catch (e) {
+  //     debugPrint("SEND OTP ERROR : $e");
+  //
+  //     _message = "Something went wrong";
+  //
+  //     return false;
+  //   } finally {
+  //     _loading = false;
+  //     notifyListeners();
+  //   }
+  // }
+  bool _loading = false;
+  bool get loading => _loading;
+
+  String? _message;
+  String? get message => _message;
 
   bool _isLoggedIn = false;
+
   bool get isLoggedIn => _isLoggedIn;
 
-  String tempPhone = "";
-
-  UserModel user = UserModel(
-    name: "Hira",
+  ///  USER DATA
+  late UserModel user = UserModel(
+    name: "",
     phone: "",
-    email: "hira@hmail.com",
+    email: "",
     location: "",
     locality: "",
-    gender: "Male",
-    referralCode: "",
+    gender: "",
+    referralCode:"",
+    token: "",
   );
 
-  /// Send OTP to user
-  Future<void> sendOtp(String phone) async {
-    tempPhone = phone;
-    await ApiService.post('/api/auth/send-otp', {'phone': phone});
-  }
-
-  /// Verify OTP
-  Future<bool> verifyOtp(String otp) async {
-    final res = await ApiService.post('/api/auth/verify-otp', {
-      'phone': tempPhone.isNotEmpty ? tempPhone : "8504920167",
-      'otp': otp,
-    });
-
-    if (res['success'] == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString("phone", res['user']['phone']);
-      if (res['token'] != null) {
-        await prefs.setString("token", res['token']);
-      }
-      await prefs.setBool("isLogin", true);
-
-      user = UserModel.fromJson(res['user']);
-      _isLoggedIn = true;
-      notifyListeners();
-      return true;
-    }
-    return false;
-  }
-
-  /// MOCK LOGIN (legacy backup)
+  ///  LOGIN SAVE
   Future<void> login() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool("isLogin", true);
-    if (user.phone.isEmpty) {
-      user.phone = "8504920167";
-      await prefs.setString("phone", user.phone);
-    }
+
     _isLoggedIn = true;
     notifyListeners();
   }
 
-  /// CHECK LOGIN
+  ///  CHECK LOGIN
   Future<void> checkLogin() async {
     final prefs = await SharedPreferences.getInstance();
     _isLoggedIn = prefs.getBool("isLogin") ?? false;
-    if (_isLoggedIn) {
-      await loadUser();
-    }
+
     notifyListeners();
   }
 
-  /// LOGOUT
+  ///  LOGOUT
   Future<void> logout() async {
-    try {
-      await ApiService.post('/api/auth/logout', {});
-    } catch (e) {
-      debugPrint("Failed to execute backend logout: $e");
-    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool("isLogin", false);
-    await prefs.remove("phone");
-    await prefs.remove("token");
 
     _isLoggedIn = false;
     notifyListeners();
   }
 
-  /// UPDATE USER (only memory)
+  ///  UPDATE USER (only memory)
+  ///
   void updateUser(UserModel newUser) {
     user = newUser;
     notifyListeners();
   }
 
-  /// SAVE USER (Backend & SharedPreferences)
+  /// SAVE USER (SharedPreferences)
   Future<void> saveUser(UserModel userData) async {
     user = userData;
 
     final prefs = await SharedPreferences.getInstance();
+
     await prefs.setString("name", user.name);
     await prefs.setString("phone", user.phone);
     await prefs.setString("email", user.email);
     await prefs.setString("location", user.location);
     await prefs.setString("locality", user.locality);
     await prefs.setString("gender", user.gender);
-    await prefs.setString("refCode", user.referralCode);
 
-    // Call update API on backend
-    try {
-      final res = await ApiService.put('/api/auth/profile', user.toJson());
-      if (res['success'] == true) {
-        user = UserModel.fromJson(res['user']);
-      }
-    } catch (e) {
-      debugPrint("Failed to sync profile changes with server: $e");
-    }
+                    // referralcode saved
+    await prefs.setString("refCode", user.referralCode);
+    await prefs.setString("token", user.token);
+
 
     notifyListeners();
   }
 
-  /// LOAD USER (App start)
+  ///  LOAD USER (App start pe)
   Future<void> loadUser() async {
     final prefs = await SharedPreferences.getInstance();
-    String? phone = prefs.getString("phone");
 
-    if (phone != null && phone.isNotEmpty) {
-      try {
-        final res = await ApiService.get('/api/auth/profile');
-        if (res['success'] == true) {
-          user = UserModel.fromJson(res['user']);
-          _isLoggedIn = true;
-          notifyListeners();
-          return;
-        }
-      } catch (e) {
-        debugPrint("Failed to load profile from backend: $e");
-      }
-    }
-
-    // Fallback if backend loading fails or no phone stored
+    /// check phle se referral code save h kaya ...
     String? savedCode = prefs.getString("refCode");
+
+    //     agar nahi h to first time generate kro
     if (savedCode == null || savedCode.isEmpty) {
       savedCode = generateReferralCode("Hira");
+
+      // save kr dete h taki next time same rhe
       await prefs.setString("refCode", savedCode);
     }
 
@@ -158,34 +312,46 @@ class AuthViewmodel extends ChangeNotifier {
       location: prefs.getString("location") ?? "",
       locality: prefs.getString("locality") ?? "",
       gender: prefs.getString("gender") ?? "Male",
-      referralCode: savedCode,
+      referralCode: savedCode ?? "",
+      token: prefs.getString("token") ?? "",
     );
 
     notifyListeners();
   }
 
+
+
+       // add money in payment
+
   String? appliedReferralCode;
 
-  /// Apply Referral Code
-  Future<void> applyReferral(String code, BuildContext context) async {
+
+    /// yaha future me API lagegi (verify + reward)
+
+  void applyReferral(String code , BuildContext context){
+    appliedReferralCode =code;
+    final walletVm=
+        Provider.of<WalletViewmodel>(context, listen: false);
+    walletVm.addMoney(50);           /// referral reward
+    notifyListeners();
+
+                       /// Future : Api yha lgegi
+  }
+
+         // refer code
+
+  Future<bool> applyReferralCode(String code) async {
     try {
-      final res = await ApiService.post('/api/referrals/apply', {'code': code});
-      if (res['success'] == true) {
-        appliedReferralCode = code;
-        final newBalance = (res['newBalance'] as num).toDouble();
-        
-        final walletVm = Provider.of<WalletViewmodel>(context, listen: false);
-        walletVm.setBalance(newBalance);
-        
-        notifyListeners();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(res['message'] ?? "Referral code applied successfully!")),
-        );
-      }
+      // yaha backend API call hogi
+      // example: repository se request bhejna
+
+      await Future.delayed(const Duration(seconds: 1));
+
+      // success/failure backend response ke hisaab se return karo
+      return true;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Referral Error: $e")),
-      );
+      return false;
     }
   }
+
 }
