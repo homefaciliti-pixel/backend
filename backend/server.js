@@ -3231,6 +3231,8 @@ const handlePostBooking = async (req, res) => {
     const targetDate = normalizeDate(date.split('T')[0]);
     const matchingOrders = allOrders.filter(order => {
       if (!order.date) return false;
+      if (order.status && order.status.toLowerCase() === "cancelled") return false;
+      if (order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") return false;
       const orderDate = normalizeDate(order.date.split('T')[0]);
       const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
                            (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
@@ -3702,6 +3704,8 @@ async function getAvailableSlotsForDate(dateStr, excludeOrderId = null) {
     const matchingOrders = allOrders.filter(o => {
       if (!o.date) return false;
       if (excludeOrderId && Number(o.id) === Number(excludeOrderId)) return false;
+      if (o.status && o.status.toLowerCase() === "cancelled") return false;
+      if (o.bookingStatus && o.bookingStatus.toLowerCase() === "draft") return false;
       const orderDate = normalizeDate(o.date.split('T')[0]);
       return orderDate === targetDate;
     });
