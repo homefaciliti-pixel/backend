@@ -1417,7 +1417,9 @@ app.get('/api/categories', async (req, res) => {
       if (defaultMatch) {
         id = defaultMatch.id;
         name = defaultMatch.name;
-        img = defaultMatch.image;
+        if (!img || img.trim() === '') {
+          img = defaultMatch.image;
+        }
       }
 
       // If the image path is relative, prepend the server's base URL dynamically
@@ -2058,7 +2060,9 @@ app.get('/api/search', async (req, res) => {
         if (defaultMatch) {
           id = defaultMatch.id;
           name = defaultMatch.name;
-          img = defaultMatch.image;
+          if (!img || img.trim() === '') {
+            img = defaultMatch.image;
+          }
         }
         if (img && img.startsWith('/assets/')) {
           img = `${serverBaseUrl}${img}`;
