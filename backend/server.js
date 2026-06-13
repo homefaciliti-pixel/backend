@@ -19,6 +19,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 // Active OTPs in-memory storage (phone -> { otp, expiresAt })
 const activeOTPs = new Map();
 let lastSmsDebug = { timestamp: null, url: null, response: null, error: null };
+const debugLogs = [];
 
 // (Removed Mongoose/MongoDB Schemas, Models and MongoDbLayer)
 
@@ -1114,6 +1115,11 @@ app.get('/api/debug/sms-config', (req, res) => {
     },
     lastSmsDebug
   });
+});
+
+// Debug endpoint for booking logs
+app.get('/api/debug/logs', (req, res) => {
+  res.json({ success: true, logs: debugLogs });
 });
 
 
@@ -3209,6 +3215,24 @@ const handlePostBooking = async (req, res) => {
   date = normalizeDate(date);
   timeSlot = normalizeTimeSlot(timeSlot);
 
+  const logBookingResult = (statusCode, success, errMessage = null, userPhone = null) => {
+    debugLogs.push({
+      timestamp: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+      productId,
+      rawProductId: req.body.productId || req.body.serviceName || req.body.product || (req.body.booking && req.body.booking.productId),
+      date,
+      timeSlot,
+      headers: {
+        authorization: req.headers['authorization'] ? "Present" : "Missing",
+      },
+      statusCode,
+      success,
+      userPhone,
+      error: errMessage
+    });
+    if (debugLogs.length > 50) debugLogs.shift();
+  };
+
   if (productId) {
     const resolvedProduct = await resolveServiceDetails(productId);
     if (resolvedProduct) {
@@ -3217,12 +3241,14 @@ const handlePostBooking = async (req, res) => {
   }
 
   if (!productId || !date || !timeSlot) {
+    logBookingResult(400, false, "productId, date, and timeSlot are required");
     return res.status(400).json({ error: "productId, date, and timeSlot are required" });
   }
   
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
+      logBookingResult(401, false, "Unauthorized");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
@@ -3247,6 +3273,7 @@ const handlePostBooking = async (req, res) => {
 
       const isBooked = bookedRanges.some(bookedRange => timesOverlap(reqRange, bookedRange));
       if (isBooked) {
+        logBookingResult(400, false, "This time slot is already booked. Please choose another slot.", user.phone);
         return res.status(400).json({ error: "This time slot is already booked. Please choose another slot." });
       }
     }
@@ -3332,6 +3359,7 @@ const handlePostBooking = async (req, res) => {
       console.log(`[handlePostBooking] Created new pending order #${order.id} for user ${user.phone}`);
     }
 
+    logBookingResult(200, true, null, user.phone);
     res.json({
       success: true,
       message: "Booking details validated and registered",
@@ -3339,6 +3367,7 @@ const handlePostBooking = async (req, res) => {
     });
   } catch (err) {
     console.error("Booking validation failed:", err);
+    logBookingResult(500, false, err.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
