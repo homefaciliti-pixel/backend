@@ -32,7 +32,7 @@ class AuthViewmodel extends ChangeNotifier {
 
       final response = await http.post(
         Uri.parse(
-          'https://backend-8onr.onrender.com/api/auth/send-otp',
+          'https://backend-1-ux3b.onrender.com/api/auth/send-otp',
         ),
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ class AuthViewmodel extends ChangeNotifier {
 
       final response = await http.post(
         Uri.parse(
-          'https://backend-8onr.onrender.com/api/auth/verify-otp',
+          'https://backend-1-ux3b.onrender.com/api/auth/verify-otp',
         ),
         headers: {
           'Content-Type': 'application/json',

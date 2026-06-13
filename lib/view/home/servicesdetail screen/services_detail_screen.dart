@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:userapp/view/address_screen/address_screen.dart';
+import 'package:userapp/viewmodel/auth_viewmodel.dart';
 import '../../../services/product/product_details_auth.dart';
 import '../../../viewmodel/service_viewmodel.dart';
 class ServiceDetailScreen extends StatefulWidget {
@@ -99,6 +100,29 @@ Future<void> bookingApi({
         ),
       );
 
+    } else if (response.statusCode == 401) {
+      // Session expired / token invalid - force re-login
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      if (context.mounted) {
+        final authVM = Provider.of<AuthViewmodel>(context, listen: false);
+        await authVM.logout();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Session expired. Please login again."),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        await Future.delayed(const Duration(seconds: 1));
+        if (context.mounted) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            "/login",
+            (route) => false,
+          );
+        }
+      }
     } else {
 
       ScaffoldMessenger.of(context).showSnackBar(
