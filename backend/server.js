@@ -941,6 +941,7 @@ async function getAuthenticatedUser(req) {
     return user;
   } catch (err) {
     console.error("JWT Authentication failed:", err.message);
+    req.authError = err.message;
     return null;
   }
 }
@@ -3248,7 +3249,7 @@ const handlePostBooking = async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
-      logBookingResult(401, false, "Unauthorized");
+      logBookingResult(401, false, `Unauthorized: ${req.authError || "Token verification failed"}`);
       return res.status(401).json({ error: "Unauthorized" });
     }
 
