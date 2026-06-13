@@ -272,9 +272,12 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
   }
 
   void openCheckout() {
+    final parsedAmount = double.tryParse(widget.amount) ?? 0.0;
+    final amountInPaise = (parsedAmount * 100).toInt();
+
     var options = {
       'key':  'rzp_live_SwFaJKQjU5ZOsH',
-      'amount': int.parse(widget.amount) * 100,
+      'amount': amountInPaise > 0 ? amountInPaise : 100,
       'currency': 'INR',
       'name': 'HomeFaciliti',
       'description': widget.title,
@@ -394,6 +397,8 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
 
   @override
   Widget build(BuildContext context) {
+    final parsedAmount = double.tryParse(widget.amount) ?? 0.0;
+    final isFree = parsedAmount == 0.0;
 
     return Scaffold(
 
@@ -560,58 +565,113 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
                   ],
                 ),
 
-                child: Column(
+                child: isFree
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Booking Details",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.card_giftcard,
+                                  color: Colors.green,
+                                  size: 30,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Free Booking Offered",
+                                        style: TextStyle(
+                                          color: Colors.green.shade800,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        "Enjoy this service at ₹0. No payment is required.",
+                                        style: TextStyle(
+                                          color: Colors.black54,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
 
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
 
-                  children: [
+                        children: [
 
-                    const Text(
+                          const Text(
 
-                      "Payment Method",
+                            "Payment Method",
 
-                      style: TextStyle(
+                            style: TextStyle(
 
-                        fontSize: 16,
+                              fontSize: 16,
 
-                        fontWeight:
-                        FontWeight.bold,
+                              fontWeight:
+                              FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          paymentTile(
+
+                            index: 0,
+
+                            icon:
+                            Icons.account_balance_wallet,
+
+                            title: "UPI ",
+                          ),
+
+                          paymentTile(
+
+                            index: 1,
+
+                            icon: Icons.credit_card,
+
+                            title:
+                            "Credit / Debit Card",
+                          ),
+
+                          paymentTile(
+
+                            index: 2,
+
+                            icon: Icons.payments,
+
+                            title: "Cash on Service",
+                          ),
+                        ],
                       ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    paymentTile(
-
-                      index: 0,
-
-                      icon:
-                      Icons.account_balance_wallet,
-
-                      title: "UPI ",
-                    ),
-
-                    paymentTile(
-
-                      index: 1,
-
-                      icon: Icons.credit_card,
-
-                      title:
-                      "Credit / Debit Card",
-                    ),
-
-                    paymentTile(
-
-                      index: 2,
-
-                      icon: Icons.payments,
-
-                      title: "Cash on Service",
-                    ),
-                  ],
-                ),
               ),
 
               const SizedBox(height: 100),
@@ -664,7 +724,9 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
               child: ElevatedButton(
 
                   onPressed: () async {
-                    if (selectedPayment == 2) {
+                    if (isFree) {
+                      await placeCodOrder();
+                    } else if (selectedPayment == 2) {
                       await placeCodOrder();
                     } else {
                       openCheckout();
@@ -696,7 +758,7 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
 
                     Icon(
 
-                      selectedPayment == 2
+                      (isFree || selectedPayment == 2)
                           ? Icons.shopping_bag
                           : Icons.lock,
 
@@ -707,9 +769,11 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
 
                     Text(
 
-                      selectedPayment == 2
-                          ? "Place Order"
-                          : "Pay ₹${widget.amount}",
+                      isFree
+                          ? "Confirm Free Booking"
+                          : selectedPayment == 2
+                              ? "Place Order"
+                              : "Pay ₹${widget.amount}",
 
                       style: const TextStyle(
 

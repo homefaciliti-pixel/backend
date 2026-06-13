@@ -10,6 +10,7 @@ class CheckoutModel {
 
   final String status;
   final String bookingStatus;
+  final String? razorpayOrderId;
 
   CheckoutModel({
     required this.success,
@@ -20,6 +21,7 @@ class CheckoutModel {
     required this.payment,
     required this.status,
     required this.bookingStatus,
+    this.razorpayOrderId,
   });
 
   factory CheckoutModel.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,8 @@ class CheckoutModel {
       status: json["status"],
 
       bookingStatus: json["bookingStatus"],
+
+      razorpayOrderId: json["razorpayOrderId"],
     );
   }
 }

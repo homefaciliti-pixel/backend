@@ -158,6 +158,9 @@ class _CheckoutScreenState
                     context,
                     MaterialPageRoute(
                       builder: (_) => PaymentScreenNew(
+                        paymentOrderId: data.razorpayOrderId ?? "",
+                        userPhoneNumber: data.userId,
+                        orderId: data.orderId,
                         productId: data.product.productId,
                         title: data.product.serviceName,
                         amount: data.product.price.toString(),
