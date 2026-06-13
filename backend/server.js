@@ -4360,6 +4360,7 @@ const handleGetCheckout = async (req, res) => {
       bookingStatus: order.bookingStatus || "searching",
       partnerName: order.partnerName || null,
       partnerDistance: order.partnerDistance || null,
+      razorpayOrderId: order.razorpayOrderId || null,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
       products: resolvedServices,
