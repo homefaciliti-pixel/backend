@@ -105,7 +105,8 @@ Future<void> bookingApi({
 
         SnackBar(
           content: Text(
-            data["message"] ??
+            data["error"] ??
+                data["message"] ??
                 "Booking failed",
           ),
         ),
