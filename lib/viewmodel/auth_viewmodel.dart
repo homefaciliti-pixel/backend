@@ -38,6 +38,11 @@ class AuthViewmodel extends ChangeNotifier {
           'Content-Type': 'application/json',
         },
         body: jsonEncode(body),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw Exception('Server is starting up. Please try again in a few seconds.');
+        },
       );
 
       final data = jsonDecode(response.body);
@@ -59,7 +64,13 @@ class AuthViewmodel extends ChangeNotifier {
     } catch (e) {
       debugPrint("SEND OTP ERROR : $e");
 
-      _message = "Something went wrong";
+      if (e.toString().contains('timeout') || e.toString().contains('starting up')) {
+        _message = "Server is starting, please wait and try again.";
+      } else if (e.toString().contains('SocketException') || e.toString().contains('network')) {
+        _message = "No internet connection. Check your network.";
+      } else {
+        _message = e.toString().replaceAll('Exception: ', '');
+      }
 
       return false;
     } finally {
@@ -93,6 +104,11 @@ class AuthViewmodel extends ChangeNotifier {
           'Content-Type': 'application/json',
         },
         body: jsonEncode(body),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw Exception('Server is starting up. Please try again in a few seconds.');
+        },
       );
 
       final data = jsonDecode(response.body);
@@ -154,7 +170,13 @@ class AuthViewmodel extends ChangeNotifier {
     } catch (e) {
       print("VERIFY OTP ERROR => $e");
 
-      _message = "Something went wrong";
+      if (e.toString().contains('timeout') || e.toString().contains('starting up')) {
+        _message = "Server is starting, please wait and try again.";
+      } else if (e.toString().contains('SocketException') || e.toString().contains('network')) {
+        _message = "No internet connection. Check your network.";
+      } else {
+        _message = "Something went wrong. Please try again.";
+      }
 
       return false;
     } finally {

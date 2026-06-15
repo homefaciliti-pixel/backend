@@ -347,7 +347,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   await authVM.sendOtp(
 
                                     phone: phone,
-                                    countryCode: "91",
+                                    countryCode: "+91",
                                   );
 
                                   if (!mounted) return;
@@ -377,10 +377,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ScaffoldMessenger.of(context)
                                         .showSnackBar(
 
-                                      const SnackBar(
-
+                                      SnackBar(
                                         content:
-                                        Text('Failed to send OTP'),
+                                        Text(authVM.message ?? 'Failed to send OTP'),
+                                        backgroundColor: Colors.red,
+                                        duration: const Duration(seconds: 4),
                                       ),
                                     );
                                   }
