@@ -619,14 +619,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context, bannerVM, child) {
                     if (bannerVM.loading) {
                       return SizedBox(
-                        height: 170,
+                        height: 210,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
                             child: Image.asset(
                               'assets/images/ac_services_banner.png',
-                              fit: BoxFit.cover,
+                              fit: BoxFit.fill,
                               width: double.infinity,
                             ),
                           ),
@@ -637,14 +637,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     // 2️⃣ EMPTY → also show static image
                     if (bannerVM.banners.isEmpty) {
                       return SizedBox(
-                        height: 170,
+                        height: 210,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
                             child: Image.asset(
                               'assets/images/ac_services_banner.png',
-                              fit: BoxFit.cover,
+                              fit: BoxFit.fill,
                               width: double.infinity,
                             ),
                           ),
@@ -655,9 +655,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     // 3️⃣ DATA READY → show carousel
                     return CarouselSlider(
                       options: CarouselOptions(
-                        height: 170,
+                        height: 210,
                         autoPlay: true,
-                        enlargeCenterPage: true,
+                        enlargeCenterPage: false,
                         viewportFraction: 1.0,
                       ),
                       items: bannerVM.banners.map((banner) {
@@ -667,14 +667,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(16),
                             child: Image.network(
                               banner.image,
-                              fit: BoxFit.cover,
+                              fit: BoxFit.fill,
                               width: double.infinity,
                               loadingBuilder: (context, child, progress) {
                                 if (progress == null) return child;
                                 // while individual image loads → keep static image feel
                                 return Image.asset(
                                   'assets/images/ac_services_banner.png',
-                                  fit: BoxFit.cover,
+                                  fit: BoxFit.fill,
                                   width: double.infinity,
                                 );
                               },
