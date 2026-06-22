@@ -1,0 +1,574 @@
+=========================================
+HOME SERVICES API - NEW PRODUCTS & CATEGORIES
+=========================================
+
+The following categories have been expanded with 4 to 5 products (services) each in the backend API.
+
+---------------------------------------------------------
+1. Category: cleaning (Cleaning)
+---------------------------------------------------------
+
+Endpoint: GET /api/categories/cleaning/services
+Response Payload / Product Listing:
+[
+  {
+    "title": "Home Cleaning",
+    "price": 999,
+    "description": "Full house cleaning service",
+    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop",
+    "discount": 23,
+    "rating": 4.9,
+    "reviewsCount": 312,
+    "cutPrice": 1299
+  },
+  {
+    "title": "Bathroom Cleaning",
+    "price": 499,
+    "description": "Deep bathroom cleaning",
+    "image": "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.7,
+    "reviewsCount": 154,
+    "cutPrice": 599
+  },
+  {
+    "title": "Kitchen Cleaning",
+    "price": 699,
+    "description": "Degreasing cabinets, countertops, and appliances",
+    "image": "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=400&auto=format&fit=crop",
+    "discount": 22,
+    "rating": 4.8,
+    "reviewsCount": 195,
+    "cutPrice": 899
+  },
+  {
+    "title": "Sofa & Carpet Cleaning",
+    "price": 799,
+    "description": "Vacuuming and steam sanitizing fabric surfaces",
+    "image": "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=400&auto=format&fit=crop",
+    "discount": 20,
+    "rating": 4.6,
+    "reviewsCount": 120,
+    "cutPrice": 999
+  },
+  {
+    "title": "Window Cleaning",
+    "price": 299,
+    "description": "Sparkling glass and pane washing inside-out",
+    "image": "https://images.unsplash.com/photo-1528740561666-bd247e66a20c?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.5,
+    "reviewsCount": 74,
+    "cutPrice": 399
+  }
+]
+
+---------------------------------------------------------
+2. Category: AcRepair (AC Repair & Maintenance)
+---------------------------------------------------------
+
+Endpoint: GET /api/categories/AcRepair/services
+Response Payload / Product Listing:
+[
+  {
+    "title": "Ac Service",
+    "price": 500,
+    "description": "Full filter and coil cleaning",
+    "image": "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.8,
+    "reviewsCount": 420,
+    "cutPrice": 599
+  },
+  {
+    "title": "AC Gas Charging",
+    "price": 1500,
+    "description": "Refill refrigerant gas to restore peak cooling",
+    "image": "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.7,
+    "reviewsCount": 215,
+    "cutPrice": 1999
+  },
+  {
+    "title": "AC Installation",
+    "price": 1200,
+    "description": "Mount and configure split or window AC unit",
+    "image": "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=400&auto=format&fit=crop",
+    "discount": 20,
+    "rating": 4.9,
+    "reviewsCount": 165,
+    "cutPrice": 1499
+  },
+  {
+    "title": "AC Leakage Repair",
+    "price": 600,
+    "description": "Identify and plug water or gas leak issues",
+    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.6,
+    "reviewsCount": 98,
+    "cutPrice": 799
+  },
+  {
+    "title": "AC Condenser Replacement",
+    "price": 2500,
+    "description": "Install brand new copper condenser unit",
+    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.8,
+    "reviewsCount": 84,
+    "cutPrice": 2999
+  }
+]
+
+---------------------------------------------------------
+3. Category: Salon And Spa (Grooming & Wellness)
+---------------------------------------------------------
+
+Endpoint: GET /api/categories/Salon%20And%20Spa/services
+Response Payload / Product Listing:
+[
+  {
+    "title": "Hair Cut",
+    "price": 299,
+    "description": "Modern hair styling and trimming",
+    "image": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.9,
+    "reviewsCount": 540,
+    "cutPrice": 399
+  },
+  {
+    "title": "Facial & Grooming",
+    "price": 499,
+    "description": "Deep cleansing facial treatment and face massage",
+    "image": "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?q=80&w=400&auto=format&fit=crop",
+    "discount": 16,
+    "rating": 4.7,
+    "reviewsCount": 280,
+    "cutPrice": 599
+  },
+  {
+    "title": "Hair Coloring",
+    "price": 599,
+    "description": "Professional ammonia-free hair coloring",
+    "image": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.6,
+    "reviewsCount": 145,
+    "cutPrice": 799
+  },
+  {
+    "title": "Massage Therapy",
+    "price": 899,
+    "description": "Stress-relieving full body Swedish massage",
+    "image": "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop",
+    "discount": 25,
+    "rating": 4.8,
+    "reviewsCount": 310,
+    "cutPrice": 1199
+  },
+  {
+    "title": "Pedicure & Manicure",
+    "price": 399,
+    "description": "Hand and foot grooming and nail clean spa",
+    "image": "https://images.unsplash.com/photo-1604654894610-df490651e56c?q=80&w=400&auto=format&fit=crop",
+    "discount": 20,
+    "rating": 4.7,
+    "reviewsCount": 185,
+    "cutPrice": 499
+  }
+]
+
+---------------------------------------------------------
+4. Product/Service Detail API
+---------------------------------------------------------
+
+Endpoint: GET /api/services/detail/:title or GET /api/services/detail?title=<title>
+Response Payload / Service Detail:
+{
+  "success": true,
+  "service": {
+    "productId": "Tap Repair",
+    "title": "Tap Repair",
+    "price": 299,
+    "description": "Fix leaking taps and water issues",
+    "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=400&auto=format&fit=crop",
+    "category": "Plumber",
+    "duration": "1-2 Hours",
+    "rating": 4.7,
+    "reviewsCount": 142,
+    "discount": 25,
+    "cutPrice": 399,
+    "highlights": [
+      "Includes background-checked & certified partner",
+      "30-day post-service warranty cover included",
+      "Equipped with premium professional-grade tools",
+      "100% safe, hygienic, and high-quality service execution"
+    ]
+  },
+  "message": "Service details retrieved successfully"
+}
+
+---------------------------------------------------------
+5. Available Booking Dates & Slots APIs
+---------------------------------------------------------
+
+Endpoint: GET /api/booking/available-dates
+Response Payload / Available Dates (next 7 days):
+{
+  "success": true,
+  "dates": [
+    {
+      "formattedDate": "2026-05-26",
+      "dayName": "Today",
+      "displayDate": "26 May"
+    },
+    {
+      "formattedDate": "2026-05-27",
+      "dayName": "Tomorrow",
+      "displayDate": "27 May"
+    }
+  ],
+  "message": "Available booking dates retrieved successfully"
+}
+
+Endpoint: GET /api/booking/available-slots
+Response Payload / Available Time Slots (11 hourly slots):
+{
+  "success": true,
+  "slots": [
+    { "id": "slot_1", "time": "9:00 AM - 10:00 AM", "available": true },
+    { "id": "slot_2", "time": "10:00 AM - 11:00 AM", "available": true },
+    { "id": "slot_3", "time": "11:00 AM - 12:00 PM", "available": true },
+    { "id": "slot_4", "time": "12:00 PM - 1:00 PM", "available": true },
+    { "id": "slot_5", "time": "1:00 PM - 2:00 PM", "available": true },
+    { "id": "slot_6", "time": "2:00 PM - 3:00 PM", "available": true },
+    { "id": "slot_7", "time": "3:00 PM - 4:00 PM", "available": true },
+    { "id": "slot_8", "time": "4:00 PM - 5:00 PM", "available": true },
+    { "id": "slot_9", "time": "5:00 PM - 6:00 PM", "available": true },
+    { "id": "slot_10", "time": "6:00 PM - 7:00 PM", "available": true },
+    { "id": "slot_11", "time": "7:00 PM - 8:00 PM", "available": true }
+  ],
+  "message": "Available booking time slots retrieved successfully"
+}
+
+---------------------------------------------------------
+5a. Orders API
+---------------------------------------------------------
+
+Endpoint: GET /api/orders
+Headers: Authorization: Bearer <jwt_token>
+Response Payload:
+{
+  "success": true,
+  "orders": [
+    {
+      "id": 1,
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-29",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "status": "Paid",
+      "razorpayOrderId": "order_xyz123ABC",
+      "address": { ... },
+      "payment": { ... }
+    }
+  ],
+  "list": [
+    {
+      "id": 1,
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "status": "Paid",
+      "date": "2026-05-29",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "razorpayOrderId": "order_xyz123ABC"
+    }
+  ],
+  "orderlist": {
+    "total": 1,
+    "data": [ { ...full order objects... } ]
+  },
+  "message": "Orders retrieved successfully"
+}
+Note:
+  - `orders`   = full order objects (all fields including address, payment)
+  - `list`     = compact summary (id, serviceName, price, status, date, timeSlot, razorpayOrderId)
+  - `orderlist` = { total: N, data: [...full orders] } — includes total count
+
+---------------------------------------------------------
+6. Policies & Information APIs
+---------------------------------------------------------
+
+Endpoint: GET /api/policies/privacy
+Response Payload:
+{
+  "success": true,
+  "title": "Privacy Policy",
+  "lastUpdated": "May 27, 2026",
+  "content": "At Home Services, we value your privacy and are committed to protecting your personal data. This privacy policy describes how we collect, use, and share your information when you use our platform.",
+  "sections": [
+    {
+      "title": "1. Information We Collect",
+      "body": "We collect information you provide directly to us, such as your name, phone number, email address, physical address, and payment information when you register, schedule a service, or communicate with us."
+    },
+    {
+      "title": "2. How We Use Your Information",
+      "body": "We use your personal information to match you with certified service providers, process payments, verify bookings, send transaction alerts, and improve our home services platform experience."
+    },
+    {
+      "title": "3. Information Sharing & Security",
+      "body": "Your details are only shared with the assigned service technician for execution. We implement strict industry-standard technical measures to secure your data and do not sell information to third-party advertisers."
+    }
+  ]
+}
+
+Endpoint: GET /api/about (also GET /api/policies/about redirect)
+Response Payload:
+{
+  "success": true,
+  "title": "About Us",
+  "description": "Home Services is a premium, on-demand platform connecting homeowners with certified and background-checked service professionals like plumbers, electricians, mechanics, painters, and salon technicians.",
+  "vision": "To make home maintenance, repair, and cleaning services completely hassle-free, secure, and transparent.",
+  "mission": "To empower local service partners with technology and training while providing consumers with reliable, affordable, and high-quality solutions at their doorstep.",
+  "highlights": [
+    "100% Background Checked & Verified Partners",
+    "Standardised Pricing & No Hidden Charges",
+    "30-Day Post-Service Warranty Cover",
+    "Seamless In-App Booking and Booking Tracking"
+  ]
+}
+
+Endpoint: GET /api/policies/terms
+Response Payload:
+{
+  "success": true,
+  "title": "Terms and Conditions",
+  "lastUpdated": "May 27, 2026",
+  "content": "Welcome to Home Services. By registering or using our platform, you agree to comply with and be bound by the following terms of service. Please read them carefully.",
+  "sections": [
+    {
+      "title": "1. Service Booking & Cancellation",
+      "body": "All service bookings must be made through our official mobile app or portal. Users can cancel bookings free of charge up to 2 hours before the scheduled time slot. Late cancellations may incur a nominal convenience fee."
+    },
+    {
+      "title": "2. Payment & Billing Rules",
+      "body": "Standard charges are displayed upfront. Any additional materials or spare parts purchased by the technician will be billed separately with user consent. All payments must be processed digitally or through in-app wallet options."
+    },
+    {
+      "title": "3. Limitation of Liability",
+      "body": "While we verify all independent service professionals, Home Services acts as a coordinator. Any dispute or property damage claims are governed by our standard insurance and damage reimbursement guidelines."
+    }
+  ]
+}
+
+Endpoint: GET /api/policies/refund
+Response Payload:
+{
+  "success": true,
+  "title": "Refund Policy",
+  "lastUpdated": "May 27, 2026",
+  "content": "Our goal is your complete satisfaction. If you are unsatisfied with a service, we offer a transparent refund and rework policy governed by the following rules.",
+  "rules": [
+    {
+      "title": "1. Refund Eligibility",
+      "body": "Refunds are processed if the service was not executed as described, the service partner failed to show up, or severe quality issues are reported within 48 hours of service completion."
+    },
+    {
+      "title": "2. Standard Resolution Timeline",
+      "body": "For verified issues, we initiate a free-of-cost rework by a senior supervisor within 24 hours. If rework is not feasible, a full or partial refund is credited back to your original payment source or wallet within 5-7 business days."
+    },
+    {
+      "title": "3. Warranty Cover Limitations",
+      "body": "Our 30-day post-service warranty covers repairs executed by our partner. Reworks or issues arising due to external damage, misuse, or repairs handled by external non-platform technicians will invalidate refund/warranty claims."
+    }
+  ]
+}
+
+---------------------------------------------------------
+7. Razorpay Payment Verification API
+---------------------------------------------------------
+
+Endpoint: GET /api/payments/verify
+Endpoint: POST /api/payments/verify
+Endpoint: GET /api/payments/verify/:orderId
+Endpoint: POST /api/payments/verify/:orderId
+Parameters (Query/Body/Path): orderId, razorpay_order_id, paymentId / razorpay_payment_id
+Response Payload:
+{
+  "success": true,
+  "orderId": 4,
+  "paymentStatus": "captured",
+  "paymentDetails": {
+    "razorpay_payment_id": "pay_mock_ABC123XYZ",
+    "razorpay_order_id": "order_mock_DEF456UVW",
+    "status": "captured",
+    "amount": 29900,
+    "currency": "INR",
+    "method": "card",
+    "email": "user@example.com",
+    "contact": "+919876543210"
+  },
+  "message": "Payment checked successfully from Razorpay. Status: captured"
+}
+Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
+* For Cash / COD orders, verification immediately returns success with `paymentStatus: "cod"`.
+
+---------------------------------------------------------
+7c. Cash on Delivery (COD) Confirmation API
+---------------------------------------------------------
+
+Endpoint: POST /api/payments/cod/:orderId
+Parameters (Path): orderId (required; numeric database order ID)
+Response Payload:
+{
+  "success": true,
+  "orderId": 12,
+  "order": { ... },
+  "message": "COD order placed successfully"
+}
+Note: Updates the target order's status to "Pending" and bookingStatus to "searching". Used by the Flutter client to confirm order placement when "Cash on Delivery" is chosen.
+
+---------------------------------------------------------
+7a. Hosted Payment Checkout Page URL
+---------------------------------------------------------
+
+Endpoint: GET /api/payments/pay/:orderId
+Parameters (Path): orderId (required; numeric database order ID)
+Response: HTML page serving the Razorpay Standard Checkout UI or simulated sandbox payment option if Razorpay credentials are not active.
+
+---------------------------------------------------------
+7b. Hosted Payment Redirect Callback URL
+---------------------------------------------------------
+
+Endpoint: GET /api/payments/callback
+Parameters (Query): orderId (required), razorpay_payment_id / paymentId, status, mock
+Response: HTML page showing a beautiful payment success/failed tick animation screen and prompts to return to the app.
+Note: Updates the order to 'Paid' and triggers partner search. The browser tab auto-closes after 3 seconds. The Flutter app automatically polls verification in the background and redirects to the PaymentSuccessScreen.
+
+---------------------------------------------------------
+8. Dynamic GET Checkout – Auto-Create, Auto-Address & Persistent Overrides
+---------------------------------------------------------
+
+Endpoint: GET /api/checkout
+Endpoint: GET /api/checkout-api
+Endpoint: GET /api/checkout/:userId
+Endpoint: GET /api/checkout-api/:userId
+Headers: Authorization: Bearer <jwt_token>
+Optional Query Parameters: productId (format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`), date, timeSlot
+
+Key Behaviors:
+
+0. Dynamic Date & Slot Defaults (NEW):
+   - When no date or timeSlot is provided (in query, body, or headers), the server computes
+     the next available booking slot based on the current IST time (UTC+5:30).
+   - Logic: Picks the first hourly slot (from 9 AM to 8 PM) whose start hour is strictly
+     after the current IST hour. If no slots remain today, rolls to tomorrow's first slot.
+   - Example: If called at 3:05 PM IST  → date = today, timeSlot = "4:00 PM - 5:00 PM"
+   - Example: If called at 8:30 PM IST  → date = tomorrow, timeSlot = "9:00 AM - 10:00 AM"
+   - This same logic applies to POST /api/checkout when timeSlot/date are omitted.
+
+1. Auto-Create (Persistent Fallback):
+   - If no order exists for the given userId (phone number) or numeric orderId, the server
+     automatically creates a new order with a proper auto-incremented ID.
+   - The created order is persisted to the database (MySQL or database.json).
+   - A 2nd call with the same userId returns the previously created order instead of creating another.
+
+2. Auto-Address Resolution (3-level fallback):
+   - Level 1: Latest saved address from the addresses collection for this user.
+   - Level 2: User profile `location` and `locality` fields (set via PUT /api/auth/profile).
+   - Level 3: Static default mock address (Green Villa, Mumbai).
+   - The resolved address is applied to the order and updated in the database.
+
+3. Persistent Query Overrides:
+   - Passing ?productId=, ?date=, or ?timeSlot= overrides the corresponding order fields.
+   - The overrides are saved to the database, so a follow-up call without query params
+     still returns the overridden values.
+   - Example: GET /api/checkout/9876543210?productId=AC+Gas+Charging&date=2026-06-01&timeSlot=10:00+AM+-+11:00+AM
+
+4. Interactive Selection Choice Lists (NEW):
+   - The endpoint returns lists of available choices so the user can change options directly on the checkout screen:
+     * `addresses`: All saved addresses of the user retrieved dynamically from the `node_addresses` table.
+     * `services` & `products`: All active services in the same category as the selected service, queried dynamically from the MySQL `services` table, with fully resolved image URLs. Both keys contain identical data for Flutter compatibility.
+     * `slots`: List of available time slots for the selected date, retrieved from the `slots` database table.
+     * `dates`: Generates next 7 calendar dates (e.g. formattedDate: "2026-05-28", dayName: "Today"/"Tomorrow"/"Friday", displayDate: "28 May").
+
+
+
+---------------------------------------------------------
+14. Database Configuration & Fallback Engine (MySQL + JSON)
+---------------------------------------------------------
+
+The backend uses a highly resilient database routing architecture to store and manage data. It dynamically chooses the active database layer based on environment configuration and server startup connectivity, supporting MySQL as the remote database and a local JSON file database as a fallback.
+
+Database Priority Order:
+1. MySQL (Primary)
+   - Host: BigRock (homefaciliti.com)
+   - Configuration Env: MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, MYSQL_PORT
+   - Schema Auto-Migrations: On server startup, the server automatically queries "CREATE TABLE IF NOT EXISTS" for:
+     - `users`
+     - `orders` (stores nested object columns like address and payment as JSON strings)
+     - `addresses`
+     - `categories` (seeds default categories if empty)
+     - `referrals_applied`
+2. JSON File Database (Fallback)
+   - Host: Local file system (`database.json`)
+   - Backup mode: Activates automatically if MySQL connection fails to establish or is unconfigured.
+
+How the Fallback Engine Works:
+- On startup, the backend attempts to establish a connection to the MySQL pool.
+- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and falls back to running in-memory backed by `database.json`.
+- All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring zero service downtime across environments.
+
+---------------------------------------------------------
+15. Contact & Support API
+---------------------------------------------------------
+
+Endpoint: POST /api/contact
+Body: { "name": "string", "email": "string", "phone": "string" (optional), "message": "string" }
+Response: { "success": true, "message": "Contact message sent successfully", "contact": { ... } }
+
+---------------------------------------------------------
+16. Account Deletion API
+---------------------------------------------------------
+
+Endpoint: DELETE /api/auth/account
+Headers: Authorization: Bearer <jwt_token>
+Response: { "success": true, "message": "Account deleted successfully" }
+
+---------------------------------------------------------
+17. Dropdown Selection APIs (States, Cities, Localities)
+---------------------------------------------------------
+
+Endpoint: GET /api/states
+Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully from database" }
+
+Endpoint: GET /api/cities
+Query Parameters: state (optional; e.g. Rajasthan)
+Response: { "success": true, "cities": ["Jaipur", "Ahmedabad", ...], "message": "Cities retrieved successfully" }
+
+Endpoint: GET /api/localities
+Query Parameters: city (optional; e.g. Jaipur), state (optional; e.g. Rajasthan)
+Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
+
+---------------------------------------------------------
+18. Parameter Normalization and Available Slot Filtering (NEW)
+---------------------------------------------------------
+
+All time slots, dates, and service/product names are automatically normalized before being processed, validated, or persisted to the database.
+
+1. Time Slot Normalization:
+   - Shorthand time slot formats (e.g., "9:00am to 10:am", "5:00pm to 6:00pm", or "5:00 pm - 6:00 pm") are automatically normalized to the standard catalog format (e.g., "9:00 AM - 10:00 AM").
+   - Colons not followed by digits (such as trailing colons, e.g., "10:am") are automatically stripped to "10am" before performing standard hour/AM-PM extraction.
+
+2. Date Normalization:
+   - Date parameters supplied in varying formats (e.g., "31/05/2026", "31-05-2026") are normalized to standard ISO format "YYYY-MM-DD" (e.g., "2026-05-31").
+
+3. Product/Service Name Normalization:
+   - Spelling typos (e.g., "lekage repair", "lekege repair") or formatting variations (e.g., "leakage-repair", "leakage_repair") are resolved to the correct catalog title (e.g., "Leakage Repair").
+   - Both order `productId` and `serviceName` fields are stored and returned in this normalized format.
+
+4. Slot Availability Filtering:
+   - Available slots lists returned in GET `/api/booking/available-slots` and GET `/api/checkout` are dynamically filtered to ONLY return slots that can actually be selected by the user (slots where `available === true`). Already booked/overlapping slots are excluded from the payload.

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 540px;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .banner {
+    width: 1080px; height: 540px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0D0020 0%, #1A0040 40%, #30006A 70%, #4A0090 100%);
+  }
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+  }
+  .orb-1 { width:520px;height:520px;top:-130px;right:-90px;background:radial-gradient(circle,rgba(180,0,255,0.3) 0%,transparent 70%); }
+  .orb-2 { width:380px;height:380px;bottom:-110px;right:220px;background:radial-gradient(circle,rgba(255,140,0,0.25) 0%,transparent 70%); }
+  .orb-3 { width:220px;height:220px;top:60px;left:40px;background:radial-gradient(circle,rgba(140,0,255,0.2) 0%,transparent 70%); }
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(160,0,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(160,0,255,0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  .content {
+    position: relative;
+    z-index: 10;
+    padding: 52px 60px;
+    max-width: 570px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(90deg, rgba(255,180,0,0.9), rgba(255,100,0,0.9));
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 7px 16px;
+    border-radius: 100px;
+    margin-bottom: 24px;
+    box-shadow: 0 0 24px rgba(255,140,0,0.5);
+  }
+  .badge-dot { width:6px;height:6px;background:#FFE000;border-radius:50%;box-shadow:0 0 6px #FFE000; }
+
+  .title {
+    font-size: 76px;
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -3px;
+    background: linear-gradient(135deg, #FFFFFF 0%, #E0AAFF 50%, #CC80FF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+  }
+  .title-sub {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #FFD700, #FF8C00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+    margin-bottom: 18px;
+  }
+  .description {
+    font-size: 15px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.65;
+    max-width: 410px;
+    margin-bottom: 32px;
+  }
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(90deg, #FFB800, #FF6600);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 100px;
+    box-shadow: 0 8px 32px rgba(255,120,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+    letter-spacing: 0.3px;
+  }
+  .cta-arrow {
+    width:20px;height:20px;
+    background:rgba(255,255,255,0.25);
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;
+  }
+
+  /* Right: Coin/reward illustration */
+  .illustration {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 540px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Big coin */
+  .coin-big {
+    position: relative;
+    width: 230px; height: 230px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #FFD700, #FFA500, #FFD700, #FFE066, #FFD700);
+    box-shadow:
+      0 0 0 12px rgba(255,200,0,0.15),
+      0 0 0 24px rgba(255,160,0,0.08),
+      0 20px 60px rgba(255,140,0,0.5),
+      inset 0 4px 12px rgba(255,255,255,0.4),
+      inset 0 -4px 12px rgba(180,100,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 90px;
+    font-weight: 900;
+    color: rgba(140,80,0,0.7);
+    font-family: Georgia, serif;
+    margin-top: -20px;
+  }
+  .coin-big::before {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,220,100,0.6);
+  }
+
+  /* smaller coins */
+  .coin-sm {
+    position: absolute;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #FFD700, #FFA500, #FFD700, #FFE066, #FFD700);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    color: rgba(140,80,0,0.7);
+    box-shadow: 0 8px 24px rgba(255,140,0,0.4), inset 0 2px 6px rgba(255,255,255,0.3);
+  }
+
+  /* gift box */
+  .gift-box {
+    position: absolute;
+    bottom: 90px;
+    left: 55px;
+  }
+  .gift-body {
+    width: 80px; height: 72px;
+    background: linear-gradient(135deg, #9A00FF, #CC44FF);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(140,0,255,0.5);
+    position: relative;
+  }
+  .gift-lid {
+    position: absolute;
+    top: -16px; left: -4px;
+    width: 88px; height: 20px;
+    background: linear-gradient(90deg, #BB22FF, #DD66FF);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(140,0,255,0.4);
+  }
+  .gift-ribbon-h {
+    position: absolute;
+    top: 8px; left: 0; right: 0;
+    height: 12px;
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+  }
+  .gift-ribbon-v {
+    position: absolute;
+    left: 34px; top: -16px;
+    width: 12px; height: 88px;
+    background: linear-gradient(180deg, #FFD700, #FFA500);
+  }
+  .gift-bow-l {
+    position: absolute;
+    top: -28px; left: 18px;
+    width: 22px; height: 14px;
+    background: linear-gradient(90deg, #FFE000, #FFA500);
+    border-radius: 10px 2px 2px 10px;
+    transform: rotate(-20deg);
+  }
+  .gift-bow-r {
+    position: absolute;
+    top: -28px; right: 18px;
+    width: 22px; height: 14px;
+    background: linear-gradient(90deg, #FFA500, #FFE000);
+    border-radius: 2px 10px 10px 2px;
+    transform: rotate(20deg);
+  }
+
+  /* floating glass cards */
+  .glass-card {
+    position: absolute;
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 14px 18px;
+    color: white;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+  }
+  .gc-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .gc-title { font-size: 13px; font-weight: 700; color: white; }
+  .gc-sub { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+  /* Sparkle dots */
+  .sparkle {
+    position: absolute;
+    border-radius: 50%;
+    background: #FFD700;
+    box-shadow: 0 0 10px #FFD700;
+  }
+
+  /* Bottom strip */
+  .bottom-strip {
+    position: absolute;
+    bottom: 36px; left: 60px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .bs-item { display:flex;align-items:center;gap:8px; }
+  .bs-num { font-size:14px;font-weight:700;color:white; }
+  .bs-label { font-size:11px;color:rgba(255,255,255,0.45);font-weight:500; }
+  .bs-sep { width:1px;height:24px;background:rgba(255,255,255,0.12); }
+</style>
+</head>
+<body>
+<div class="banner">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="grid"></div>
+
+  <div class="content">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      EARN REWARDS
+    </div>
+    <div class="title">Refer<br>&amp; Earn</div>
+    <div class="title-sub">Instant Cashback Rewards</div>
+    <div class="description">
+      Share your referral code with friends and earn cashback on every booking they make. No limit on earnings!
+    </div>
+    <div class="cta">
+      Refer Now
+      <span class="cta-arrow">→</span>
+    </div>
+  </div>
+
+  <div class="illustration">
+    <div style="position:relative; width:400px; height:400px;">
+      <!-- Big coin center -->
+      <div class="coin-big" style="position:absolute;top:85px;left:85px;">
+        <span>&#8377;</span>
+      </div>
+
+      <!-- Medium coin top-right -->
+      <div class="coin-sm" style="width:110px;height:110px;top:20px;right:30px;font-size:42px;">
+        <span>&#8377;</span>
+      </div>
+      <!-- Small coin bottom-right -->
+      <div class="coin-sm" style="width:75px;height:75px;bottom:80px;right:10px;font-size:28px;">
+        <span>&#8377;</span>
+      </div>
+      <!-- Tiny coin top-left -->
+      <div class="coin-sm" style="width:50px;height:50px;top:50px;left:25px;font-size:18px;">
+        <span>&#8377;</span>
+      </div>
+
+      <!-- Gift box -->
+      <div style="position:absolute;bottom:65px;left:30px;">
+        <div class="gift-body">
+          <div class="gift-lid"></div>
+          <div class="gift-ribbon-h"></div>
+          <div class="gift-ribbon-v"></div>
+          <div class="gift-bow-l"></div>
+          <div class="gift-bow-r"></div>
+        </div>
+      </div>
+
+      <!-- Sparkles -->
+      <div class="sparkle" style="width:8px;height:8px;top:40px;left:200px;"></div>
+      <div class="sparkle" style="width:5px;height:5px;top:120px;right:20px;"></div>
+      <div class="sparkle" style="width:6px;height:6px;bottom:110px;left:190px;"></div>
+      <div class="sparkle" style="width:4px;height:4px;bottom:190px;right:80px;"></div>
+    </div>
+  </div>
+
+  <!-- Floating glass cards -->
+  <div class="glass-card" style="top:50px;right:45px;">
+    <div class="gc-icon" style="background:rgba(255,200,0,0.2);">💸</div>
+    <div>
+      <div class="gc-title">Rs. 500 Earned</div>
+      <div class="gc-sub">From 5 referrals</div>
+    </div>
+  </div>
+  <div class="glass-card" style="top:175px;right:30px;">
+    <div class="gc-icon" style="background:rgba(140,0,255,0.2);">👥</div>
+    <div>
+      <div class="gc-title">+12 Friends</div>
+      <div class="gc-sub">Joined this month</div>
+    </div>
+  </div>
+
+  <div class="bottom-strip">
+    <div class="bs-item">
+      <div>
+        <div class="bs-num">Rs. 200 <span class="bs-label">per referral</span></div>
+      </div>
+    </div>
+    <div class="bs-sep"></div>
+    <div class="bs-item">
+      <div>
+        <div class="bs-num">No Limit <span class="bs-label">on earnings</span></div>
+      </div>
+    </div>
+    <div class="bs-sep"></div>
+    <div class="bs-item">
+      <div>
+        <div class="bs-num">Instant <span class="bs-label">withdrawal</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

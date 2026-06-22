@@ -1,0 +1,23 @@
+{
+  "name": "home-services-backend",
+  "version": "1.0.0",
+  "description": "Mock Node.js Express Backend for Home Services Flutter Application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.1",
+    "jimp": "^1.6.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.22.4"
+  },
+  "author": "Antigravity",
+  "license": "ISC",
+  "devDependencies": {
+    "puppeteer": "^25.0.4"
+  }
+}

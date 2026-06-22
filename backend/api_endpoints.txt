@@ -1,0 +1,685 @@
+=========================================
+HOME SERVICES APPLICATION - API REFERENCE
+=========================================
+
+Base URL: https://backend-1-ux3b.onrender.com
+
+Database Configuration:
+- Uses MySQL database (BigRock at homefaciliti.com) as primary persistence layer.
+- Automatically initializes table schemas (users, orders, addresses, categories, referrals, slots) on server startup.
+- Dynamically falls back to local database.json file if the MySQL connection fails or is unconfigured.
+
+
+Authentication Note:
+All private APIs require the custom header 'Authorization: Bearer <jwt_token>'
+where the JWT token is obtained from /api/auth/verify-otp response. For backward
+compatibility, sending a raw phone number in the Bearer token header is also supported.
+
+---------------------------------------------------------
+1. Authentication APIs
+---------------------------------------------------------
+
+POST /api/auth/send-otp
+- Body: { "phone": "string", "userId": "string", "countryCode": "string" } (You can pass either phone or userId. countryCode is optional, default: "+91")
+- Response: { "success": true, "message": "OTP sent successfully to +919876543210", "otp": "5599" } (Returns generated dynamic OTP code in payload for easy development/testing fallback)
+
+POST /api/auth/verify-otp
+- Body: { "phone": "string", "userId": "string", "otp": "string", "countryCode": "string" } (You can pass either phone or userId. Accepts generated dynamic OTP, or universal mock bypass OTP: "1234")
+- Response: {
+    "success": true,
+    "message": "OTP verified successfully",
+    "user": {
+      "name": "Hira",
+      "phone": "8504920167",
+      "userId": "8504920167",
+      "email": "hira@hmail.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "HIR123456",
+      "walletBalance": 0,
+      "countryCode": "+91"
+    },
+    "userId": "8504920167",
+    "isNewUser": false,
+    "token": "<jwt_token>"
+  }
+
+POST /api/auth/logout
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "message": "Logged out successfully" }
+
+GET /api/auth/profile
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "user": { ... } }
+
+PUT /api/auth/profile
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string", "countryCode": "string" }
+- Response: { "success": true, "user": { ... }, "message": "Profile updated successfully" }
+
+DELETE /api/auth/account
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "message": "Account deleted successfully" }
+- Note: Permanently deletes the user profile and all saved addresses associated with the authenticated user from the database.
+
+---------------------------------------------------------
+2. Services & Categories APIs
+---------------------------------------------------------
+
+GET /api/categories
+- Response: { "success": true, "categories": [ { "id": "plumber", "name": "Plumber", "image": "https://..." }, ... ] }
+
+POST /api/categories
+- Body: { "name": "string", "id": "string" (optional), "image": "string" (optional) }
+- Response: { "success": true, "category": { "id": "gardening", "name": "Gardening", "image": "https://..." }, "message": "Category created successfully" }
+- Note: Adds a new category dynamically, allowing infinite categories.
+
+GET /api/categories/:category/services
+- Path Parameter: category (e.g., "Plumber", "Electrician", "AcRepair")
+- Query Parameters:
+  - `search` (optional): Filter services within this category by title or description
+- Response: {
+    "success": true,
+    "category": "Plumber",
+    "total": 3,
+    "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ]
+  }
+- Note: Category matching is case-insensitive. Returns 404 if category not found.
+- Example: GET /api/categories/Plumber/services
+- Example: GET /api/categories/electrician/services?search=switch
+
+GET /api/services
+- Query Parameters:
+  - `category` (optional): Filter by category name
+  - `search` (optional): Query term search
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ] }
+
+GET /api/services/trending
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ] } (Returns top 5 popular services)
+
+---------------------------------------------------------
+2a. Search API
+---------------------------------------------------------
+
+GET /api/search
+- Query Parameters:
+  - `q` or `query`: The search term (required)
+- Response: {
+    "success": true,
+    "query": "clean",
+    "results": {
+      "categories": ["Cleaning"],
+      "services": [
+        { "title": "Home Cleaning", "price": 999, "description": "...", "category": "Cleaning" },
+        ...
+      ],
+      "totalCategories": 1,
+      "totalServices": 2
+    }
+  }
+- Note: Searches across all service titles, descriptions, and category names simultaneously.
+        Each matched service includes a `category` field for context.
+- Example: GET /api/search?q=repair
+- Example: GET /api/search?query=cleaning
+
+---------------------------------------------------------
+3. Wallet Management APIs
+---------------------------------------------------------
+
+GET /api/wallet/balance
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "balance": 0.0, "message": "Wallet balance retrieved successfully" }
+
+POST /api/wallet/add
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "amount": number }
+- Response: { "success": true, "balance": number, "message": "Money added to wallet successfully" }
+
+POST /api/wallet/deduct
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "amount": number }
+- Response: { "success": true, "balance": number, "message": "Money deducted from wallet successfully" }
+
+---------------------------------------------------------
+4. Referral Program APIs
+---------------------------------------------------------
+
+GET /api/referrals/lookup/:code
+- Response: { "success": true, "user": { "name": "...", "phone": "...", "email": "...", "locality": "..." }, "message": "Referral user found successfully" }
+- Note: Looks up another user's basic details using their referral code.
+
+POST /api/referrals/apply
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "code": "string" }
+- Response: { "success": true, "message": "Referral code successfully applied!...", "newBalance": number }
+- Note: Adds Rs.50 to both the current user and the referrer's wallet balance.
+
+---------------------------------------------------------
+5. Bookings & Orders APIs
+---------------------------------------------------------
+
+GET /api/orders
+- Headers: Authorization: Bearer <jwt_token>
+- Response:
+  {
+    "success": true,
+    "orders": [ { id, serviceName, price, date, timeSlot, status, address, payment, razorpayOrderId, ... } ],
+    "list": [ { "id": 1, "serviceName": "Tap Repair", "price": 299, "status": "Paid", "date": "2026-05-29", "timeSlot": "10:00 AM - 11:00 AM", "razorpayOrderId": "order_xyz123" } ],
+    "orderlist": { "total": 1, "data": [ { ...full order objects... } ] },
+    "message": "Orders retrieved successfully"
+  }
+- Note: `orders` = full order objects. `list` = compact summary (id, serviceName, price, status, date, timeSlot, razorpayOrderId). `orderlist` = { total: N, data: [...full orders] }.
+
+POST /api/orders
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "serviceName": "string", "price": number, "date": "string" }
+- Response: { "success": true, "order": { "id": 1, ... }, "message": "Order placed successfully" }
+- Note: Creates the order and initializes the booking flow status to "searching".
+
+PUT /api/orders/:id/cancel
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "order": { ... }, "message": "Order cancelled successfully" }
+
+---------------------------------------------------------
+6. Booking Flow Tracking (Real-time Simulation)
+---------------------------------------------------------
+
+GET /api/orders/:id/booking-flow
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "status": "searching|assigned|accepted|onTheWay|completed", "partnerName": "...", "partnerDistance": "...", "message": "Booking flow status retrieved successfully" }
+- Note: Real routing flow. Bookings remain in 'searching' status until accepted by a partner in the partner app (within 5-10 km radius of the booking coordinates) or manually assigned by the admin from the admin panel.
+
+PUT /api/orders/:id/booking-flow
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "status": "string", "partnerName": "string", "partnerDistance": "string" }
+- Response: { "success": true, "status": "...", "partnerName": "...", "partnerDistance": "...", "message": "Booking flow status updated successfully" }
+
+---------------------------------------------------------
+7. Dropdown Selection APIs
+---------------------------------------------------------
+
+GET /api/states
+- Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully from database" }
+- Note: Queries the active database `states` table (returns names of states where status is active). Falls back to static configuration in JSON database fallback.
+
+GET /api/cities
+- Query Parameters:
+  - `state` (optional): Filter cities by state name (e.g. Rajasthan)
+- Response: { "success": true, "cities": ["Jaipur", "Ahmedabad", ...], "message": "Cities retrieved successfully" }
+- Note: Queries the active database `cities` table dynamically filtering by state ID if the state query parameter is supplied.
+
+GET /api/localities
+- Query Parameters:
+  - `city` (optional): Filter localities by city name (e.g. Jaipur)
+  - `state` (optional): Filter localities by state name (e.g. Rajasthan)
+- Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
+- Note: Queries the active database `localities` table dynamically filtering by city ID or state ID if matching parameters are supplied.
+
+---------------------------------------------------------
+8. Banners API
+---------------------------------------------------------
+
+GET /api/banners
+- Response: {
+    "success": true,
+    "banners": [
+      {
+        "id": "string",
+        "image": "string (URL)",
+        "title": "string",
+        "category": "string (Target Category Name)"
+      }
+    ],
+    "message": "Banners retrieved successfully"
+  }
+
+---------------------------------------------------------
+9. Product/Service Detail API
+---------------------------------------------------------
+
+GET /api/services/detail/:title
+GET /api/services/detail?title=<title>
+- Path/Query Parameter: title (case-insensitive title of the service, e.g. "Tap Repair")
+- Response: {
+    "success": true,
+    "service": {
+      "productId": "Tap Repair",
+      "title": "Tap Repair",
+      "price": 299,
+      "description": "Fix leaking taps and water issues",
+      "image": "https://...",
+      "category": "Plumber",
+      "duration": "1-2 Hours",
+      "rating": 4.7,
+      "reviewsCount": 142,
+      "discount": 25,
+      "cutPrice": 399,
+      "highlights": [
+        "Includes background-checked & certified partner",
+        "30-day post-service warranty cover included",
+        "Equipped with premium professional-grade tools",
+        "100% safe, hygienic, and high-quality service execution"
+      ]
+    },
+    "message": "Service details retrieved successfully"
+  }
+
+---------------------------------------------------------
+10. Booking Availability Selection APIs
+---------------------------------------------------------
+
+GET /api/booking/available-dates
+- Response: {
+    "success": true,
+    "dates": [
+      { "formattedDate": "2026-05-26", "dayName": "Today", "displayDate": "26 May" },
+      { "formattedDate": "2026-05-27", "dayName": "Tomorrow", "displayDate": "27 May" }
+    ],
+    "message": "Available booking dates retrieved successfully"
+  }
+
+GET /api/booking/available-slots
+- Response: {
+    "success": true,
+    "slots": [
+      { "id": "slot_1", "time": "9:00 AM - 10:00 AM", "available": true },
+      { "id": "slot_2", "time": "10:00 AM - 11:00 AM", "available": true },
+      ...
+      { "id": "slot_11", "time": "7:00 PM - 8:00 PM", "available": true }
+    ],
+    "message": "Available booking time slots retrieved successfully"
+  }
+- Note: Returns 11 hourly slots ranging from 9:00 AM to 8:00 PM.
+
+POST /api/bookings
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "productId": "string", "date": "string", "timeSlot": "string" }
+  * Note: `productId` is format- and spelling-insensitive (e.g., `lekage repair` or `leakage-repair` resolves to `Leakage Repair` automatically).
+  * Persistence (NEW): This API dynamically persists/registers the validated booking details directly in the database as the user's active pending checkout order. If a pending order already exists, it is updated in-place with the selected product, date, and slot. If no pending order exists, a new one is created automatically.
+- Response: {
+    "success": true,
+    "message": "Booking details validated and registered",
+    "booking": {
+      "productId": "Leakage Repair",
+      "date": "2026-05-27",
+      "timeSlot": "2:00 PM - 3:00 PM"
+    }
+  }
+
+---------------------------------------------------------
+11. Coordinates Address APIs
+---------------------------------------------------------
+
+POST /api/addresses
+POST /api/address
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "type": "Home",
+    "houseNo": "104",
+    "society": "Green Villa",
+    "floor": "1st",
+    "landmark": "Near Central Park",
+    "city": "Mumbai, Maharashtra",
+    "locality": "Andheri West",
+    "pincode": "400053",
+    "latitude": 26.9124,
+    "longitude": 75.7873,
+    "name": "John Doe",
+    "alternateNumber": "9999911111"
+  }
+- Response: {
+    "success": true,
+    "address": {
+      "userPhone": "9876543210",
+      "type": "Home",
+      "houseNo": "104",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Central Park",
+      "city": "Mumbai, Maharashtra",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": 26.9124,
+      "longitude": 75.7873,
+      "name": "John Doe",
+      "alternateNumber": "9999911111"
+    },
+    "message": "Address saved successfully"
+  }
+- Note: Saves user address details and latitude/longitude coordinates to the database.
+
+GET /api/addresses
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "addresses": [
+      {
+        "userPhone": "9876543210",
+        "type": "Home",
+        ...
+        "latitude": 26.9124,
+        "longitude": 75.7873
+      }
+    ],
+    "message": "Addresses retrieved successfully"
+  }
+
+---------------------------------------------------------
+12. Checkout and Order Processing API
+---------------------------------------------------------
+
+POST /api/checkout
+POST /api/checkout-api
+- Headers: Authorization: Bearer <jwt_token>          (Required; verified OTP token strictly resolves the order owner)
+- Body: {
+    "userId": "string",                              (deprecated/ignored; owner is strictly retrieved from the authorization token)
+    "productId": "Tap Repair",                        (Required; format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`)
+    "timeSlot": "4:00 PM - 5:00 PM",                (optional - auto-computed if omitted)
+    "date": "2026-05-28",                            (optional - auto-computed if omitted)
+    "payment": { "paymentMethod": "Online", "amountPaid": 0 }
+  }
+- Response: {
+    "success": true,
+    "orderId": 1000007,
+    "userId": "9876543210",
+    "razorpayOrderId": "order_DBJOWqy2AuJZ59",
+    "order": {
+      "id": 1000007,
+      "userPhone": "9876543210",
+      "userId": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-28",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "4:00 PM - 5:00 PM",
+      "address": {
+        "type": "Home",
+        "houseNo": "104",
+        "society": "Green Villa",
+        "floor": "1st",
+        "landmark": "Near Central Park",
+        "city": "Mumbai, Maharashtra",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": 26.9124,
+        "longitude": 75.7873
+      },
+      "payment": { "paymentMethod": "Online", "amountPaid": 0 },
+      "razorpayOrderId": "order_DBJOWqy2AuJZ59",
+      "razorpayPaymentId": null,
+      "createdAt": 177993467
+    },
+    "message": "Checkout completed successfully and order placed"
+  }
+- Note: Requires productId. timeSlot and date are optional:
+  - If timeSlot is omitted, the server auto-selects the next available slot based on the current IST time
+    (e.g. if it is 3:05 PM IST, the default slot becomes "4:00 PM - 5:00 PM").
+  - If date is omitted, the server defaults to today's date in IST. If no slots remain today (after 8 PM),
+    it defaults to tomorrow's date with the first slot (9:00 AM - 10:00 AM).
+  - If paymentMethod is "Online", the server calls Razorpay's API to generate a real Razorpay Order ID
+    which is stored in the DB and returned as `razorpayOrderId`. Falls back to `order_mock_XXXXXX` if
+    Razorpay credentials are invalid.
+  - Flutter must extract BOTH `orderId` and `razorpayOrderId` from this response.
+    `orderId` is used to build the payment URL. `razorpayOrderId` is for reference/logging.
+
+GET /api/checkout
+GET /api/checkout-api
+GET /api/checkout/:userId
+GET /api/checkout-api/:userId
+- Headers: Authorization: Bearer <jwt_token>
+- Optional Query Parameters: productId, date, timeSlot
+- Response: {
+    "success": true,
+    "orderId": 4,
+    "userId": "9876543210",
+    "user": {
+      "name": "Guest User",
+      "phone": "9876543210",
+      "email": "guest@example.com",
+      "walletBalance": 0
+    },
+    "product": {
+      "productId": "Tap Repair",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "description": "Fix leaking taps and water issues",
+      "date": "2026-05-28",
+      "timeSlot": "4:00 PM - 5:00 PM"
+    },
+    "address": {
+      "type": "Home",
+      "houseNo": "104",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Central Park",
+      "city": "Mumbai, Maharashtra",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": 26.9124,
+      "longitude": 75.7873,
+      "name": "Mock Guest",
+      "alternateNumber": ""
+    },
+    "payment": {
+      "paymentMethod": "Wallet",
+      "amountPaid": 299
+    },
+    "status": "Pending",
+    "bookingStatus": "searching",
+    "partnerName": null,
+    "partnerDistance": null,
+    "addresses": [ { "id": 1, "userPhone": "9876543210", "type": "Home", ... } ],
+    "services": [ { "productId": "Tap Repair", "title": "Tap Repair", "price": 299, ... } ],
+    "products": [ { "productId": "Tap Repair", "title": "Tap Repair", "price": 299, ... } ],
+    "slots": [
+      "9:00 AM - 10:00 AM", "10:00 AM - 11:00 AM", "11:00 AM - 12:00 PM",
+      "12:00 PM - 1:00 PM", "1:00 PM - 2:00 PM", "2:00 PM - 3:00 PM",
+      "3:00 PM - 4:00 PM", "4:00 PM - 5:00 PM", "5:00 PM - 6:00 PM",
+      "6:00 PM - 7:00 PM", "7:00 PM - 8:00 PM"
+    ],
+    "dates": [
+      { "formattedDate": "2026-05-28", "dayName": "Today", "displayDate": "28 May" },
+      { "formattedDate": "2026-05-29", "dayName": "Tomorrow", "displayDate": "29 May" }
+    ]
+  }
+- Note: Retrieves complete checkout summary for the specified user or order.
+  - Dynamic Date & Slot: Date and timeSlot are computed from current IST time when auto-created.
+  - Auto-Create: Creates a new order if none exists for the given userId/orderId.
+  - Auto-Address: Resolves user's latest saved address, falling back to profile location, then mock address.
+  - Persistent Overrides: Query params productId, date, timeSlot are saved to DB.
+  - Interactive Option Lists: Returns addresses, services/products, slots, dates for frontend dropdowns.
+
+
+---------------------------------------------------------
+12a. Policies & Information APIs
+---------------------------------------------------------
+
+GET /api/policies/privacy
+- Response: { "success": true, "title": "Privacy Policy", "lastUpdated": "May 27, 2026", "content": "...", "sections": [ ... ] }
+
+GET /api/about
+GET /api/policies/about (Redirects to /api/about)
+- Response: { "success": true, "title": "About Us", "description": "...", "vision": "...", "mission": "...", "highlights": [ ... ] }
+
+GET /api/policies/terms
+- Response: { "success": true, "title": "Terms and Conditions", "lastUpdated": "May 27, 2026", "content": "...", "sections": [ ... ] }
+
+GET /api/policies/refund
+- Response: { "success": true, "title": "Refund Policy", "lastUpdated": "May 27, 2026", "content": "...", "rules": [ ... ] }
+
+
+---------------------------------------------------------
+13. Razorpay Payment Verification API
+---------------------------------------------------------
+
+GET /api/payments/verify
+POST /api/payments/verify
+GET /api/payments/verify/:orderId
+POST /api/payments/verify/:orderId
+- Parameters (Path/Query/Body):
+  * `orderId` (optional; numeric database order ID)
+  * `razorpay_order_id` / `order_id` (optional; Razorpay Order ID to look up the order by)
+  * `paymentId` / `razorpay_payment_id` (optional; Razorpay Payment ID to verify payment status)
+- Response: {
+    "success": true,
+    "orderId": 4,
+    "paymentStatus": "captured",
+    "paymentDetails": {
+      "razorpay_payment_id": "pay_mock_ABC123XYZ",
+      "razorpay_order_id": "order_mock_DEF456UVW",
+      "status": "captured",
+      "amount": 29900,
+      "currency": "INR",
+      "method": "card",
+      "email": "user@example.com",
+      "contact": "+919876543210"
+    },
+    "message": "Payment checked successfully from Razorpay. Status: captured"
+  }
+- Note: Verifies payment status using the real Razorpay API. Dynamically detects and resolves the target
+  database order ID from URL path, query string, request body, or by looking up the order matching
+  `razorpay_order_id`. If `paymentId` is provided, it verifies that specific payment; otherwise checks
+  payments for the saved `razorpayOrderId` on the order. Falls back to simulated validation if API keys
+  are unauthenticated.
+  * Note for Cash / COD orders: Verification immediately returns success with `paymentStatus: "cod"`.
+
+
+---------------------------------------------------------
+13ab. Cash on Delivery (COD) Confirmation API
+---------------------------------------------------------
+
+POST /api/payments/cod/:orderId
+- Parameters (Path):
+  * `orderId` (required; numeric database order ID)
+- Response: {
+    "success": true,
+    "orderId": 12,
+    "order": { ... },
+    "message": "COD order placed successfully"
+  }
+- Note: Updates the target order's status to "Pending" and bookingStatus to "searching". Used by the Flutter client to confirm order placement when "Cash on Delivery" is chosen.
+
+
+---------------------------------------------------------
+13a. Hosted Payment Checkout Page URL
+---------------------------------------------------------
+
+GET /api/payments/pay/:orderId
+- Parameters (Path):
+  * `orderId` (required; numeric database order ID)
+- Response: HTML page serving the Razorpay Standard Checkout UI.
+- Note:
+  * Renders a premium payment checkout experience using Razorpay Checkout.js.
+  * Live Razorpay Key ID: rzp_live_RLno7eQMMUUT8A
+  * The Razorpay Order ID (`razorpayOrderId`) is generated DYNAMICALLY at checkout time (POST /api/checkout)
+    and stored in the DB. The payment page fetches the saved `razorpayOrderId` for this orderId from DB.
+  * If keys are invalid or not configured, displays an overlay for a simulated mock payment.
+  * On success, redirects to: GET /api/payments/callback?orderId=<orderId>
+
+Flutter Dynamic Order ID Flow (End-to-End):
+  Step 1: POST /api/checkout
+          Response: { "orderId": 1000007, "razorpayOrderId": "order_ABC123XYZ" }
+  Step 2: Flutter stores BOTH IDs from checkout response.
+          orderId = checkoutResult['orderId']        (DB order ID)
+          razorpayOrderId = checkoutResult['razorpayOrderId']  (Razorpay order ID - for reference)
+  Step 3: Payment URL built as: GET /api/payments/pay/1000007  (uses DB orderId in path)
+  Step 4: Backend looks up `razorpayOrderId` from DB for orderId=1000007.
+  Step 5: Razorpay Checkout.js opens with the correct dynamic `razorpayOrderId`.
+  Step 6: User completes payment on Razorpay page.
+  Step 7: Browser redirects to /api/payments/callback?orderId=1000007
+  Step 8: Callback page shows success animation + 3-second auto-close countdown.
+  Step 9: Flutter detects browser close → shows "Verify Payment" dialog.
+  Step 10: User taps "Verify" → Flutter navigates to PaymentSuccessScreen.
+
+
+---------------------------------------------------------
+13b. Hosted Payment Redirect Callback URL
+---------------------------------------------------------
+
+GET /api/payments/callback
+- Parameters (Query):
+  * `orderId` (required; numeric database order ID)
+  * `razorpay_payment_id` / `paymentId` (optional; Razorpay transaction ID)
+  * `status` (optional; defaults to "captured")
+  * `mock` (optional; "true" for simulated payment)
+- Response: Premium animated HTML page showing payment success/failed tick animation with 3-second
+  auto-close countdown timer and a manual "Return to App Now" button.
+- Note:
+  * Updates the DB order `status` to "Paid" and saves `razorpayPaymentId` to the order record.
+  * Sets `bookingStatus` to "searching" to trigger nearest partner routing flow.
+  * Browser tab auto-closes after 3-second countdown.
+  * Flutter app automatically polls `/api/payments/verify/:orderId` every 2 seconds in the background.
+  * Once payment is verified, the app automatically closes the progress dialog and redirects the user directly to the PaymentSuccessScreen.
+
+
+---------------------------------------------------------
+13c. Flutter PaymentSuccessScreen (In-App Confirmation)
+---------------------------------------------------------
+
+This is a Flutter in-app screen (not an API endpoint) shown automatically upon successful payment verification:
+  - Animated checkmark with elastic pop-in and green gradient glow ring
+  - Amount badge (e.g. Rs.299) displayed in a gradient pill
+  - Order ID (DB orderId) and Razorpay Payment ID shown
+  - Service name, booking date, time slot displayed
+  - "Track My Booking" CTA button -> navigates to SearchingPartnerScreen
+  - File: lib/view/paymentScreen/payment_success_screen.dart
+  - File: lib/viewmodel/order_viewmodel.dart (checkout() returns Map with both orderId + razorpayOrderId)
+  - File: lib/view/paymentScreen/payment_screen.dart (uses checkoutResult['orderId'] for payment URL)
+
+
+---------------------------------------------------------
+14. Database Configuration & Fallback Engine (MySQL + JSON)
+---------------------------------------------------------
+
+The backend uses a highly resilient database routing architecture to store and manage data. It dynamically
+chooses the active database layer based on environment configuration and server startup connectivity,
+supporting MySQL as the remote database and a local JSON file database as a fallback.
+
+Database Priority Order:
+1. MySQL (Primary)
+   - Host: BigRock (homefaciliti.com)
+   - Configuration Env: MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, MYSQL_PORT
+   - Schema Auto-Migrations: On server startup, the server automatically queries "CREATE TABLE IF NOT EXISTS" for:
+     - `users`
+     - `orders` (stores nested object columns like address and payment as JSON strings)
+     - `addresses`
+     - `categories` (seeds default categories if empty)
+     - `referrals_applied`
+     - `contacts`
+2. JSON File Database (Fallback)
+   - Host: Local file system (`database.json`)
+   - Backup mode: Activates automatically if MySQL connection fails to establish or is unconfigured.
+
+How the Fallback Engine Works:
+- On startup, the backend attempts to establish a connection to the MySQL pool.
+- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs
+  the error and falls back to running in-memory backed by `database.json`.
+- All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring
+  zero service downtime across environments.
+
+---------------------------------------------------------
+15. Contact & Support API
+---------------------------------------------------------
+
+POST /api/contact
+- Body: { "name": "string", "email": "string", "phone": "string" (optional), "message": "string" }
+- Response: {
+    "success": true,
+    "message": "Contact message sent successfully",
+    "contact": {
+      "id": 1,
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "phone": "+919876543210",
+      "message": "Hello, I need help with my booking.",
+      "createdAt": "2026-05-29T06:30:00.000Z"
+    }
+  }
+- Note: Saves customer support and contact form inquiries to the database
+  (`node_contacts` MySQL table or JSON fallback contacts list).
