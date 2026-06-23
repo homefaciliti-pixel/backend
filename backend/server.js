@@ -1506,7 +1506,9 @@ app.get('/api/banners', async (req, res) => {
       const [rows] = await mysqlPool.query("SELECT * FROM node_banners WHERE status = 1 ORDER BY id ASC");
       dbBanners = rows.map(r => {
         let img = r.image || "";
-        if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+        if (img === "1782128382556_scaled_AC_Form_Jet_Service.png") {
+          img = `${req.protocol}://${req.get('host')}/assets/banners/ac_services_banner.png`;
+        } else if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
           img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
         }
         return {
