@@ -4130,6 +4130,7 @@ const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
       serviceName: defaultTitle,
       price: 299,
       description: "Fix issues and repair",
+      image: "",
       date: "",
       timeSlot: ""
     };
@@ -4139,6 +4140,7 @@ const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
     serviceName: String(prod.serviceName || prod.productId || defaultTitle),
     price: Number(prod.price !== undefined && prod.price !== null ? prod.price : 299),
     description: String(prod.description || ""),
+    image: String(prod.image || ""),
     date: String(prod.date || ""),
     timeSlot: String(prod.timeSlot || "")
   };
@@ -4152,7 +4154,8 @@ const resolveServiceDetails = async (productId) => {
       serviceName: "Tap Repair",
       title: "Tap Repair",
       price: 299,
-      description: "Fix leaking taps and water issues"
+      description: "Fix leaking taps and water issues",
+      image: ""
     };
   }
 
@@ -4177,7 +4180,8 @@ const resolveServiceDetails = async (productId) => {
           serviceName: r.title,
           title: r.title,
           price: finalPrice,
-          description: r.description
+          description: r.description,
+          image: r.image
         };
       }
     } catch (err) {
@@ -4193,7 +4197,8 @@ const resolveServiceDetails = async (productId) => {
         serviceName: match.title,
         title: match.title,
         price: Number(match.price),
-        description: match.description
+        description: match.description,
+        image: match.image
       };
     }
   }
@@ -4392,6 +4397,15 @@ const handleGetCheckout = async (req, res) => {
       if (needsUpdate) {
         await DbLayer.updateOrder(order.id, updates);
         console.log(`[GetCheckout] Persisted overrides to database for order #${order.id}`);
+      }
+    }
+
+    // Resolve service image dynamically for the checkout response
+    if (order) {
+      const resolvedProduct = await resolveServiceDetails(order.productId || order.serviceName);
+      if (resolvedProduct && resolvedProduct.image) {
+        const resolvedList = resolveServiceUrls([resolvedProduct], serverBaseUrl);
+        order.image = resolvedList[0].image;
       }
     }
     

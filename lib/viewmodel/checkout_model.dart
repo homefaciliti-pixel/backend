@@ -55,6 +55,7 @@ class Product {
   final String serviceName;
   final int price;
   final String description;
+  final String image;
   final String date;
   final String timeSlot;
 
@@ -63,6 +64,7 @@ class Product {
     required this.serviceName,
     required this.price,
     required this.description,
+    required this.image,
     required this.date,
     required this.timeSlot,
   });
@@ -71,17 +73,19 @@ class Product {
 
     return Product(
 
-      productId: json["productId"],
+      productId: json["productId"] ?? "",
 
-      serviceName: json["serviceName"],
+      serviceName: json["serviceName"] ?? "",
 
-      price: json["price"],
+      price: json["price"] ?? 0,
 
-      description: json["description"],
+      description: json["description"] ?? "",
 
-      date: json["date"],
+      image: json["image"] ?? "",
 
-      timeSlot: json["timeSlot"],
+      date: json["date"] ?? "",
+
+      timeSlot: json["timeSlot"] ?? "",
     );
   }
 }

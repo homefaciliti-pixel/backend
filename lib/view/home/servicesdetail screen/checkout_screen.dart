@@ -260,12 +260,22 @@ class _CheckoutScreenState
 
                     child: Image.network(
 
-                      "https://images.unsplash.com/photo-1581578731548-c64695cc6952",
+                      data.product.image.isNotEmpty
+                          ? data.product.image
+                          : "https://images.unsplash.com/photo-1581578731548-c64695cc6952",
 
                       height: 95,
                       width: 95,
 
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.network(
+                          "https://images.unsplash.com/photo-1581578731548-c64695cc6952",
+                          height: 95,
+                          width: 95,
+                          fit: BoxFit.cover,
+                        );
+                      },
                     ),
                   ),
 
