@@ -1658,6 +1658,75 @@ function shuffleArray(array) {
   return shuffled;
 }
 
+// Helper: Sanitize database service row into a standard service object
+const sanitizeServiceDbObj = (r, serverBaseUrl) => {
+  const dbPrice = parseFloat(r.price);
+  const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+  let finalPrice = dbPrice;
+  let cutPrice = dbPrice;
+  let displayDiscount = 0;
+  if (discountVal > 0) {
+    finalPrice = Math.max(0, dbPrice - discountVal);
+    displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
+    displayDiscount = Math.min(100, displayDiscount);
+  }
+
+  let dbHighlights = [];
+  if (r.highlights) {
+    try {
+      dbHighlights = typeof r.highlights === 'string' ? JSON.parse(r.highlights) : r.highlights;
+    } catch (e) {
+      console.warn("Failed to parse highlights:", e.message);
+    }
+  }
+  if (!Array.isArray(dbHighlights)) {
+    dbHighlights = [];
+  }
+
+  // Consistent rating resolution
+  const finalRating = r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8;
+
+  // Consistent pseudo-random reviews count based on service ID
+  const reviewsCount = 50 + (parseInt(r.id) * 17) % 250; 
+
+  let resolvedImage = r.image || "";
+  if (resolvedImage) {
+    if (resolvedImage.startsWith('/assets/')) {
+      resolvedImage = `${serverBaseUrl}${resolvedImage}`;
+    } else if (!resolvedImage.startsWith('http') && !resolvedImage.startsWith('https')) {
+      if (!resolvedImage.includes('/')) {
+        resolvedImage = `https://adminbackend-1-h03r.onrender.com/uploads/${resolvedImage}`;
+      } else {
+        resolvedImage = `${serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2') ? 'https://homefaciliti.com' : serverBaseUrl}/uploads/services/${resolvedImage}`;
+      }
+    }
+  }
+
+  const defaultHighlights = [
+    "Includes background-checked & certified partner",
+    "30-day post-service warranty cover included",
+    "Equipped with premium professional-grade tools",
+    "100% safe, hygienic, and high-quality service execution"
+  ];
+  const finalHighlights = dbHighlights.length > 0 ? dbHighlights : defaultHighlights;
+
+  return {
+    productId: r.title,
+    title: r.title,
+    price: finalPrice,
+    description: r.description || "",
+    image: resolvedImage,
+    discount: displayDiscount,
+    rating: finalRating,
+    reviewsCount: reviewsCount,
+    cutPrice: cutPrice,
+    isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "false",
+    highlights: finalHighlights,
+    category: r.category_id ? r.category_id.toString() : "",
+    duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
+  };
+};
+
 // Helper: Resolve relative service image URLs dynamically
 function resolveServiceUrls(services, serverBaseUrl) {
   const adminBaseUrl = 'https://adminbackend-1-h03r.onrender.com';
@@ -1722,44 +1791,7 @@ app.get('/api/services', async (req, res) => {
       }
 
       const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-      const dbServices = srvRows.map(r => {
-        const dbPrice = parseFloat(r.price);
-        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
-        let finalPrice = dbPrice;
-        let cutPrice = dbPrice;
-        let displayDiscount = 0;
-        if (discountVal > 0) {
-          finalPrice = Math.max(0, dbPrice - discountVal);
-          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
-          displayDiscount = Math.min(100, displayDiscount);
-        }
-
-        let dbHighlights = [];
-        if (r.highlights) {
-          try {
-            dbHighlights = typeof r.highlights === 'string' ? JSON.parse(r.highlights) : r.highlights;
-          } catch (e) {
-            console.warn("Failed to parse highlights in services list:", e.message);
-          }
-        }
-        if (!Array.isArray(dbHighlights)) {
-          dbHighlights = [];
-        }
-
-        return {
-          productId: r.title,
-          title: r.title,
-          price: finalPrice,
-          description: r.description,
-          image: r.image,
-          discount: displayDiscount,
-          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
-          reviewsCount: 120,
-          cutPrice: cutPrice,
-          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "",
-          highlights: dbHighlights
-        };
-      });
+      const dbServices = srvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
 
       // Merge with static services
       let staticList = [];
@@ -1839,85 +1871,12 @@ app.get('/api/services/trending', async (req, res) => {
       // 1. Fetch dynamic details for "AC Foam Jet Service" if it exists in the database
       const [acRows] = await mysqlPool.query("SELECT * FROM node_services WHERE title = 'AC Foam Jet Service' LIMIT 1");
       if (acRows.length > 0) {
-        const r = acRows[0];
-        const dbPrice = parseFloat(r.price);
-        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
-        let finalPrice = dbPrice;
-        let cutPrice = dbPrice;
-        let displayDiscount = 0;
-        if (discountVal > 0) {
-          finalPrice = Math.max(0, dbPrice - discountVal);
-          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
-          displayDiscount = Math.min(100, displayDiscount);
-        }
-
-        let dbHighlights = [];
-        if (r.highlights) {
-          try {
-            dbHighlights = typeof r.highlights === 'string' ? JSON.parse(r.highlights) : r.highlights;
-          } catch (e) {
-            console.warn("Failed to parse highlights in trending:", e.message);
-          }
-        }
-        if (!Array.isArray(dbHighlights)) {
-          dbHighlights = [];
-        }
-
-        acFreeService = {
-          productId: r.title,
-          title: r.title,
-          price: finalPrice,
-          description: r.description,
-          image: r.image,
-          discount: displayDiscount,
-          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.9,
-          reviewsCount: 240,
-          cutPrice: cutPrice,
-          category: r.category_id ? r.category_id.toString() : 'AcRepair',
-          highlights: dbHighlights
-        };
+        acFreeService = sanitizeServiceDbObj(acRows[0], serverBaseUrl);
       }
 
       // 2. Fetch 4 random other services
       const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE status IN (0, 1) AND title != 'AC Foam Jet Service' ORDER BY RAND() LIMIT 4");
-      const dbServices = srvRows.map(r => {
-        const dbPrice = parseFloat(r.price);
-        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
-        let finalPrice = dbPrice;
-        let cutPrice = dbPrice;
-        let displayDiscount = 0;
-        if (discountVal > 0) {
-          finalPrice = Math.max(0, dbPrice - discountVal);
-          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
-          displayDiscount = Math.min(100, displayDiscount);
-        }
-
-        let dbHighlights = [];
-        if (r.highlights) {
-          try {
-            dbHighlights = typeof r.highlights === 'string' ? JSON.parse(r.highlights) : r.highlights;
-          } catch (e) {
-            console.warn("Failed to parse highlights in trending list:", e.message);
-          }
-        }
-        if (!Array.isArray(dbHighlights)) {
-          dbHighlights = [];
-        }
-
-        return {
-          productId: r.title,
-          title: r.title,
-          price: finalPrice,
-          description: r.description,
-          image: r.image,
-          discount: displayDiscount,
-          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
-          reviewsCount: 120,
-          cutPrice: cutPrice,
-          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "",
-          highlights: dbHighlights
-        };
-      });
+      const dbServices = srvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
 
       // If less than 4 from DB, fill with static services
       if (dbServices.length < 4) {
@@ -1967,65 +1926,7 @@ const handleServiceDetail = async (req, res) => {
       if (srvRows.length > 0) {
         const r = srvRows[0];
         
-        let resolvedImage = r.image;
-        if (resolvedImage) {
-          if (resolvedImage.startsWith('/assets/')) {
-            resolvedImage = `${serverBaseUrl}${resolvedImage}`;
-          } else if (!resolvedImage.startsWith('http') && !resolvedImage.startsWith('https')) {
-            if (!resolvedImage.includes('/')) {
-              resolvedImage = `https://adminbackend-1-h03r.onrender.com/uploads/${resolvedImage}`;
-            } else {
-              resolvedImage = `${serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2') ? 'https://homefaciliti.com' : serverBaseUrl}/uploads/services/${resolvedImage}`;
-            }
-          }
-        }
-
-        const dbPrice = parseFloat(r.price);
-        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
-        let finalPrice = dbPrice;
-        let cutPrice = dbPrice;
-        let displayDiscount = 0;
-        if (discountVal > 0) {
-          finalPrice = Math.max(0, dbPrice - discountVal);
-          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
-          displayDiscount = Math.min(100, displayDiscount);
-        }
-
-        let dbHighlights = [];
-        if (r.highlights) {
-          try {
-            dbHighlights = typeof r.highlights === 'string' ? JSON.parse(r.highlights) : r.highlights;
-          } catch (e) {
-            console.warn("Failed to parse highlights in details:", e.message);
-          }
-        }
-        if (!Array.isArray(dbHighlights)) {
-          dbHighlights = [];
-        }
-
-        const defaultHighlights = [
-          "Includes background-checked & certified partner",
-          "30-day post-service warranty cover included",
-          "Equipped with premium professional-grade tools",
-          "100% safe, hygienic, and high-quality service execution"
-        ];
-        const finalHighlights = (dbHighlights && dbHighlights.length > 0) ? dbHighlights : defaultHighlights;
-
-        const enrichedService = {
-          productId: r.title,
-          title: r.title,
-          price: finalPrice,
-          description: r.description,
-          image: resolvedImage,
-          category: r.category_id ? r.category_id.toString() : "",
-          duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
-          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
-          reviewsCount: 124,
-          discount: displayDiscount,
-          cutPrice: cutPrice,
-          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "",
-          highlights: finalHighlights
-        };
+        const enrichedService = sanitizeServiceDbObj(r, serverBaseUrl);
 
         return res.json({
           success: true,
@@ -2152,27 +2053,9 @@ app.get('/api/search', async (req, res) => {
         [`%${lowerTerm}%`, `%${lowerTerm}%`, `%${lowerTerm}%`]
       );
       const dbServices = srvRows.map(r => {
-        const dbPrice = parseFloat(r.price);
-        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
-        let finalPrice = dbPrice;
-        let cutPrice = dbPrice;
-        let displayDiscount = 0;
-        if (discountVal > 0) {
-          finalPrice = Math.max(0, dbPrice - discountVal);
-          displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
-          displayDiscount = Math.min(100, displayDiscount);
-        }
+        const srv = sanitizeServiceDbObj(r, serverBaseUrl);
         return {
-          productId: r.title,
-          title: r.title,
-          price: finalPrice,
-          description: r.description,
-          image: r.image,
-          discount: displayDiscount,
-          rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
-          reviewsCount: 120,
-          cutPrice: cutPrice,
-          isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "",
+          ...srv,
           category: r.category_title || ""
         };
       });
@@ -4420,29 +4303,7 @@ const handleGetCheckout = async (req, res) => {
         if (srvRows.length > 0) {
           const categoryId = srvRows[0].category_id;
           const [catSrvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE category_id = ? AND status IN (0, 1)", [categoryId]);
-          services = catSrvRows.map(r => {
-            const dbPrice = parseFloat(r.price);
-            const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
-            let finalPrice = dbPrice;
-            let cutPrice = dbPrice;
-            let displayDiscount = 0;
-            if (discountVal > 0) {
-              finalPrice = Math.max(0, dbPrice - discountVal);
-              displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
-              displayDiscount = Math.min(100, displayDiscount);
-            }
-            return {
-              productId: r.title,
-              title: r.title,
-              price: finalPrice,
-              description: r.description,
-              image: r.image,
-              discount: displayDiscount,
-              rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
-              cutPrice: cutPrice,
-              isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : ""
-            };
-          });
+          services = catSrvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
         }
       } catch (err) {
         console.warn("[GetCheckout] Failed to load dynamic services list:", err.message);
