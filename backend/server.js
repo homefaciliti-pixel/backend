@@ -18,6 +18,24 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Active OTPs in-memory storage (phone -> { otp, expiresAt })
 const activeOTPs = new Map();
+// Active checkout draft bookings in-memory storage (phone -> draftOrderObject)
+const draftOrders = new Map();
+const isMockPaymentAllowed = () => {
+  if (process.env.ALLOW_MOCK_PAYMENTS === "true") {
+    return true;
+  }
+  if (process.env.ALLOW_MOCK_PAYMENTS === "false") {
+    return false;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+  const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
+  if (keyId.startsWith("rzp_live_")) {
+    return false;
+  }
+  return true;
+};
 let lastSmsDebug = { timestamp: null, url: null, response: null, error: null };
 const debugLogs = [];
 
@@ -53,6 +71,10 @@ const DEFAULT_CATEGORIES = [
 // DATABASE ABSTRACTED DATA LAYER (MySQL)
 // ----------------------------------------
 async function initMySqlDb() {
+  if (process.env.DB_MODE === 'json') {
+    console.log("DB_MODE is set to json. Skipping MySQL initialization.");
+    return false;
+  }
   const host = process.env.MYSQL_HOST;
   const user = process.env.MYSQL_USER;
   const password = process.env.MYSQL_PASSWORD;
@@ -2234,18 +2256,46 @@ const handleVerifyPayment = async (req, res) => {
   
   try {
     let order = null;
+    let isDraft = false;
     let orderId = isNaN(paramOrderId) ? null : parseInt(paramOrderId);
     
     if (orderId) {
       order = await DbLayer.getOrderById(orderId);
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.id === orderId) {
+            order = draft;
+            isDraft = true;
+            break;
+          }
+        }
+      }
     } else if (paramOrderId) {
       // If paramOrderId is not numeric, treat it as the Razorpay Order ID
       order = await DbLayer.getOrderByRazorpayOrderId(paramOrderId);
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.razorpayOrderId === paramOrderId) {
+            order = draft;
+            isDraft = true;
+            break;
+          }
+        }
+      }
     }
     
     // Try to find the order by razorpayOrderId from query/body if not found by path parameter
     if (!order && rzpOrderId) {
       order = await DbLayer.getOrderByRazorpayOrderId(rzpOrderId);
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.razorpayOrderId === rzpOrderId) {
+            order = draft;
+            isDraft = true;
+            break;
+          }
+        }
+      }
     }
 
     if (order) {
@@ -2321,37 +2371,53 @@ const handleVerifyPayment = async (req, res) => {
 
     // 3. Fallback to simulation if credentials fail or order details not found on Razorpay
     if (razorpayAuthError || !verifiedViaRazorpay) {
-      console.warn(`[Razorpay] Verification fallback to simulation. (AuthError: ${razorpayAuthError}, Verified: ${verifiedViaRazorpay})`);
-      paymentDetails = {
-        razorpay_payment_id: paymentId || `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
-        razorpay_order_id: (order && order.razorpayOrderId) || `order_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
-        status: "captured", // Mock captured status
-        amount: (order ? order.price : 299) * 100, // in paisa
-        currency: "INR",
-        method: "card",
-        email: "user@example.com",
-        contact: "+919876543210"
-      };
-      status = "captured";
+      if (!isMockPaymentAllowed()) {
+        console.error(`[Razorpay] Verification failed. Fallback simulation is disabled in this environment. (AuthError: ${razorpayAuthError}, Verified: ${verifiedViaRazorpay})`);
+        status = "failed";
+      } else {
+        console.warn(`[Razorpay] Verification fallback to simulation. (AuthError: ${razorpayAuthError}, Verified: ${verifiedViaRazorpay})`);
+        paymentDetails = {
+          razorpay_payment_id: paymentId || `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+          razorpay_order_id: (order && order.razorpayOrderId) || `order_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+          status: "captured", // Mock captured status
+          amount: (order ? order.price : 299) * 100, // in paisa
+          currency: "INR",
+          method: "card",
+          email: "user@example.com",
+          contact: "+919876543210"
+        };
+        status = "captured";
+      }
     }
 
     // 4. Update the local order if paid successfully
     if (order && status === "captured") {
       const pId = paymentDetails ? (paymentDetails.id || paymentDetails.razorpay_payment_id) : null;
-      await DbLayer.updateOrder(resolvedOrderId, {
-        status: "Paid",
-        bookingStatus: "searching", // begin search for professionals
-        razorpayPaymentId: pId
-      });
-      console.log(`[Payment] Order #${resolvedOrderId} marked as Paid via Razorpay Payment ${pId}`);
+      if (isDraft) {
+        order.status = "Paid";
+        order.bookingStatus = "searching";
+        order.razorpayPaymentId = pId;
+        await DbLayer.createOrder(order);
+        draftOrders.delete(order.userPhone);
+        console.log(`[Payment] Promoting draft order #${resolvedOrderId} to database as Paid via Razorpay Payment ${pId}`);
+      } else {
+        await DbLayer.updateOrder(resolvedOrderId, {
+          status: "Paid",
+          bookingStatus: "searching", // begin search for professionals
+          razorpayPaymentId: pId
+        });
+        console.log(`[Payment] Order #${resolvedOrderId} marked as Paid via Razorpay Payment ${pId}`);
+      }
     }
 
     res.json({
-      success: true,
+      success: status === "captured" || status === "cod",
       orderId: resolvedOrderId,
       paymentStatus: status,
       paymentDetails: paymentDetails,
-      message: `Payment checked successfully from Razorpay. Status: ${status}`
+      message: (status === "captured" || status === "cod")
+        ? `Payment checked successfully from Razorpay. Status: ${status}`
+        : `Payment verification failed. Status: ${status}`
     });
   } catch (err) {
     console.error("Payment verification failed:", err);
@@ -2368,9 +2434,28 @@ const handlePayPage = async (req, res) => {
   try {
     let order = null;
     if (!isNaN(orderIdStr)) {
-      order = await DbLayer.getOrderById(parseInt(orderIdStr));
+      const numId = parseInt(orderIdStr);
+      order = await DbLayer.getOrderById(numId);
+      // Also check in-memory draft orders (online payment orders not yet confirmed)
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.id === numId) {
+            order = draft;
+            break;
+          }
+        }
+      }
     } else {
       order = await DbLayer.getOrderByRazorpayOrderId(orderIdStr);
+      // Also check in-memory draft orders
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.razorpayOrderId === orderIdStr) {
+            order = draft;
+            break;
+          }
+        }
+      }
     }
     
     if (!order) {
@@ -2543,7 +2628,7 @@ const handlePayPage = async (req, res) => {
           <div class="loader" id="loader"></div>
           
           <div class="btn-container" id="buttons">
-            ${isMockMode ? `
+            ${isMockPaymentAllowed() ? (isMockMode ? `
               <div style="padding: 12px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; font-size: 13px; color: #fbbf24; margin-bottom: 10px;">
                 ⚠️ Sandbox mode active: Live Razorpay credentials are not configured or invalid.
               </div>
@@ -2551,7 +2636,13 @@ const handlePayPage = async (req, res) => {
             ` : `
               <button class="btn btn-primary" onclick="payReal()">Pay Securely via Razorpay</button>
               <button class="btn btn-simulated" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);" onclick="payMock()">Pay via Simulator (Test)</button>
-            `}
+            `) : (isMockMode ? `
+              <div style="padding: 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; font-size: 13px; color: #ef4444; margin-bottom: 10px;">
+                ❌ Payment unavailable: Live Razorpay credentials are not configured.
+              </div>
+            ` : `
+              <button class="btn btn-primary" onclick="payReal()">Pay Securely via Razorpay</button>
+            `)}
           </div>
           
           <div class="footer-text">
@@ -2643,11 +2734,33 @@ const handlePaymentCallback = async (req, res) => {
   }
 
   try {
+    let isDraftOrder = false;
     let order = null;
     if (!isNaN(orderIdStr)) {
-      order = await DbLayer.getOrderById(parseInt(orderIdStr));
+      const numId = parseInt(orderIdStr);
+      order = await DbLayer.getOrderById(numId);
+      // Also check in-memory draft orders (online payment orders pending confirmation)
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.id === numId) {
+            order = draft;
+            isDraftOrder = true;
+            break;
+          }
+        }
+      }
     } else {
       order = await DbLayer.getOrderByRazorpayOrderId(orderIdStr);
+      // Also check in-memory draft orders
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.razorpayOrderId === orderIdStr) {
+            order = draft;
+            isDraftOrder = true;
+            break;
+          }
+        }
+      }
     }
 
     if (!order) {
@@ -2662,18 +2775,31 @@ const handlePaymentCallback = async (req, res) => {
     if (status === "failed") {
       isSuccessful = false;
     } else if (mock === "true") {
+      if (!isMockPaymentAllowed()) {
+        return res.status(400).send("<h1>Error: Simulated payments are disabled in this environment.</h1>");
+      }
       isSuccessful = true;
     } else {
       isSuccessful = true;
     }
 
     if (isSuccessful) {
-      await DbLayer.updateOrder(orderId, {
-        status: "Paid",
-        bookingStatus: "searching",
-        razorpayPaymentId: finalPaymentId
-      });
-      console.log(`[Payment Callback] Order #${orderId} marked as Paid via payment ${finalPaymentId}`);
+      if (isDraftOrder) {
+        // Draft order (online payment, not yet in DB) – promote it to the database
+        order.status = "Paid";
+        order.bookingStatus = "searching";
+        order.razorpayPaymentId = finalPaymentId;
+        await DbLayer.createOrder(order);
+        draftOrders.delete(order.userPhone);
+        console.log(`[Payment Callback] Promoted draft order #${orderId} to database as Paid via payment ${finalPaymentId}`);
+      } else {
+        await DbLayer.updateOrder(orderId, {
+          status: "Paid",
+          bookingStatus: "searching",
+          razorpayPaymentId: finalPaymentId
+        });
+        console.log(`[Payment Callback] Order #${orderId} marked as Paid via payment ${finalPaymentId}`);
+      }
 
       res.send(`
         <!DOCTYPE html>
@@ -2946,19 +3072,48 @@ app.post('/api/payments/cod/:orderId', async (req, res) => {
   }
   try {
     const orderId = parseInt(orderIdStr);
-    const order = await DbLayer.getOrderById(orderId);
+    let order = await DbLayer.getOrderById(orderId);
+    let isDraft = false;
+    
+    if (!order) {
+      // Look in draftOrders in-memory map
+      for (const draft of draftOrders.values()) {
+        if (draft.id === orderId) {
+          order = draft;
+          isDraft = true;
+          break;
+        }
+      }
+    }
+    
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
     
-    // Set status to Pending and bookingStatus to searching for Cash orders
-    await DbLayer.updateOrder(orderId, {
-      status: "Pending",
-      bookingStatus: "searching"
-    });
-    
-    const updatedOrder = await DbLayer.getOrderById(orderId);
-    console.log(`[Payment] Order #${orderId} confirmed as Cash on Delivery`);
+    let updatedOrder;
+    if (isDraft) {
+      // Promote draft order to database
+      order.status = "Pending";
+      order.bookingStatus = "searching";
+      order.payment = {
+        paymentMethod: "Cash",
+        amountPaid: 0
+      };
+      updatedOrder = await DbLayer.createOrder(order);
+      draftOrders.delete(order.userPhone);
+      console.log(`[Payment] Promoted draft order #${orderId} to database as Cash on Delivery`);
+    } else {
+      await DbLayer.updateOrder(orderId, {
+        status: "Pending",
+        bookingStatus: "searching",
+        payment: {
+          paymentMethod: "Cash",
+          amountPaid: 0
+        }
+      });
+      updatedOrder = await DbLayer.getOrderById(orderId);
+      console.log(`[Payment] Order #${orderId} confirmed as Cash on Delivery`);
+    }
     
     res.json({
       success: true,
@@ -3269,8 +3424,11 @@ const handlePostBooking = async (req, res) => {
       };
     }
 
-    const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
-    const pendingOrders = userOrders.filter(o => o.bookingStatus && o.bookingStatus.toLowerCase() === "draft");
+    const pendingOrders = [];
+    const memDraft = draftOrders.get(user.phone);
+    if (memDraft) {
+      pendingOrders.push(memDraft);
+    }
 
     let order;
     if (pendingOrders && pendingOrders.length > 0) {
@@ -3304,13 +3462,20 @@ const handlePostBooking = async (req, res) => {
         }
       }
 
-      order = await DbLayer.updateOrder(existingOrder.id, updates);
-      console.log(`[handlePostBooking] Updated existing pending order #${existingOrder.id} with new booking details`);
+      order = { ...existingOrder, ...updates };
+      draftOrders.set(user.phone, order);
+      console.log(`[handlePostBooking] Updated in-memory draft order #${existingOrder.id} with new booking details`);
     } else {
-      // Create new pending order
+      // Create new pending order in memory
       const resolvedAddr = await resolveAddressForPhone(user.phone);
       const lastOrderId = await DbLayer.getLastOrderId();
-      const orderId = lastOrderId + 1;
+      let highestId = lastOrderId;
+      for (const draft of draftOrders.values()) {
+        if (draft.id > highestId) {
+          highestId = draft.id;
+        }
+      }
+      const orderId = highestId + 1;
 
       order = {
         id: orderId,
@@ -3333,8 +3498,8 @@ const handlePostBooking = async (req, res) => {
         },
         createdAt: Date.now()
       };
-      order = await DbLayer.createOrder(order);
-      console.log(`[handlePostBooking] Created new pending order #${order.id} for user ${user.phone}`);
+      draftOrders.set(user.phone, order);
+      console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone}`);
     }
 
     logBookingResult(200, true, null, user.phone);
@@ -3514,12 +3679,7 @@ const handlePostCheckout = async (req, res) => {
     }
     
     // Check if there is already an existing draft order for this user to confirm/place
-    let existingOrder = null;
-    const userOrders = await DbLayer.getOrdersByUserPhone(phone);
-    const pendingOrders = userOrders.filter(o => o.bookingStatus && o.bookingStatus.toLowerCase() === "draft");
-    if (pendingOrders && pendingOrders.length > 0) {
-      existingOrder = pendingOrders[0];
-    }
+    let existingOrder = draftOrders.get(phone) || null;
     
     // Auto-increment simple numerical ID or reuse existing pending order ID
     let orderId;
@@ -3528,7 +3688,13 @@ const handlePostCheckout = async (req, res) => {
       console.log(`[Checkout] Reusing existing pending Order #${orderId} for phone ${phone}`);
     } else {
       const lastOrderId = await DbLayer.getLastOrderId();
-      orderId = lastOrderId + 1;
+      let highestId = lastOrderId;
+      for (const draft of draftOrders.values()) {
+        if (draft.id > highestId) {
+          highestId = draft.id;
+        }
+      }
+      orderId = highestId + 1;
       console.log(`[Checkout] Generating new Order #${orderId} for phone ${phone}`);
     }
 
@@ -3593,6 +3759,10 @@ const handlePostCheckout = async (req, res) => {
     const resolvedTimeSlot = timeSlot || (existingOrder ? existingOrder.timeSlot : null) || (await getDynamicDateAndSlot()).timeSlot;
     const resolvedAddressField = resolvedAddress || (existingOrder ? existingOrder.address : null);
     
+    const isOnlinePayment = paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay";
+    const resolvedBookingStatus = isOnlinePayment ? "draft" : "searching";
+    const resolvedStatus = paymentMethod.toLowerCase() === "wallet" ? "Paid" : "Pending";
+
     const finalOrder = {
       id: orderId,
       userPhone: phone,
@@ -3600,8 +3770,8 @@ const handlePostCheckout = async (req, res) => {
       serviceName: foundService.title,
       price: Number(foundService.price),
       date: resolvedDate,
-      status: "Pending",
-      bookingStatus: "searching",
+      status: resolvedStatus,
+      bookingStatus: resolvedBookingStatus,
       partnerName: null,
       partnerDistance: null,
       productId: foundService.productId,
@@ -3617,25 +3787,16 @@ const handlePostCheckout = async (req, res) => {
       createdAt: Date.now()
     };
     
-    if (existingOrder) {
-      await DbLayer.updateOrder(orderId, {
-        serviceName: finalOrder.serviceName,
-        price: finalOrder.price,
-        date: finalOrder.date,
-        status: finalOrder.status,
-        bookingStatus: finalOrder.bookingStatus,
-        partnerName: finalOrder.partnerName,
-        partnerDistance: finalOrder.partnerDistance,
-        productId: finalOrder.productId,
-        description: finalOrder.description,
-        timeSlot: finalOrder.timeSlot,
-        address: finalOrder.address,
-        payment: finalOrder.payment,
-        razorpayOrderId: finalOrder.razorpayOrderId,
-        createdAt: finalOrder.createdAt
-      });
+    if (isOnlinePayment) {
+      // Do NOT write to the database yet. Keep it in the in-memory draft map.
+      draftOrders.set(phone, finalOrder);
+      console.log(`[Checkout] Saved online draft order #${orderId} for phone ${phone} in-memory`);
     } else {
+      // Write the finalized order to the database (COD / Wallet)
       await DbLayer.createOrder(finalOrder);
+      // Delete from in-memory draft map
+      draftOrders.delete(phone);
+      console.log(`[Checkout] Placed offline/wallet order #${orderId} for phone ${phone} to database`);
     }
     
     // Only simulate wallet balance deduction if paymentMethod is Wallet
@@ -4116,14 +4277,13 @@ const handleGetCheckout = async (req, res) => {
     // Check if the idParam looks like a phone number (user id)
     if (isNaN(idParam) || idParam.length >= 8) {
       const targetPhone = idParam === "me" ? user.phone : idParam;
-      const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
-      // Filter for strictly Draft checkout orders to avoid loading or corrupting past paid/completed bookings
-      const pendingOrders = userOrders.filter(o => o.bookingStatus && o.bookingStatus.toLowerCase() === "draft");
+      const pendingOrders = [];
+      const memDraft = draftOrders.get(targetPhone);
+      if (memDraft) {
+        pendingOrders.push(memDraft);
+      }
+      
       if (pendingOrders && pendingOrders.length > 0) {
-        // When multiple drafts exist, prefer the one that matches the requested
-        // productId (set by the Flutter app after a successful booking).  This
-        // prevents an old "Tap Repair" fallback draft from shadowing the real
-        // booking when the user navigates back through the checkout flow.
         let chosenOrder = null;
         if (queryProductId) {
           chosenOrder = pendingOrders.find(o =>
@@ -4148,6 +4308,7 @@ const handleGetCheckout = async (req, res) => {
         // Priority 3: Last resort — "Tap Repair"
         let inferredProductId = queryProductId;
         if (!inferredProductId) {
+          const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
           const recentRealOrder = userOrders.find(o =>
             o.serviceName &&
             o.serviceName.toLowerCase() !== 'tap repair' &&
@@ -4169,7 +4330,13 @@ const handleGetCheckout = async (req, res) => {
           };
         }
         const lastOrderId = await DbLayer.getLastOrderId();
-        const orderId = lastOrderId + 1;
+        let highestId = lastOrderId;
+        for (const draft of draftOrders.values()) {
+          if (draft.id > highestId) {
+            highestId = draft.id;
+          }
+        }
+        const orderId = highestId + 1;
         
         order = {
           id: orderId,
@@ -4192,14 +4359,22 @@ const handleGetCheckout = async (req, res) => {
           },
           createdAt: Date.now()
         };
-        await DbLayer.createOrder(order);
+        draftOrders.set(targetPhone, order);
         justCreated = true;
-        console.log(`[GetCheckout] Created and persisted fallback order #${orderId} for user ${targetPhone}`);
+        console.log(`[GetCheckout] Created in-memory fallback order #${orderId} for user ${targetPhone}`);
       }
     } else {
       // Treat as numerical orderId
       const orderId = parseInt(idParam);
       order = await DbLayer.getOrderById(orderId);
+      if (!order) {
+        for (const draft of draftOrders.values()) {
+          if (draft.id === orderId) {
+            order = draft;
+            break;
+          }
+        }
+      }
       if (order) {
         order = { ...order }; // Clone
       }
@@ -4238,9 +4413,9 @@ const handleGetCheckout = async (req, res) => {
           },
           createdAt: Date.now()
         };
-        await DbLayer.createOrder(order);
+        draftOrders.set(user.phone, order);
         justCreated = true;
-        console.log(`[GetCheckout] Created and persisted fallback order #${orderId} for order ID lookup`);
+        console.log(`[GetCheckout] Created in-memory fallback order #${orderId} for order ID lookup`);
       }
     }
     
@@ -4290,8 +4465,8 @@ const handleGetCheckout = async (req, res) => {
       }
       
       if (needsUpdate) {
-        await DbLayer.updateOrder(order.id, updates);
-        console.log(`[GetCheckout] Persisted overrides to database for order #${order.id}`);
+        draftOrders.set(order.userPhone, order);
+        console.log(`[GetCheckout] Persisted overrides to in-memory draft order #${order.id}`);
       }
     }
 
