@@ -3282,6 +3282,7 @@ const handlePostBooking = async (req, res) => {
         description: resolvedProduct.description,
         date: date,
         timeSlot: timeSlot,
+        status: "Draft",
       };
       if (existingOrder.payment) {
         updates.payment = {
@@ -3318,7 +3319,7 @@ const handlePostBooking = async (req, res) => {
         serviceName: resolvedProduct.serviceName,
         price: resolvedProduct.price,
         date: date,
-        status: "Pending",
+        status: "Draft",
         bookingStatus: "draft",
         partnerName: null,
         partnerDistance: null,
@@ -3358,13 +3359,15 @@ app.get('/api/bookings', async (req, res) => {
     const user = await getAuthenticatedUser(req).catch(() => null);
     if (user) {
       const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
-      const limitedUserOrders = userOrders.slice(0, 5);
+      const placedOrders = userOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
+      const limitedUserOrders = placedOrders.slice(0, 5);
       return res.json({ success: true, bookings: limitedUserOrders, message: "User bookings retrieved successfully" });
     }
     
     // Fallback: public view of all bookings in the system for testing without authorization header
     const allOrders = await DbLayer.getAllOrders();
-    const limitedAllOrders = allOrders.slice(0, 5);
+    const placedAllOrders = allOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
+    const limitedAllOrders = placedAllOrders.slice(0, 5);
     res.json({ success: true, bookings: limitedAllOrders, message: "Public bookings retrieved successfully" });
   } catch (err) {
     console.error("Fetch bookings failed:", err);
@@ -4175,7 +4178,7 @@ const handleGetCheckout = async (req, res) => {
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
           date: queryDate || (await getDynamicDateAndSlot()).date,
-          status: "Pending",
+          status: "Draft",
           bookingStatus: "draft",
           partnerName: null,
           partnerDistance: null,
@@ -4221,7 +4224,7 @@ const handleGetCheckout = async (req, res) => {
           serviceName: resolvedProduct.serviceName,
           price: resolvedProduct.price,
           date: queryDate || (await getDynamicDateAndSlot()).date,
-          status: "Pending",
+          status: "Draft",
           bookingStatus: "draft",
           partnerName: null,
           partnerDistance: null,
