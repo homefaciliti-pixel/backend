@@ -18,6 +18,7 @@ class CheckoutViewModel extends ChangeNotifier {
 
     required String phone,
     required String token,
+    String? productId,
 
   }) async {
 
@@ -29,6 +30,7 @@ class CheckoutViewModel extends ChangeNotifier {
 
       phone: phone,
       token: token,
+      productId: productId,
     );
 
     loading = false;

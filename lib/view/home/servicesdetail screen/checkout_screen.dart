@@ -39,6 +39,13 @@ class _CheckoutScreenState
 
     String phone = prefs.getString("phone") ?? "";
 
+    // Read the service that was booked in ServiceDetailScreen.
+    // Passing it to the API prevents the server from falling back
+    // to the default "Tap Repair" draft when the user navigates
+    // back to this screen after going to the payment page.
+    String productId =
+        prefs.getString("lastBookedProductId") ?? "";
+
     if (!mounted) return;
 
     Provider.of<CheckoutViewModel>(
@@ -47,6 +54,7 @@ class _CheckoutScreenState
     ).fetchCheckout(
       phone: phone,
       token: token,
+      productId: productId.isNotEmpty ? productId : null,
     );
   }
 

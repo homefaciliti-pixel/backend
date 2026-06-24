@@ -4117,13 +4117,45 @@ const handleGetCheckout = async (req, res) => {
       // Filter for strictly Draft checkout orders to avoid loading or corrupting past paid/completed bookings
       const pendingOrders = userOrders.filter(o => o.bookingStatus && o.bookingStatus.toLowerCase() === "draft");
       if (pendingOrders && pendingOrders.length > 0) {
-        order = { ...pendingOrders[0] }; // Clone to allow safe mutation
+        // When multiple drafts exist, prefer the one that matches the requested
+        // productId (set by the Flutter app after a successful booking).  This
+        // prevents an old "Tap Repair" fallback draft from shadowing the real
+        // booking when the user navigates back through the checkout flow.
+        let chosenOrder = null;
+        if (queryProductId) {
+          chosenOrder = pendingOrders.find(o =>
+            (o.productId && o.productId.toString().toLowerCase() === queryProductId.toLowerCase()) ||
+            (o.serviceName && o.serviceName.toLowerCase() === queryProductId.toLowerCase())
+          );
+        }
+        // If no exact match, prefer any non-"Tap Repair" draft (real booking)
+        if (!chosenOrder) {
+          chosenOrder = pendingOrders.find(o => o.serviceName && o.serviceName.toLowerCase() !== 'tap repair');
+        }
+        // Final fallback: most recent draft (pendingOrders is already DESC by id)
+        order = { ...(chosenOrder || pendingOrders[0]) };
       }
       
       // Dynamic fallback if no order exists for this user ID
       if (!order) {
         const resolvedAddr = await resolveAddressForPhone(targetPhone);
-        let resolvedProduct = await resolveServiceDetails(queryProductId);
+
+        // Priority 1: Use queryProductId if provided (set by updated Flutter app)
+        // Priority 2: Infer from user's most recent non-fallback order history
+        // Priority 3: Last resort — "Tap Repair"
+        let inferredProductId = queryProductId;
+        if (!inferredProductId) {
+          const recentRealOrder = userOrders.find(o =>
+            o.serviceName &&
+            o.serviceName.toLowerCase() !== 'tap repair' &&
+            (!o.productId || o.productId.toString().toLowerCase() !== 'tap repair')
+          );
+          if (recentRealOrder) {
+            inferredProductId = recentRealOrder.productId || recentRealOrder.serviceName;
+          }
+        }
+
+        let resolvedProduct = inferredProductId ? await resolveServiceDetails(inferredProductId) : null;
         if (!resolvedProduct) {
           resolvedProduct = await resolveServiceDetails("Tap Repair") || {
             productId: "Tap Repair",

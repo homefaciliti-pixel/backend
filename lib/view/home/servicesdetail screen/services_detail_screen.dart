@@ -82,6 +82,11 @@ Future<void> bookingApi({
     if (response.statusCode == 200 &&
         data["success"] == true) {
 
+      // Persist the booked productId so CheckoutScreen can pass it
+      // to the GET /api/checkout-api endpoint and always show the
+      // correct service (not the "Tap Repair" fallback).
+      await prefs.setString("lastBookedProductId", productId.toString());
+
       ScaffoldMessenger.of(context).showSnackBar(
 
         SnackBar(

@@ -12,16 +12,25 @@ class CheckoutService {
 
     required String phone,
     required String token,
+    String? productId,
 
   }) async {
 
     try {
 
+      // Build URL – include productId query param when available so the
+      // backend always returns the correct service instead of the
+      // "Tap Repair" fallback.
+      final baseUrl =
+          "https://backend-1-ux3b.onrender.com/api/checkout-api/$phone";
+      final uri = (productId != null && productId.isNotEmpty)
+          ? Uri.parse(baseUrl)
+              .replace(queryParameters: {"productId": productId})
+          : Uri.parse(baseUrl);
+
       final response = await http.get(
 
-        Uri.parse(
-          "https://backend-1-ux3b.onrender.com/api/checkout-api/$phone",
-        ),
+        uri,
 
         headers: {
 
