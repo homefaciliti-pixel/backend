@@ -1562,30 +1562,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
         }
 
         const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-        const dbServices = srvRows.map(r => {
-          const dbPrice = parseFloat(r.price);
-          const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
-          let finalPrice = dbPrice;
-          let cutPrice = dbPrice;
-          let displayDiscount = 0;
-          if (discountVal > 0) {
-            finalPrice = Math.max(0, dbPrice - discountVal);
-            displayDiscount = dbPrice > 0 ? Math.round((discountVal / dbPrice) * 100) : 0;
-            displayDiscount = Math.min(100, displayDiscount);
-          }
-          return {
-            productId: r.title,
-            title: r.title,
-            price: finalPrice,
-            description: r.description,
-            image: r.image,
-            discount: displayDiscount,
-            rating: r.rating !== null && r.rating !== undefined ? parseFloat(r.rating) : 4.8,
-            reviewsCount: 120,
-            cutPrice: cutPrice,
-            isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : ""
-          };
-        });
+        const dbServices = srvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
 
         // Resolve matching static category services
         const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
