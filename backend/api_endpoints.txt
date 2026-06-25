@@ -216,6 +216,27 @@ GET /api/localities
 - Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
 - Note: Queries the active database `localities` table dynamically filtering by city ID or state ID if matching parameters are supplied.
 
+GET /api/countries
+- Query Parameters:
+  - `search` (optional): Case-insensitive search query to filter countries by name, code, or dial code.
+- Response: {
+    "success": true,
+    "countries": [
+      {
+        "name": "India",
+        "code": "IN",
+        "dial_code": "+91",
+        "dialCode": "+91",
+        "flag": "🇮🇳",
+        "flagUrl": "https://flagcdn.com/w80/in.png",
+        "flag_url": "https://flagcdn.com/w80/in.png"
+      },
+      ...
+    ],
+    "message": "Countries retrieved successfully"
+  }
+- Note: Returns a comprehensive list of 246 countries of the world with their names, ISO 2-letter codes, dial codes, flag emojis, and public flag image CDN URLs.
+
 ---------------------------------------------------------
 8. Banners API
 ---------------------------------------------------------

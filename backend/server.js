@@ -4912,6 +4912,2248 @@ app.get('/api/booking/available-solts', handleGetAvailableSlots);
 app.get('/api/booking/available-slot', handleGetAvailableSlots);
 app.get('/api/booking/available-solt', handleGetAvailableSlots);
 
+
+// Dropdown: Get Countries
+const countriesList = [
+  {
+    "name": "Afghanistan",
+    "code": "AF",
+    "dial_code": "+93",
+    "dialCode": "+93",
+    "flag": "🇦🇫",
+    "flagUrl": "https://flagcdn.com/w80/af.png",
+    "flag_url": "https://flagcdn.com/w80/af.png"
+  },
+  {
+    "name": "Åland Islands",
+    "code": "AX",
+    "dial_code": "+358",
+    "dialCode": "+358",
+    "flag": "🇦🇽",
+    "flagUrl": "https://flagcdn.com/w80/ax.png",
+    "flag_url": "https://flagcdn.com/w80/ax.png"
+  },
+  {
+    "name": "Albania",
+    "code": "AL",
+    "dial_code": "+355",
+    "dialCode": "+355",
+    "flag": "🇦🇱",
+    "flagUrl": "https://flagcdn.com/w80/al.png",
+    "flag_url": "https://flagcdn.com/w80/al.png"
+  },
+  {
+    "name": "Algeria",
+    "code": "DZ",
+    "dial_code": "+213",
+    "dialCode": "+213",
+    "flag": "🇩🇿",
+    "flagUrl": "https://flagcdn.com/w80/dz.png",
+    "flag_url": "https://flagcdn.com/w80/dz.png"
+  },
+  {
+    "name": "American Samoa",
+    "code": "AS",
+    "dial_code": "+1684",
+    "dialCode": "+1684",
+    "flag": "🇦🇸",
+    "flagUrl": "https://flagcdn.com/w80/as.png",
+    "flag_url": "https://flagcdn.com/w80/as.png"
+  },
+  {
+    "name": "Andorra",
+    "code": "AD",
+    "dial_code": "+376",
+    "dialCode": "+376",
+    "flag": "🇦🇩",
+    "flagUrl": "https://flagcdn.com/w80/ad.png",
+    "flag_url": "https://flagcdn.com/w80/ad.png"
+  },
+  {
+    "name": "Angola",
+    "code": "AO",
+    "dial_code": "+244",
+    "dialCode": "+244",
+    "flag": "🇦🇴",
+    "flagUrl": "https://flagcdn.com/w80/ao.png",
+    "flag_url": "https://flagcdn.com/w80/ao.png"
+  },
+  {
+    "name": "Anguilla",
+    "code": "AI",
+    "dial_code": "+1264",
+    "dialCode": "+1264",
+    "flag": "🇦🇮",
+    "flagUrl": "https://flagcdn.com/w80/ai.png",
+    "flag_url": "https://flagcdn.com/w80/ai.png"
+  },
+  {
+    "name": "Antarctica",
+    "code": "AQ",
+    "dial_code": "+672",
+    "dialCode": "+672",
+    "flag": "🇦🇶",
+    "flagUrl": "https://flagcdn.com/w80/aq.png",
+    "flag_url": "https://flagcdn.com/w80/aq.png"
+  },
+  {
+    "name": "Antigua and Barbuda",
+    "code": "AG",
+    "dial_code": "+1268",
+    "dialCode": "+1268",
+    "flag": "🇦🇬",
+    "flagUrl": "https://flagcdn.com/w80/ag.png",
+    "flag_url": "https://flagcdn.com/w80/ag.png"
+  },
+  {
+    "name": "Argentina",
+    "code": "AR",
+    "dial_code": "+54",
+    "dialCode": "+54",
+    "flag": "🇦🇷",
+    "flagUrl": "https://flagcdn.com/w80/ar.png",
+    "flag_url": "https://flagcdn.com/w80/ar.png"
+  },
+  {
+    "name": "Armenia",
+    "code": "AM",
+    "dial_code": "+374",
+    "dialCode": "+374",
+    "flag": "🇦🇲",
+    "flagUrl": "https://flagcdn.com/w80/am.png",
+    "flag_url": "https://flagcdn.com/w80/am.png"
+  },
+  {
+    "name": "Aruba",
+    "code": "AW",
+    "dial_code": "+297",
+    "dialCode": "+297",
+    "flag": "🇦🇼",
+    "flagUrl": "https://flagcdn.com/w80/aw.png",
+    "flag_url": "https://flagcdn.com/w80/aw.png"
+  },
+  {
+    "name": "Australia",
+    "code": "AU",
+    "dial_code": "+61",
+    "dialCode": "+61",
+    "flag": "🇦🇺",
+    "flagUrl": "https://flagcdn.com/w80/au.png",
+    "flag_url": "https://flagcdn.com/w80/au.png"
+  },
+  {
+    "name": "Austria",
+    "code": "AT",
+    "dial_code": "+43",
+    "dialCode": "+43",
+    "flag": "🇦🇹",
+    "flagUrl": "https://flagcdn.com/w80/at.png",
+    "flag_url": "https://flagcdn.com/w80/at.png"
+  },
+  {
+    "name": "Azerbaijan",
+    "code": "AZ",
+    "dial_code": "+994",
+    "dialCode": "+994",
+    "flag": "🇦🇿",
+    "flagUrl": "https://flagcdn.com/w80/az.png",
+    "flag_url": "https://flagcdn.com/w80/az.png"
+  },
+  {
+    "name": "Bahamas",
+    "code": "BS",
+    "dial_code": "+1242",
+    "dialCode": "+1242",
+    "flag": "🇧🇸",
+    "flagUrl": "https://flagcdn.com/w80/bs.png",
+    "flag_url": "https://flagcdn.com/w80/bs.png"
+  },
+  {
+    "name": "Bahrain",
+    "code": "BH",
+    "dial_code": "+973",
+    "dialCode": "+973",
+    "flag": "🇧🇭",
+    "flagUrl": "https://flagcdn.com/w80/bh.png",
+    "flag_url": "https://flagcdn.com/w80/bh.png"
+  },
+  {
+    "name": "Bangladesh",
+    "code": "BD",
+    "dial_code": "+880",
+    "dialCode": "+880",
+    "flag": "🇧🇩",
+    "flagUrl": "https://flagcdn.com/w80/bd.png",
+    "flag_url": "https://flagcdn.com/w80/bd.png"
+  },
+  {
+    "name": "Barbados",
+    "code": "BB",
+    "dial_code": "+1246",
+    "dialCode": "+1246",
+    "flag": "🇧🇧",
+    "flagUrl": "https://flagcdn.com/w80/bb.png",
+    "flag_url": "https://flagcdn.com/w80/bb.png"
+  },
+  {
+    "name": "Belarus",
+    "code": "BY",
+    "dial_code": "+375",
+    "dialCode": "+375",
+    "flag": "🇧🇾",
+    "flagUrl": "https://flagcdn.com/w80/by.png",
+    "flag_url": "https://flagcdn.com/w80/by.png"
+  },
+  {
+    "name": "Belgium",
+    "code": "BE",
+    "dial_code": "+32",
+    "dialCode": "+32",
+    "flag": "🇧🇪",
+    "flagUrl": "https://flagcdn.com/w80/be.png",
+    "flag_url": "https://flagcdn.com/w80/be.png"
+  },
+  {
+    "name": "Belize",
+    "code": "BZ",
+    "dial_code": "+501",
+    "dialCode": "+501",
+    "flag": "🇧🇿",
+    "flagUrl": "https://flagcdn.com/w80/bz.png",
+    "flag_url": "https://flagcdn.com/w80/bz.png"
+  },
+  {
+    "name": "Benin",
+    "code": "BJ",
+    "dial_code": "+229",
+    "dialCode": "+229",
+    "flag": "🇧🇯",
+    "flagUrl": "https://flagcdn.com/w80/bj.png",
+    "flag_url": "https://flagcdn.com/w80/bj.png"
+  },
+  {
+    "name": "Bermuda",
+    "code": "BM",
+    "dial_code": "+1441",
+    "dialCode": "+1441",
+    "flag": "🇧🇲",
+    "flagUrl": "https://flagcdn.com/w80/bm.png",
+    "flag_url": "https://flagcdn.com/w80/bm.png"
+  },
+  {
+    "name": "Bhutan",
+    "code": "BT",
+    "dial_code": "+975",
+    "dialCode": "+975",
+    "flag": "🇧🇹",
+    "flagUrl": "https://flagcdn.com/w80/bt.png",
+    "flag_url": "https://flagcdn.com/w80/bt.png"
+  },
+  {
+    "name": "Bolivia, Plurinational State of bolivia",
+    "code": "BO",
+    "dial_code": "+591",
+    "dialCode": "+591",
+    "flag": "🇧🇴",
+    "flagUrl": "https://flagcdn.com/w80/bo.png",
+    "flag_url": "https://flagcdn.com/w80/bo.png"
+  },
+  {
+    "name": "Bosnia and Herzegovina",
+    "code": "BA",
+    "dial_code": "+387",
+    "dialCode": "+387",
+    "flag": "🇧🇦",
+    "flagUrl": "https://flagcdn.com/w80/ba.png",
+    "flag_url": "https://flagcdn.com/w80/ba.png"
+  },
+  {
+    "name": "Botswana",
+    "code": "BW",
+    "dial_code": "+267",
+    "dialCode": "+267",
+    "flag": "🇧🇼",
+    "flagUrl": "https://flagcdn.com/w80/bw.png",
+    "flag_url": "https://flagcdn.com/w80/bw.png"
+  },
+  {
+    "name": "Bouvet Island",
+    "code": "BV",
+    "dial_code": "+47",
+    "dialCode": "+47",
+    "flag": "🇧🇻",
+    "flagUrl": "https://flagcdn.com/w80/bv.png",
+    "flag_url": "https://flagcdn.com/w80/bv.png"
+  },
+  {
+    "name": "Brazil",
+    "code": "BR",
+    "dial_code": "+55",
+    "dialCode": "+55",
+    "flag": "🇧🇷",
+    "flagUrl": "https://flagcdn.com/w80/br.png",
+    "flag_url": "https://flagcdn.com/w80/br.png"
+  },
+  {
+    "name": "British Indian Ocean Territory",
+    "code": "IO",
+    "dial_code": "+246",
+    "dialCode": "+246",
+    "flag": "🇮🇴",
+    "flagUrl": "https://flagcdn.com/w80/io.png",
+    "flag_url": "https://flagcdn.com/w80/io.png"
+  },
+  {
+    "name": "Brunei Darussalam",
+    "code": "BN",
+    "dial_code": "+673",
+    "dialCode": "+673",
+    "flag": "🇧🇳",
+    "flagUrl": "https://flagcdn.com/w80/bn.png",
+    "flag_url": "https://flagcdn.com/w80/bn.png"
+  },
+  {
+    "name": "Bulgaria",
+    "code": "BG",
+    "dial_code": "+359",
+    "dialCode": "+359",
+    "flag": "🇧🇬",
+    "flagUrl": "https://flagcdn.com/w80/bg.png",
+    "flag_url": "https://flagcdn.com/w80/bg.png"
+  },
+  {
+    "name": "Burkina Faso",
+    "code": "BF",
+    "dial_code": "+226",
+    "dialCode": "+226",
+    "flag": "🇧🇫",
+    "flagUrl": "https://flagcdn.com/w80/bf.png",
+    "flag_url": "https://flagcdn.com/w80/bf.png"
+  },
+  {
+    "name": "Burundi",
+    "code": "BI",
+    "dial_code": "+257",
+    "dialCode": "+257",
+    "flag": "🇧🇮",
+    "flagUrl": "https://flagcdn.com/w80/bi.png",
+    "flag_url": "https://flagcdn.com/w80/bi.png"
+  },
+  {
+    "name": "Cambodia",
+    "code": "KH",
+    "dial_code": "+855",
+    "dialCode": "+855",
+    "flag": "🇰🇭",
+    "flagUrl": "https://flagcdn.com/w80/kh.png",
+    "flag_url": "https://flagcdn.com/w80/kh.png"
+  },
+  {
+    "name": "Cameroon",
+    "code": "CM",
+    "dial_code": "+237",
+    "dialCode": "+237",
+    "flag": "🇨🇲",
+    "flagUrl": "https://flagcdn.com/w80/cm.png",
+    "flag_url": "https://flagcdn.com/w80/cm.png"
+  },
+  {
+    "name": "Canada",
+    "code": "CA",
+    "dial_code": "+1",
+    "dialCode": "+1",
+    "flag": "🇨🇦",
+    "flagUrl": "https://flagcdn.com/w80/ca.png",
+    "flag_url": "https://flagcdn.com/w80/ca.png"
+  },
+  {
+    "name": "Cape Verde",
+    "code": "CV",
+    "dial_code": "+238",
+    "dialCode": "+238",
+    "flag": "🇨🇻",
+    "flagUrl": "https://flagcdn.com/w80/cv.png",
+    "flag_url": "https://flagcdn.com/w80/cv.png"
+  },
+  {
+    "name": "Cayman Islands",
+    "code": "KY",
+    "dial_code": "+345",
+    "dialCode": "+345",
+    "flag": "🇰🇾",
+    "flagUrl": "https://flagcdn.com/w80/ky.png",
+    "flag_url": "https://flagcdn.com/w80/ky.png"
+  },
+  {
+    "name": "Central African Republic",
+    "code": "CF",
+    "dial_code": "+236",
+    "dialCode": "+236",
+    "flag": "🇨🇫",
+    "flagUrl": "https://flagcdn.com/w80/cf.png",
+    "flag_url": "https://flagcdn.com/w80/cf.png"
+  },
+  {
+    "name": "Chad",
+    "code": "TD",
+    "dial_code": "+235",
+    "dialCode": "+235",
+    "flag": "🇹🇩",
+    "flagUrl": "https://flagcdn.com/w80/td.png",
+    "flag_url": "https://flagcdn.com/w80/td.png"
+  },
+  {
+    "name": "Chile",
+    "code": "CL",
+    "dial_code": "+56",
+    "dialCode": "+56",
+    "flag": "🇨🇱",
+    "flagUrl": "https://flagcdn.com/w80/cl.png",
+    "flag_url": "https://flagcdn.com/w80/cl.png"
+  },
+  {
+    "name": "China",
+    "code": "CN",
+    "dial_code": "+86",
+    "dialCode": "+86",
+    "flag": "🇨🇳",
+    "flagUrl": "https://flagcdn.com/w80/cn.png",
+    "flag_url": "https://flagcdn.com/w80/cn.png"
+  },
+  {
+    "name": "Christmas Island",
+    "code": "CX",
+    "dial_code": "+61",
+    "dialCode": "+61",
+    "flag": "🇨🇽",
+    "flagUrl": "https://flagcdn.com/w80/cx.png",
+    "flag_url": "https://flagcdn.com/w80/cx.png"
+  },
+  {
+    "name": "Cocos (Keeling) Islands",
+    "code": "CC",
+    "dial_code": "+61",
+    "dialCode": "+61",
+    "flag": "🇨🇨",
+    "flagUrl": "https://flagcdn.com/w80/cc.png",
+    "flag_url": "https://flagcdn.com/w80/cc.png"
+  },
+  {
+    "name": "Colombia",
+    "code": "CO",
+    "dial_code": "+57",
+    "dialCode": "+57",
+    "flag": "🇨🇴",
+    "flagUrl": "https://flagcdn.com/w80/co.png",
+    "flag_url": "https://flagcdn.com/w80/co.png"
+  },
+  {
+    "name": "Comoros",
+    "code": "KM",
+    "dial_code": "+269",
+    "dialCode": "+269",
+    "flag": "🇰🇲",
+    "flagUrl": "https://flagcdn.com/w80/km.png",
+    "flag_url": "https://flagcdn.com/w80/km.png"
+  },
+  {
+    "name": "Congo",
+    "code": "CG",
+    "dial_code": "+242",
+    "dialCode": "+242",
+    "flag": "🇨🇬",
+    "flagUrl": "https://flagcdn.com/w80/cg.png",
+    "flag_url": "https://flagcdn.com/w80/cg.png"
+  },
+  {
+    "name": "Congo, The Democratic Republic of the Congo",
+    "code": "CD",
+    "dial_code": "+243",
+    "dialCode": "+243",
+    "flag": "🇨🇩",
+    "flagUrl": "https://flagcdn.com/w80/cd.png",
+    "flag_url": "https://flagcdn.com/w80/cd.png"
+  },
+  {
+    "name": "Cook Islands",
+    "code": "CK",
+    "dial_code": "+682",
+    "dialCode": "+682",
+    "flag": "🇨🇰",
+    "flagUrl": "https://flagcdn.com/w80/ck.png",
+    "flag_url": "https://flagcdn.com/w80/ck.png"
+  },
+  {
+    "name": "Costa Rica",
+    "code": "CR",
+    "dial_code": "+506",
+    "dialCode": "+506",
+    "flag": "🇨🇷",
+    "flagUrl": "https://flagcdn.com/w80/cr.png",
+    "flag_url": "https://flagcdn.com/w80/cr.png"
+  },
+  {
+    "name": "Cote d'Ivoire",
+    "code": "CI",
+    "dial_code": "+225",
+    "dialCode": "+225",
+    "flag": "🇨🇮",
+    "flagUrl": "https://flagcdn.com/w80/ci.png",
+    "flag_url": "https://flagcdn.com/w80/ci.png"
+  },
+  {
+    "name": "Croatia",
+    "code": "HR",
+    "dial_code": "+385",
+    "dialCode": "+385",
+    "flag": "🇭🇷",
+    "flagUrl": "https://flagcdn.com/w80/hr.png",
+    "flag_url": "https://flagcdn.com/w80/hr.png"
+  },
+  {
+    "name": "Cuba",
+    "code": "CU",
+    "dial_code": "+53",
+    "dialCode": "+53",
+    "flag": "🇨🇺",
+    "flagUrl": "https://flagcdn.com/w80/cu.png",
+    "flag_url": "https://flagcdn.com/w80/cu.png"
+  },
+  {
+    "name": "Cyprus",
+    "code": "CY",
+    "dial_code": "+357",
+    "dialCode": "+357",
+    "flag": "🇨🇾",
+    "flagUrl": "https://flagcdn.com/w80/cy.png",
+    "flag_url": "https://flagcdn.com/w80/cy.png"
+  },
+  {
+    "name": "Czech Republic",
+    "code": "CZ",
+    "dial_code": "+420",
+    "dialCode": "+420",
+    "flag": "🇨🇿",
+    "flagUrl": "https://flagcdn.com/w80/cz.png",
+    "flag_url": "https://flagcdn.com/w80/cz.png"
+  },
+  {
+    "name": "Denmark",
+    "code": "DK",
+    "dial_code": "+45",
+    "dialCode": "+45",
+    "flag": "🇩🇰",
+    "flagUrl": "https://flagcdn.com/w80/dk.png",
+    "flag_url": "https://flagcdn.com/w80/dk.png"
+  },
+  {
+    "name": "Djibouti",
+    "code": "DJ",
+    "dial_code": "+253",
+    "dialCode": "+253",
+    "flag": "🇩🇯",
+    "flagUrl": "https://flagcdn.com/w80/dj.png",
+    "flag_url": "https://flagcdn.com/w80/dj.png"
+  },
+  {
+    "name": "Dominica",
+    "code": "DM",
+    "dial_code": "+1767",
+    "dialCode": "+1767",
+    "flag": "🇩🇲",
+    "flagUrl": "https://flagcdn.com/w80/dm.png",
+    "flag_url": "https://flagcdn.com/w80/dm.png"
+  },
+  {
+    "name": "Dominican Republic",
+    "code": "DO",
+    "dial_code": "+1849",
+    "dialCode": "+1849",
+    "flag": "🇩🇴",
+    "flagUrl": "https://flagcdn.com/w80/do.png",
+    "flag_url": "https://flagcdn.com/w80/do.png"
+  },
+  {
+    "name": "Ecuador",
+    "code": "EC",
+    "dial_code": "+593",
+    "dialCode": "+593",
+    "flag": "🇪🇨",
+    "flagUrl": "https://flagcdn.com/w80/ec.png",
+    "flag_url": "https://flagcdn.com/w80/ec.png"
+  },
+  {
+    "name": "Egypt",
+    "code": "EG",
+    "dial_code": "+20",
+    "dialCode": "+20",
+    "flag": "🇪🇬",
+    "flagUrl": "https://flagcdn.com/w80/eg.png",
+    "flag_url": "https://flagcdn.com/w80/eg.png"
+  },
+  {
+    "name": "El Salvador",
+    "code": "SV",
+    "dial_code": "+503",
+    "dialCode": "+503",
+    "flag": "🇸🇻",
+    "flagUrl": "https://flagcdn.com/w80/sv.png",
+    "flag_url": "https://flagcdn.com/w80/sv.png"
+  },
+  {
+    "name": "Equatorial Guinea",
+    "code": "GQ",
+    "dial_code": "+240",
+    "dialCode": "+240",
+    "flag": "🇬🇶",
+    "flagUrl": "https://flagcdn.com/w80/gq.png",
+    "flag_url": "https://flagcdn.com/w80/gq.png"
+  },
+  {
+    "name": "Eritrea",
+    "code": "ER",
+    "dial_code": "+291",
+    "dialCode": "+291",
+    "flag": "🇪🇷",
+    "flagUrl": "https://flagcdn.com/w80/er.png",
+    "flag_url": "https://flagcdn.com/w80/er.png"
+  },
+  {
+    "name": "Estonia",
+    "code": "EE",
+    "dial_code": "+372",
+    "dialCode": "+372",
+    "flag": "🇪🇪",
+    "flagUrl": "https://flagcdn.com/w80/ee.png",
+    "flag_url": "https://flagcdn.com/w80/ee.png"
+  },
+  {
+    "name": "Eswatini",
+    "code": "SZ",
+    "dial_code": "+268",
+    "dialCode": "+268",
+    "flag": "🇸🇿",
+    "flagUrl": "https://flagcdn.com/w80/sz.png",
+    "flag_url": "https://flagcdn.com/w80/sz.png"
+  },
+  {
+    "name": "Ethiopia",
+    "code": "ET",
+    "dial_code": "+251",
+    "dialCode": "+251",
+    "flag": "🇪🇹",
+    "flagUrl": "https://flagcdn.com/w80/et.png",
+    "flag_url": "https://flagcdn.com/w80/et.png"
+  },
+  {
+    "name": "Falkland Islands (Malvinas)",
+    "code": "FK",
+    "dial_code": "+500",
+    "dialCode": "+500",
+    "flag": "🇫🇰",
+    "flagUrl": "https://flagcdn.com/w80/fk.png",
+    "flag_url": "https://flagcdn.com/w80/fk.png"
+  },
+  {
+    "name": "Faroe Islands",
+    "code": "FO",
+    "dial_code": "+298",
+    "dialCode": "+298",
+    "flag": "🇫🇴",
+    "flagUrl": "https://flagcdn.com/w80/fo.png",
+    "flag_url": "https://flagcdn.com/w80/fo.png"
+  },
+  {
+    "name": "Fiji",
+    "code": "FJ",
+    "dial_code": "+679",
+    "dialCode": "+679",
+    "flag": "🇫🇯",
+    "flagUrl": "https://flagcdn.com/w80/fj.png",
+    "flag_url": "https://flagcdn.com/w80/fj.png"
+  },
+  {
+    "name": "Finland",
+    "code": "FI",
+    "dial_code": "+358",
+    "dialCode": "+358",
+    "flag": "🇫🇮",
+    "flagUrl": "https://flagcdn.com/w80/fi.png",
+    "flag_url": "https://flagcdn.com/w80/fi.png"
+  },
+  {
+    "name": "France",
+    "code": "FR",
+    "dial_code": "+33",
+    "dialCode": "+33",
+    "flag": "🇫🇷",
+    "flagUrl": "https://flagcdn.com/w80/fr.png",
+    "flag_url": "https://flagcdn.com/w80/fr.png"
+  },
+  {
+    "name": "French Guiana",
+    "code": "GF",
+    "dial_code": "+594",
+    "dialCode": "+594",
+    "flag": "🇬🇫",
+    "flagUrl": "https://flagcdn.com/w80/gf.png",
+    "flag_url": "https://flagcdn.com/w80/gf.png"
+  },
+  {
+    "name": "French Polynesia",
+    "code": "PF",
+    "dial_code": "+689",
+    "dialCode": "+689",
+    "flag": "🇵🇫",
+    "flagUrl": "https://flagcdn.com/w80/pf.png",
+    "flag_url": "https://flagcdn.com/w80/pf.png"
+  },
+  {
+    "name": "French Southern Territories",
+    "code": "TF",
+    "dial_code": "+262",
+    "dialCode": "+262",
+    "flag": "🇹🇫",
+    "flagUrl": "https://flagcdn.com/w80/tf.png",
+    "flag_url": "https://flagcdn.com/w80/tf.png"
+  },
+  {
+    "name": "Gabon",
+    "code": "GA",
+    "dial_code": "+241",
+    "dialCode": "+241",
+    "flag": "🇬🇦",
+    "flagUrl": "https://flagcdn.com/w80/ga.png",
+    "flag_url": "https://flagcdn.com/w80/ga.png"
+  },
+  {
+    "name": "Gambia",
+    "code": "GM",
+    "dial_code": "+220",
+    "dialCode": "+220",
+    "flag": "🇬🇲",
+    "flagUrl": "https://flagcdn.com/w80/gm.png",
+    "flag_url": "https://flagcdn.com/w80/gm.png"
+  },
+  {
+    "name": "Georgia",
+    "code": "GE",
+    "dial_code": "+995",
+    "dialCode": "+995",
+    "flag": "🇬🇪",
+    "flagUrl": "https://flagcdn.com/w80/ge.png",
+    "flag_url": "https://flagcdn.com/w80/ge.png"
+  },
+  {
+    "name": "Germany",
+    "code": "DE",
+    "dial_code": "+49",
+    "dialCode": "+49",
+    "flag": "🇩🇪",
+    "flagUrl": "https://flagcdn.com/w80/de.png",
+    "flag_url": "https://flagcdn.com/w80/de.png"
+  },
+  {
+    "name": "Ghana",
+    "code": "GH",
+    "dial_code": "+233",
+    "dialCode": "+233",
+    "flag": "🇬🇭",
+    "flagUrl": "https://flagcdn.com/w80/gh.png",
+    "flag_url": "https://flagcdn.com/w80/gh.png"
+  },
+  {
+    "name": "Gibraltar",
+    "code": "GI",
+    "dial_code": "+350",
+    "dialCode": "+350",
+    "flag": "🇬🇮",
+    "flagUrl": "https://flagcdn.com/w80/gi.png",
+    "flag_url": "https://flagcdn.com/w80/gi.png"
+  },
+  {
+    "name": "Greece",
+    "code": "GR",
+    "dial_code": "+30",
+    "dialCode": "+30",
+    "flag": "🇬🇷",
+    "flagUrl": "https://flagcdn.com/w80/gr.png",
+    "flag_url": "https://flagcdn.com/w80/gr.png"
+  },
+  {
+    "name": "Greenland",
+    "code": "GL",
+    "dial_code": "+299",
+    "dialCode": "+299",
+    "flag": "🇬🇱",
+    "flagUrl": "https://flagcdn.com/w80/gl.png",
+    "flag_url": "https://flagcdn.com/w80/gl.png"
+  },
+  {
+    "name": "Grenada",
+    "code": "GD",
+    "dial_code": "+1473",
+    "dialCode": "+1473",
+    "flag": "🇬🇩",
+    "flagUrl": "https://flagcdn.com/w80/gd.png",
+    "flag_url": "https://flagcdn.com/w80/gd.png"
+  },
+  {
+    "name": "Guadeloupe",
+    "code": "GP",
+    "dial_code": "+590",
+    "dialCode": "+590",
+    "flag": "🇬🇵",
+    "flagUrl": "https://flagcdn.com/w80/gp.png",
+    "flag_url": "https://flagcdn.com/w80/gp.png"
+  },
+  {
+    "name": "Guam",
+    "code": "GU",
+    "dial_code": "+1671",
+    "dialCode": "+1671",
+    "flag": "🇬🇺",
+    "flagUrl": "https://flagcdn.com/w80/gu.png",
+    "flag_url": "https://flagcdn.com/w80/gu.png"
+  },
+  {
+    "name": "Guatemala",
+    "code": "GT",
+    "dial_code": "+502",
+    "dialCode": "+502",
+    "flag": "🇬🇹",
+    "flagUrl": "https://flagcdn.com/w80/gt.png",
+    "flag_url": "https://flagcdn.com/w80/gt.png"
+  },
+  {
+    "name": "Guernsey",
+    "code": "GG",
+    "dial_code": "+44",
+    "dialCode": "+44",
+    "flag": "🇬🇬",
+    "flagUrl": "https://flagcdn.com/w80/gg.png",
+    "flag_url": "https://flagcdn.com/w80/gg.png"
+  },
+  {
+    "name": "Guinea",
+    "code": "GN",
+    "dial_code": "+224",
+    "dialCode": "+224",
+    "flag": "🇬🇳",
+    "flagUrl": "https://flagcdn.com/w80/gn.png",
+    "flag_url": "https://flagcdn.com/w80/gn.png"
+  },
+  {
+    "name": "Guinea-Bissau",
+    "code": "GW",
+    "dial_code": "+245",
+    "dialCode": "+245",
+    "flag": "🇬🇼",
+    "flagUrl": "https://flagcdn.com/w80/gw.png",
+    "flag_url": "https://flagcdn.com/w80/gw.png"
+  },
+  {
+    "name": "Guyana",
+    "code": "GY",
+    "dial_code": "+592",
+    "dialCode": "+592",
+    "flag": "🇬🇾",
+    "flagUrl": "https://flagcdn.com/w80/gy.png",
+    "flag_url": "https://flagcdn.com/w80/gy.png"
+  },
+  {
+    "name": "Haiti",
+    "code": "HT",
+    "dial_code": "+509",
+    "dialCode": "+509",
+    "flag": "🇭🇹",
+    "flagUrl": "https://flagcdn.com/w80/ht.png",
+    "flag_url": "https://flagcdn.com/w80/ht.png"
+  },
+  {
+    "name": "Heard Island and Mcdonald Islands",
+    "code": "HM",
+    "dial_code": "+672",
+    "dialCode": "+672",
+    "flag": "🇭🇲",
+    "flagUrl": "https://flagcdn.com/w80/hm.png",
+    "flag_url": "https://flagcdn.com/w80/hm.png"
+  },
+  {
+    "name": "Holy See (Vatican City State)",
+    "code": "VA",
+    "dial_code": "+379",
+    "dialCode": "+379",
+    "flag": "🇻🇦",
+    "flagUrl": "https://flagcdn.com/w80/va.png",
+    "flag_url": "https://flagcdn.com/w80/va.png"
+  },
+  {
+    "name": "Honduras",
+    "code": "HN",
+    "dial_code": "+504",
+    "dialCode": "+504",
+    "flag": "🇭🇳",
+    "flagUrl": "https://flagcdn.com/w80/hn.png",
+    "flag_url": "https://flagcdn.com/w80/hn.png"
+  },
+  {
+    "name": "Hong Kong",
+    "code": "HK",
+    "dial_code": "+852",
+    "dialCode": "+852",
+    "flag": "🇭🇰",
+    "flagUrl": "https://flagcdn.com/w80/hk.png",
+    "flag_url": "https://flagcdn.com/w80/hk.png"
+  },
+  {
+    "name": "Hungary",
+    "code": "HU",
+    "dial_code": "+36",
+    "dialCode": "+36",
+    "flag": "🇭🇺",
+    "flagUrl": "https://flagcdn.com/w80/hu.png",
+    "flag_url": "https://flagcdn.com/w80/hu.png"
+  },
+  {
+    "name": "Iceland",
+    "code": "IS",
+    "dial_code": "+354",
+    "dialCode": "+354",
+    "flag": "🇮🇸",
+    "flagUrl": "https://flagcdn.com/w80/is.png",
+    "flag_url": "https://flagcdn.com/w80/is.png"
+  },
+  {
+    "name": "India",
+    "code": "IN",
+    "dial_code": "+91",
+    "dialCode": "+91",
+    "flag": "🇮🇳",
+    "flagUrl": "https://flagcdn.com/w80/in.png",
+    "flag_url": "https://flagcdn.com/w80/in.png"
+  },
+  {
+    "name": "Indonesia",
+    "code": "ID",
+    "dial_code": "+62",
+    "dialCode": "+62",
+    "flag": "🇮🇩",
+    "flagUrl": "https://flagcdn.com/w80/id.png",
+    "flag_url": "https://flagcdn.com/w80/id.png"
+  },
+  {
+    "name": "Iran, Islamic Republic of Persian Gulf",
+    "code": "IR",
+    "dial_code": "+98",
+    "dialCode": "+98",
+    "flag": "🇮🇷",
+    "flagUrl": "https://flagcdn.com/w80/ir.png",
+    "flag_url": "https://flagcdn.com/w80/ir.png"
+  },
+  {
+    "name": "Iraq",
+    "code": "IQ",
+    "dial_code": "+964",
+    "dialCode": "+964",
+    "flag": "🇮🇶",
+    "flagUrl": "https://flagcdn.com/w80/iq.png",
+    "flag_url": "https://flagcdn.com/w80/iq.png"
+  },
+  {
+    "name": "Ireland",
+    "code": "IE",
+    "dial_code": "+353",
+    "dialCode": "+353",
+    "flag": "🇮🇪",
+    "flagUrl": "https://flagcdn.com/w80/ie.png",
+    "flag_url": "https://flagcdn.com/w80/ie.png"
+  },
+  {
+    "name": "Isle of Man",
+    "code": "IM",
+    "dial_code": "+44",
+    "dialCode": "+44",
+    "flag": "🇮🇲",
+    "flagUrl": "https://flagcdn.com/w80/im.png",
+    "flag_url": "https://flagcdn.com/w80/im.png"
+  },
+  {
+    "name": "Israel",
+    "code": "IL",
+    "dial_code": "+972",
+    "dialCode": "+972",
+    "flag": "🇮🇱",
+    "flagUrl": "https://flagcdn.com/w80/il.png",
+    "flag_url": "https://flagcdn.com/w80/il.png"
+  },
+  {
+    "name": "Italy",
+    "code": "IT",
+    "dial_code": "+39",
+    "dialCode": "+39",
+    "flag": "🇮🇹",
+    "flagUrl": "https://flagcdn.com/w80/it.png",
+    "flag_url": "https://flagcdn.com/w80/it.png"
+  },
+  {
+    "name": "Jamaica",
+    "code": "JM",
+    "dial_code": "+1876",
+    "dialCode": "+1876",
+    "flag": "🇯🇲",
+    "flagUrl": "https://flagcdn.com/w80/jm.png",
+    "flag_url": "https://flagcdn.com/w80/jm.png"
+  },
+  {
+    "name": "Japan",
+    "code": "JP",
+    "dial_code": "+81",
+    "dialCode": "+81",
+    "flag": "🇯🇵",
+    "flagUrl": "https://flagcdn.com/w80/jp.png",
+    "flag_url": "https://flagcdn.com/w80/jp.png"
+  },
+  {
+    "name": "Jersey",
+    "code": "JE",
+    "dial_code": "+44",
+    "dialCode": "+44",
+    "flag": "🇯🇪",
+    "flagUrl": "https://flagcdn.com/w80/je.png",
+    "flag_url": "https://flagcdn.com/w80/je.png"
+  },
+  {
+    "name": "Jordan",
+    "code": "JO",
+    "dial_code": "+962",
+    "dialCode": "+962",
+    "flag": "🇯🇴",
+    "flagUrl": "https://flagcdn.com/w80/jo.png",
+    "flag_url": "https://flagcdn.com/w80/jo.png"
+  },
+  {
+    "name": "Kazakhstan",
+    "code": "KZ",
+    "dial_code": "+7",
+    "dialCode": "+7",
+    "flag": "🇰🇿",
+    "flagUrl": "https://flagcdn.com/w80/kz.png",
+    "flag_url": "https://flagcdn.com/w80/kz.png"
+  },
+  {
+    "name": "Kenya",
+    "code": "KE",
+    "dial_code": "+254",
+    "dialCode": "+254",
+    "flag": "🇰🇪",
+    "flagUrl": "https://flagcdn.com/w80/ke.png",
+    "flag_url": "https://flagcdn.com/w80/ke.png"
+  },
+  {
+    "name": "Kiribati",
+    "code": "KI",
+    "dial_code": "+686",
+    "dialCode": "+686",
+    "flag": "🇰🇮",
+    "flagUrl": "https://flagcdn.com/w80/ki.png",
+    "flag_url": "https://flagcdn.com/w80/ki.png"
+  },
+  {
+    "name": "Korea, Democratic People's Republic of Korea",
+    "code": "KP",
+    "dial_code": "+850",
+    "dialCode": "+850",
+    "flag": "🇰🇵",
+    "flagUrl": "https://flagcdn.com/w80/kp.png",
+    "flag_url": "https://flagcdn.com/w80/kp.png"
+  },
+  {
+    "name": "Korea, Republic of South Korea",
+    "code": "KR",
+    "dial_code": "+82",
+    "dialCode": "+82",
+    "flag": "🇰🇷",
+    "flagUrl": "https://flagcdn.com/w80/kr.png",
+    "flag_url": "https://flagcdn.com/w80/kr.png"
+  },
+  {
+    "name": "Kosovo",
+    "code": "XK",
+    "dial_code": "+383",
+    "dialCode": "+383",
+    "flag": "🇽🇰",
+    "flagUrl": "https://flagcdn.com/w80/xk.png",
+    "flag_url": "https://flagcdn.com/w80/xk.png"
+  },
+  {
+    "name": "Kuwait",
+    "code": "KW",
+    "dial_code": "+965",
+    "dialCode": "+965",
+    "flag": "🇰🇼",
+    "flagUrl": "https://flagcdn.com/w80/kw.png",
+    "flag_url": "https://flagcdn.com/w80/kw.png"
+  },
+  {
+    "name": "Kyrgyzstan",
+    "code": "KG",
+    "dial_code": "+996",
+    "dialCode": "+996",
+    "flag": "🇰🇬",
+    "flagUrl": "https://flagcdn.com/w80/kg.png",
+    "flag_url": "https://flagcdn.com/w80/kg.png"
+  },
+  {
+    "name": "Laos",
+    "code": "LA",
+    "dial_code": "+856",
+    "dialCode": "+856",
+    "flag": "🇱🇦",
+    "flagUrl": "https://flagcdn.com/w80/la.png",
+    "flag_url": "https://flagcdn.com/w80/la.png"
+  },
+  {
+    "name": "Latvia",
+    "code": "LV",
+    "dial_code": "+371",
+    "dialCode": "+371",
+    "flag": "🇱🇻",
+    "flagUrl": "https://flagcdn.com/w80/lv.png",
+    "flag_url": "https://flagcdn.com/w80/lv.png"
+  },
+  {
+    "name": "Lebanon",
+    "code": "LB",
+    "dial_code": "+961",
+    "dialCode": "+961",
+    "flag": "🇱🇧",
+    "flagUrl": "https://flagcdn.com/w80/lb.png",
+    "flag_url": "https://flagcdn.com/w80/lb.png"
+  },
+  {
+    "name": "Lesotho",
+    "code": "LS",
+    "dial_code": "+266",
+    "dialCode": "+266",
+    "flag": "🇱🇸",
+    "flagUrl": "https://flagcdn.com/w80/ls.png",
+    "flag_url": "https://flagcdn.com/w80/ls.png"
+  },
+  {
+    "name": "Liberia",
+    "code": "LR",
+    "dial_code": "+231",
+    "dialCode": "+231",
+    "flag": "🇱🇷",
+    "flagUrl": "https://flagcdn.com/w80/lr.png",
+    "flag_url": "https://flagcdn.com/w80/lr.png"
+  },
+  {
+    "name": "Libyan Arab Jamahiriya",
+    "code": "LY",
+    "dial_code": "+218",
+    "dialCode": "+218",
+    "flag": "🇱🇾",
+    "flagUrl": "https://flagcdn.com/w80/ly.png",
+    "flag_url": "https://flagcdn.com/w80/ly.png"
+  },
+  {
+    "name": "Liechtenstein",
+    "code": "LI",
+    "dial_code": "+423",
+    "dialCode": "+423",
+    "flag": "🇱🇮",
+    "flagUrl": "https://flagcdn.com/w80/li.png",
+    "flag_url": "https://flagcdn.com/w80/li.png"
+  },
+  {
+    "name": "Lithuania",
+    "code": "LT",
+    "dial_code": "+370",
+    "dialCode": "+370",
+    "flag": "🇱🇹",
+    "flagUrl": "https://flagcdn.com/w80/lt.png",
+    "flag_url": "https://flagcdn.com/w80/lt.png"
+  },
+  {
+    "name": "Luxembourg",
+    "code": "LU",
+    "dial_code": "+352",
+    "dialCode": "+352",
+    "flag": "🇱🇺",
+    "flagUrl": "https://flagcdn.com/w80/lu.png",
+    "flag_url": "https://flagcdn.com/w80/lu.png"
+  },
+  {
+    "name": "Macao",
+    "code": "MO",
+    "dial_code": "+853",
+    "dialCode": "+853",
+    "flag": "🇲🇴",
+    "flagUrl": "https://flagcdn.com/w80/mo.png",
+    "flag_url": "https://flagcdn.com/w80/mo.png"
+  },
+  {
+    "name": "Macedonia",
+    "code": "MK",
+    "dial_code": "+389",
+    "dialCode": "+389",
+    "flag": "🇲🇰",
+    "flagUrl": "https://flagcdn.com/w80/mk.png",
+    "flag_url": "https://flagcdn.com/w80/mk.png"
+  },
+  {
+    "name": "Madagascar",
+    "code": "MG",
+    "dial_code": "+261",
+    "dialCode": "+261",
+    "flag": "🇲🇬",
+    "flagUrl": "https://flagcdn.com/w80/mg.png",
+    "flag_url": "https://flagcdn.com/w80/mg.png"
+  },
+  {
+    "name": "Malawi",
+    "code": "MW",
+    "dial_code": "+265",
+    "dialCode": "+265",
+    "flag": "🇲🇼",
+    "flagUrl": "https://flagcdn.com/w80/mw.png",
+    "flag_url": "https://flagcdn.com/w80/mw.png"
+  },
+  {
+    "name": "Malaysia",
+    "code": "MY",
+    "dial_code": "+60",
+    "dialCode": "+60",
+    "flag": "🇲🇾",
+    "flagUrl": "https://flagcdn.com/w80/my.png",
+    "flag_url": "https://flagcdn.com/w80/my.png"
+  },
+  {
+    "name": "Maldives",
+    "code": "MV",
+    "dial_code": "+960",
+    "dialCode": "+960",
+    "flag": "🇲🇻",
+    "flagUrl": "https://flagcdn.com/w80/mv.png",
+    "flag_url": "https://flagcdn.com/w80/mv.png"
+  },
+  {
+    "name": "Mali",
+    "code": "ML",
+    "dial_code": "+223",
+    "dialCode": "+223",
+    "flag": "🇲🇱",
+    "flagUrl": "https://flagcdn.com/w80/ml.png",
+    "flag_url": "https://flagcdn.com/w80/ml.png"
+  },
+  {
+    "name": "Malta",
+    "code": "MT",
+    "dial_code": "+356",
+    "dialCode": "+356",
+    "flag": "🇲🇹",
+    "flagUrl": "https://flagcdn.com/w80/mt.png",
+    "flag_url": "https://flagcdn.com/w80/mt.png"
+  },
+  {
+    "name": "Marshall Islands",
+    "code": "MH",
+    "dial_code": "+692",
+    "dialCode": "+692",
+    "flag": "🇲🇭",
+    "flagUrl": "https://flagcdn.com/w80/mh.png",
+    "flag_url": "https://flagcdn.com/w80/mh.png"
+  },
+  {
+    "name": "Martinique",
+    "code": "MQ",
+    "dial_code": "+596",
+    "dialCode": "+596",
+    "flag": "🇲🇶",
+    "flagUrl": "https://flagcdn.com/w80/mq.png",
+    "flag_url": "https://flagcdn.com/w80/mq.png"
+  },
+  {
+    "name": "Mauritania",
+    "code": "MR",
+    "dial_code": "+222",
+    "dialCode": "+222",
+    "flag": "🇲🇷",
+    "flagUrl": "https://flagcdn.com/w80/mr.png",
+    "flag_url": "https://flagcdn.com/w80/mr.png"
+  },
+  {
+    "name": "Mauritius",
+    "code": "MU",
+    "dial_code": "+230",
+    "dialCode": "+230",
+    "flag": "🇲🇺",
+    "flagUrl": "https://flagcdn.com/w80/mu.png",
+    "flag_url": "https://flagcdn.com/w80/mu.png"
+  },
+  {
+    "name": "Mayotte",
+    "code": "YT",
+    "dial_code": "+262",
+    "dialCode": "+262",
+    "flag": "🇾🇹",
+    "flagUrl": "https://flagcdn.com/w80/yt.png",
+    "flag_url": "https://flagcdn.com/w80/yt.png"
+  },
+  {
+    "name": "Mexico",
+    "code": "MX",
+    "dial_code": "+52",
+    "dialCode": "+52",
+    "flag": "🇲🇽",
+    "flagUrl": "https://flagcdn.com/w80/mx.png",
+    "flag_url": "https://flagcdn.com/w80/mx.png"
+  },
+  {
+    "name": "Micronesia, Federated States of Micronesia",
+    "code": "FM",
+    "dial_code": "+691",
+    "dialCode": "+691",
+    "flag": "🇫🇲",
+    "flagUrl": "https://flagcdn.com/w80/fm.png",
+    "flag_url": "https://flagcdn.com/w80/fm.png"
+  },
+  {
+    "name": "Moldova",
+    "code": "MD",
+    "dial_code": "+373",
+    "dialCode": "+373",
+    "flag": "🇲🇩",
+    "flagUrl": "https://flagcdn.com/w80/md.png",
+    "flag_url": "https://flagcdn.com/w80/md.png"
+  },
+  {
+    "name": "Monaco",
+    "code": "MC",
+    "dial_code": "+377",
+    "dialCode": "+377",
+    "flag": "🇲🇨",
+    "flagUrl": "https://flagcdn.com/w80/mc.png",
+    "flag_url": "https://flagcdn.com/w80/mc.png"
+  },
+  {
+    "name": "Mongolia",
+    "code": "MN",
+    "dial_code": "+976",
+    "dialCode": "+976",
+    "flag": "🇲🇳",
+    "flagUrl": "https://flagcdn.com/w80/mn.png",
+    "flag_url": "https://flagcdn.com/w80/mn.png"
+  },
+  {
+    "name": "Montenegro",
+    "code": "ME",
+    "dial_code": "+382",
+    "dialCode": "+382",
+    "flag": "🇲🇪",
+    "flagUrl": "https://flagcdn.com/w80/me.png",
+    "flag_url": "https://flagcdn.com/w80/me.png"
+  },
+  {
+    "name": "Montserrat",
+    "code": "MS",
+    "dial_code": "+1664",
+    "dialCode": "+1664",
+    "flag": "🇲🇸",
+    "flagUrl": "https://flagcdn.com/w80/ms.png",
+    "flag_url": "https://flagcdn.com/w80/ms.png"
+  },
+  {
+    "name": "Morocco",
+    "code": "MA",
+    "dial_code": "+212",
+    "dialCode": "+212",
+    "flag": "🇲🇦",
+    "flagUrl": "https://flagcdn.com/w80/ma.png",
+    "flag_url": "https://flagcdn.com/w80/ma.png"
+  },
+  {
+    "name": "Mozambique",
+    "code": "MZ",
+    "dial_code": "+258",
+    "dialCode": "+258",
+    "flag": "🇲🇿",
+    "flagUrl": "https://flagcdn.com/w80/mz.png",
+    "flag_url": "https://flagcdn.com/w80/mz.png"
+  },
+  {
+    "name": "Myanmar",
+    "code": "MM",
+    "dial_code": "+95",
+    "dialCode": "+95",
+    "flag": "🇲🇲",
+    "flagUrl": "https://flagcdn.com/w80/mm.png",
+    "flag_url": "https://flagcdn.com/w80/mm.png"
+  },
+  {
+    "name": "Namibia",
+    "code": "NA",
+    "dial_code": "+264",
+    "dialCode": "+264",
+    "flag": "🇳🇦",
+    "flagUrl": "https://flagcdn.com/w80/na.png",
+    "flag_url": "https://flagcdn.com/w80/na.png"
+  },
+  {
+    "name": "Nauru",
+    "code": "NR",
+    "dial_code": "+674",
+    "dialCode": "+674",
+    "flag": "🇳🇷",
+    "flagUrl": "https://flagcdn.com/w80/nr.png",
+    "flag_url": "https://flagcdn.com/w80/nr.png"
+  },
+  {
+    "name": "Nepal",
+    "code": "NP",
+    "dial_code": "+977",
+    "dialCode": "+977",
+    "flag": "🇳🇵",
+    "flagUrl": "https://flagcdn.com/w80/np.png",
+    "flag_url": "https://flagcdn.com/w80/np.png"
+  },
+  {
+    "name": "Netherlands",
+    "code": "NL",
+    "dial_code": "+31",
+    "dialCode": "+31",
+    "flag": "🇳🇱",
+    "flagUrl": "https://flagcdn.com/w80/nl.png",
+    "flag_url": "https://flagcdn.com/w80/nl.png"
+  },
+  {
+    "name": "Netherlands Antilles",
+    "code": "AN",
+    "dial_code": "+599",
+    "dialCode": "+599",
+    "flag": "",
+    "flagUrl": "https://flagcdn.com/w80/an.png",
+    "flag_url": "https://flagcdn.com/w80/an.png"
+  },
+  {
+    "name": "New Caledonia",
+    "code": "NC",
+    "dial_code": "+687",
+    "dialCode": "+687",
+    "flag": "🇳🇨",
+    "flagUrl": "https://flagcdn.com/w80/nc.png",
+    "flag_url": "https://flagcdn.com/w80/nc.png"
+  },
+  {
+    "name": "New Zealand",
+    "code": "NZ",
+    "dial_code": "+64",
+    "dialCode": "+64",
+    "flag": "🇳🇿",
+    "flagUrl": "https://flagcdn.com/w80/nz.png",
+    "flag_url": "https://flagcdn.com/w80/nz.png"
+  },
+  {
+    "name": "Nicaragua",
+    "code": "NI",
+    "dial_code": "+505",
+    "dialCode": "+505",
+    "flag": "🇳🇮",
+    "flagUrl": "https://flagcdn.com/w80/ni.png",
+    "flag_url": "https://flagcdn.com/w80/ni.png"
+  },
+  {
+    "name": "Niger",
+    "code": "NE",
+    "dial_code": "+227",
+    "dialCode": "+227",
+    "flag": "🇳🇪",
+    "flagUrl": "https://flagcdn.com/w80/ne.png",
+    "flag_url": "https://flagcdn.com/w80/ne.png"
+  },
+  {
+    "name": "Nigeria",
+    "code": "NG",
+    "dial_code": "+234",
+    "dialCode": "+234",
+    "flag": "🇳🇬",
+    "flagUrl": "https://flagcdn.com/w80/ng.png",
+    "flag_url": "https://flagcdn.com/w80/ng.png"
+  },
+  {
+    "name": "Niue",
+    "code": "NU",
+    "dial_code": "+683",
+    "dialCode": "+683",
+    "flag": "🇳🇺",
+    "flagUrl": "https://flagcdn.com/w80/nu.png",
+    "flag_url": "https://flagcdn.com/w80/nu.png"
+  },
+  {
+    "name": "Norfolk Island",
+    "code": "NF",
+    "dial_code": "+672",
+    "dialCode": "+672",
+    "flag": "🇳🇫",
+    "flagUrl": "https://flagcdn.com/w80/nf.png",
+    "flag_url": "https://flagcdn.com/w80/nf.png"
+  },
+  {
+    "name": "Northern Mariana Islands",
+    "code": "MP",
+    "dial_code": "+1670",
+    "dialCode": "+1670",
+    "flag": "🇲🇵",
+    "flagUrl": "https://flagcdn.com/w80/mp.png",
+    "flag_url": "https://flagcdn.com/w80/mp.png"
+  },
+  {
+    "name": "Norway",
+    "code": "NO",
+    "dial_code": "+47",
+    "dialCode": "+47",
+    "flag": "🇳🇴",
+    "flagUrl": "https://flagcdn.com/w80/no.png",
+    "flag_url": "https://flagcdn.com/w80/no.png"
+  },
+  {
+    "name": "Oman",
+    "code": "OM",
+    "dial_code": "+968",
+    "dialCode": "+968",
+    "flag": "🇴🇲",
+    "flagUrl": "https://flagcdn.com/w80/om.png",
+    "flag_url": "https://flagcdn.com/w80/om.png"
+  },
+  {
+    "name": "Pakistan",
+    "code": "PK",
+    "dial_code": "+92",
+    "dialCode": "+92",
+    "flag": "🇵🇰",
+    "flagUrl": "https://flagcdn.com/w80/pk.png",
+    "flag_url": "https://flagcdn.com/w80/pk.png"
+  },
+  {
+    "name": "Palau",
+    "code": "PW",
+    "dial_code": "+680",
+    "dialCode": "+680",
+    "flag": "🇵🇼",
+    "flagUrl": "https://flagcdn.com/w80/pw.png",
+    "flag_url": "https://flagcdn.com/w80/pw.png"
+  },
+  {
+    "name": "Palestinian Territory, Occupied",
+    "code": "PS",
+    "dial_code": "+970",
+    "dialCode": "+970",
+    "flag": "🇵🇸",
+    "flagUrl": "https://flagcdn.com/w80/ps.png",
+    "flag_url": "https://flagcdn.com/w80/ps.png"
+  },
+  {
+    "name": "Panama",
+    "code": "PA",
+    "dial_code": "+507",
+    "dialCode": "+507",
+    "flag": "🇵🇦",
+    "flagUrl": "https://flagcdn.com/w80/pa.png",
+    "flag_url": "https://flagcdn.com/w80/pa.png"
+  },
+  {
+    "name": "Papua New Guinea",
+    "code": "PG",
+    "dial_code": "+675",
+    "dialCode": "+675",
+    "flag": "🇵🇬",
+    "flagUrl": "https://flagcdn.com/w80/pg.png",
+    "flag_url": "https://flagcdn.com/w80/pg.png"
+  },
+  {
+    "name": "Paraguay",
+    "code": "PY",
+    "dial_code": "+595",
+    "dialCode": "+595",
+    "flag": "🇵🇾",
+    "flagUrl": "https://flagcdn.com/w80/py.png",
+    "flag_url": "https://flagcdn.com/w80/py.png"
+  },
+  {
+    "name": "Peru",
+    "code": "PE",
+    "dial_code": "+51",
+    "dialCode": "+51",
+    "flag": "🇵🇪",
+    "flagUrl": "https://flagcdn.com/w80/pe.png",
+    "flag_url": "https://flagcdn.com/w80/pe.png"
+  },
+  {
+    "name": "Philippines",
+    "code": "PH",
+    "dial_code": "+63",
+    "dialCode": "+63",
+    "flag": "🇵🇭",
+    "flagUrl": "https://flagcdn.com/w80/ph.png",
+    "flag_url": "https://flagcdn.com/w80/ph.png"
+  },
+  {
+    "name": "Pitcairn",
+    "code": "PN",
+    "dial_code": "+64",
+    "dialCode": "+64",
+    "flag": "🇵🇳",
+    "flagUrl": "https://flagcdn.com/w80/pn.png",
+    "flag_url": "https://flagcdn.com/w80/pn.png"
+  },
+  {
+    "name": "Poland",
+    "code": "PL",
+    "dial_code": "+48",
+    "dialCode": "+48",
+    "flag": "🇵🇱",
+    "flagUrl": "https://flagcdn.com/w80/pl.png",
+    "flag_url": "https://flagcdn.com/w80/pl.png"
+  },
+  {
+    "name": "Portugal",
+    "code": "PT",
+    "dial_code": "+351",
+    "dialCode": "+351",
+    "flag": "🇵🇹",
+    "flagUrl": "https://flagcdn.com/w80/pt.png",
+    "flag_url": "https://flagcdn.com/w80/pt.png"
+  },
+  {
+    "name": "Puerto Rico",
+    "code": "PR",
+    "dial_code": "+1939",
+    "dialCode": "+1939",
+    "flag": "🇵🇷",
+    "flagUrl": "https://flagcdn.com/w80/pr.png",
+    "flag_url": "https://flagcdn.com/w80/pr.png"
+  },
+  {
+    "name": "Qatar",
+    "code": "QA",
+    "dial_code": "+974",
+    "dialCode": "+974",
+    "flag": "🇶🇦",
+    "flagUrl": "https://flagcdn.com/w80/qa.png",
+    "flag_url": "https://flagcdn.com/w80/qa.png"
+  },
+  {
+    "name": "Reunion",
+    "code": "RE",
+    "dial_code": "+262",
+    "dialCode": "+262",
+    "flag": "🇷🇪",
+    "flagUrl": "https://flagcdn.com/w80/re.png",
+    "flag_url": "https://flagcdn.com/w80/re.png"
+  },
+  {
+    "name": "Romania",
+    "code": "RO",
+    "dial_code": "+40",
+    "dialCode": "+40",
+    "flag": "🇷🇴",
+    "flagUrl": "https://flagcdn.com/w80/ro.png",
+    "flag_url": "https://flagcdn.com/w80/ro.png"
+  },
+  {
+    "name": "Russia",
+    "code": "RU",
+    "dial_code": "+7",
+    "dialCode": "+7",
+    "flag": "🇷����",
+    "flagUrl": "https://flagcdn.com/w80/ru.png",
+    "flag_url": "https://flagcdn.com/w80/ru.png"
+  },
+  {
+    "name": "Rwanda",
+    "code": "RW",
+    "dial_code": "+250",
+    "dialCode": "+250",
+    "flag": "🇷🇼",
+    "flagUrl": "https://flagcdn.com/w80/rw.png",
+    "flag_url": "https://flagcdn.com/w80/rw.png"
+  },
+  {
+    "name": "Saint Barthelemy",
+    "code": "BL",
+    "dial_code": "+590",
+    "dialCode": "+590",
+    "flag": "🇧🇱",
+    "flagUrl": "https://flagcdn.com/w80/bl.png",
+    "flag_url": "https://flagcdn.com/w80/bl.png"
+  },
+  {
+    "name": "Saint Helena, Ascension and Tristan Da Cunha",
+    "code": "SH",
+    "dial_code": "+290",
+    "dialCode": "+290",
+    "flag": "🇸🇭",
+    "flagUrl": "https://flagcdn.com/w80/sh.png",
+    "flag_url": "https://flagcdn.com/w80/sh.png"
+  },
+  {
+    "name": "Saint Kitts and Nevis",
+    "code": "KN",
+    "dial_code": "+1869",
+    "dialCode": "+1869",
+    "flag": "🇰🇳",
+    "flagUrl": "https://flagcdn.com/w80/kn.png",
+    "flag_url": "https://flagcdn.com/w80/kn.png"
+  },
+  {
+    "name": "Saint Lucia",
+    "code": "LC",
+    "dial_code": "+1758",
+    "dialCode": "+1758",
+    "flag": "🇱🇨",
+    "flagUrl": "https://flagcdn.com/w80/lc.png",
+    "flag_url": "https://flagcdn.com/w80/lc.png"
+  },
+  {
+    "name": "Saint Martin",
+    "code": "MF",
+    "dial_code": "+590",
+    "dialCode": "+590",
+    "flag": "🇲🇫",
+    "flagUrl": "https://flagcdn.com/w80/mf.png",
+    "flag_url": "https://flagcdn.com/w80/mf.png"
+  },
+  {
+    "name": "Saint Pierre and Miquelon",
+    "code": "PM",
+    "dial_code": "+508",
+    "dialCode": "+508",
+    "flag": "🇵🇲",
+    "flagUrl": "https://flagcdn.com/w80/pm.png",
+    "flag_url": "https://flagcdn.com/w80/pm.png"
+  },
+  {
+    "name": "Saint Vincent and the Grenadines",
+    "code": "VC",
+    "dial_code": "+1784",
+    "dialCode": "+1784",
+    "flag": "🇻🇨",
+    "flagUrl": "https://flagcdn.com/w80/vc.png",
+    "flag_url": "https://flagcdn.com/w80/vc.png"
+  },
+  {
+    "name": "Samoa",
+    "code": "WS",
+    "dial_code": "+685",
+    "dialCode": "+685",
+    "flag": "🇼🇸",
+    "flagUrl": "https://flagcdn.com/w80/ws.png",
+    "flag_url": "https://flagcdn.com/w80/ws.png"
+  },
+  {
+    "name": "San Marino",
+    "code": "SM",
+    "dial_code": "+378",
+    "dialCode": "+378",
+    "flag": "🇸🇲",
+    "flagUrl": "https://flagcdn.com/w80/sm.png",
+    "flag_url": "https://flagcdn.com/w80/sm.png"
+  },
+  {
+    "name": "Sao Tome and Principe",
+    "code": "ST",
+    "dial_code": "+239",
+    "dialCode": "+239",
+    "flag": "🇸🇹",
+    "flagUrl": "https://flagcdn.com/w80/st.png",
+    "flag_url": "https://flagcdn.com/w80/st.png"
+  },
+  {
+    "name": "Saudi Arabia",
+    "code": "SA",
+    "dial_code": "+966",
+    "dialCode": "+966",
+    "flag": "🇸🇦",
+    "flagUrl": "https://flagcdn.com/w80/sa.png",
+    "flag_url": "https://flagcdn.com/w80/sa.png"
+  },
+  {
+    "name": "Senegal",
+    "code": "SN",
+    "dial_code": "+221",
+    "dialCode": "+221",
+    "flag": "🇸🇳",
+    "flagUrl": "https://flagcdn.com/w80/sn.png",
+    "flag_url": "https://flagcdn.com/w80/sn.png"
+  },
+  {
+    "name": "Serbia",
+    "code": "RS",
+    "dial_code": "+381",
+    "dialCode": "+381",
+    "flag": "🇷🇸",
+    "flagUrl": "https://flagcdn.com/w80/rs.png",
+    "flag_url": "https://flagcdn.com/w80/rs.png"
+  },
+  {
+    "name": "Seychelles",
+    "code": "SC",
+    "dial_code": "+248",
+    "dialCode": "+248",
+    "flag": "🇸🇨",
+    "flagUrl": "https://flagcdn.com/w80/sc.png",
+    "flag_url": "https://flagcdn.com/w80/sc.png"
+  },
+  {
+    "name": "Sierra Leone",
+    "code": "SL",
+    "dial_code": "+232",
+    "dialCode": "+232",
+    "flag": "🇸🇱",
+    "flagUrl": "https://flagcdn.com/w80/sl.png",
+    "flag_url": "https://flagcdn.com/w80/sl.png"
+  },
+  {
+    "name": "Singapore",
+    "code": "SG",
+    "dial_code": "+65",
+    "dialCode": "+65",
+    "flag": "🇸🇬",
+    "flagUrl": "https://flagcdn.com/w80/sg.png",
+    "flag_url": "https://flagcdn.com/w80/sg.png"
+  },
+  {
+    "name": "Slovakia",
+    "code": "SK",
+    "dial_code": "+421",
+    "dialCode": "+421",
+    "flag": "🇸🇰",
+    "flagUrl": "https://flagcdn.com/w80/sk.png",
+    "flag_url": "https://flagcdn.com/w80/sk.png"
+  },
+  {
+    "name": "Slovenia",
+    "code": "SI",
+    "dial_code": "+386",
+    "dialCode": "+386",
+    "flag": "🇸🇮",
+    "flagUrl": "https://flagcdn.com/w80/si.png",
+    "flag_url": "https://flagcdn.com/w80/si.png"
+  },
+  {
+    "name": "Solomon Islands",
+    "code": "SB",
+    "dial_code": "+677",
+    "dialCode": "+677",
+    "flag": "🇸🇧",
+    "flagUrl": "https://flagcdn.com/w80/sb.png",
+    "flag_url": "https://flagcdn.com/w80/sb.png"
+  },
+  {
+    "name": "Somalia",
+    "code": "SO",
+    "dial_code": "+252",
+    "dialCode": "+252",
+    "flag": "🇸🇴",
+    "flagUrl": "https://flagcdn.com/w80/so.png",
+    "flag_url": "https://flagcdn.com/w80/so.png"
+  },
+  {
+    "name": "South Africa",
+    "code": "ZA",
+    "dial_code": "+27",
+    "dialCode": "+27",
+    "flag": "🇿🇦",
+    "flagUrl": "https://flagcdn.com/w80/za.png",
+    "flag_url": "https://flagcdn.com/w80/za.png"
+  },
+  {
+    "name": "South Georgia and the South Sandwich Islands",
+    "code": "GS",
+    "dial_code": "+500",
+    "dialCode": "+500",
+    "flag": "🇬🇸",
+    "flagUrl": "https://flagcdn.com/w80/gs.png",
+    "flag_url": "https://flagcdn.com/w80/gs.png"
+  },
+  {
+    "name": "South Sudan",
+    "code": "SS",
+    "dial_code": "+211",
+    "dialCode": "+211",
+    "flag": "🇸🇸",
+    "flagUrl": "https://flagcdn.com/w80/ss.png",
+    "flag_url": "https://flagcdn.com/w80/ss.png"
+  },
+  {
+    "name": "Spain",
+    "code": "ES",
+    "dial_code": "+34",
+    "dialCode": "+34",
+    "flag": "🇪🇸",
+    "flagUrl": "https://flagcdn.com/w80/es.png",
+    "flag_url": "https://flagcdn.com/w80/es.png"
+  },
+  {
+    "name": "Sri Lanka",
+    "code": "LK",
+    "dial_code": "+94",
+    "dialCode": "+94",
+    "flag": "🇱🇰",
+    "flagUrl": "https://flagcdn.com/w80/lk.png",
+    "flag_url": "https://flagcdn.com/w80/lk.png"
+  },
+  {
+    "name": "Sudan",
+    "code": "SD",
+    "dial_code": "+249",
+    "dialCode": "+249",
+    "flag": "🇸🇩",
+    "flagUrl": "https://flagcdn.com/w80/sd.png",
+    "flag_url": "https://flagcdn.com/w80/sd.png"
+  },
+  {
+    "name": "Suriname",
+    "code": "SR",
+    "dial_code": "+597",
+    "dialCode": "+597",
+    "flag": "🇸🇷",
+    "flagUrl": "https://flagcdn.com/w80/sr.png",
+    "flag_url": "https://flagcdn.com/w80/sr.png"
+  },
+  {
+    "name": "Svalbard and Jan Mayen",
+    "code": "SJ",
+    "dial_code": "+47",
+    "dialCode": "+47",
+    "flag": "🇸🇯",
+    "flagUrl": "https://flagcdn.com/w80/sj.png",
+    "flag_url": "https://flagcdn.com/w80/sj.png"
+  },
+  {
+    "name": "Sweden",
+    "code": "SE",
+    "dial_code": "+46",
+    "dialCode": "+46",
+    "flag": "🇸🇪",
+    "flagUrl": "https://flagcdn.com/w80/se.png",
+    "flag_url": "https://flagcdn.com/w80/se.png"
+  },
+  {
+    "name": "Switzerland",
+    "code": "CH",
+    "dial_code": "+41",
+    "dialCode": "+41",
+    "flag": "🇨🇭",
+    "flagUrl": "https://flagcdn.com/w80/ch.png",
+    "flag_url": "https://flagcdn.com/w80/ch.png"
+  },
+  {
+    "name": "Syrian Arab Republic",
+    "code": "SY",
+    "dial_code": "+963",
+    "dialCode": "+963",
+    "flag": "🇸🇾",
+    "flagUrl": "https://flagcdn.com/w80/sy.png",
+    "flag_url": "https://flagcdn.com/w80/sy.png"
+  },
+  {
+    "name": "Taiwan",
+    "code": "TW",
+    "dial_code": "+886",
+    "dialCode": "+886",
+    "flag": "🇹🇼",
+    "flagUrl": "https://flagcdn.com/w80/tw.png",
+    "flag_url": "https://flagcdn.com/w80/tw.png"
+  },
+  {
+    "name": "Tajikistan",
+    "code": "TJ",
+    "dial_code": "+992",
+    "dialCode": "+992",
+    "flag": "🇹🇯",
+    "flagUrl": "https://flagcdn.com/w80/tj.png",
+    "flag_url": "https://flagcdn.com/w80/tj.png"
+  },
+  {
+    "name": "Tanzania, United Republic of Tanzania",
+    "code": "TZ",
+    "dial_code": "+255",
+    "dialCode": "+255",
+    "flag": "🇹🇿",
+    "flagUrl": "https://flagcdn.com/w80/tz.png",
+    "flag_url": "https://flagcdn.com/w80/tz.png"
+  },
+  {
+    "name": "Thailand",
+    "code": "TH",
+    "dial_code": "+66",
+    "dialCode": "+66",
+    "flag": "🇹🇭",
+    "flagUrl": "https://flagcdn.com/w80/th.png",
+    "flag_url": "https://flagcdn.com/w80/th.png"
+  },
+  {
+    "name": "Timor-Leste",
+    "code": "TL",
+    "dial_code": "+670",
+    "dialCode": "+670",
+    "flag": "🇹🇱",
+    "flagUrl": "https://flagcdn.com/w80/tl.png",
+    "flag_url": "https://flagcdn.com/w80/tl.png"
+  },
+  {
+    "name": "Togo",
+    "code": "TG",
+    "dial_code": "+228",
+    "dialCode": "+228",
+    "flag": "🇹🇬",
+    "flagUrl": "https://flagcdn.com/w80/tg.png",
+    "flag_url": "https://flagcdn.com/w80/tg.png"
+  },
+  {
+    "name": "Tokelau",
+    "code": "TK",
+    "dial_code": "+690",
+    "dialCode": "+690",
+    "flag": "🇹🇰",
+    "flagUrl": "https://flagcdn.com/w80/tk.png",
+    "flag_url": "https://flagcdn.com/w80/tk.png"
+  },
+  {
+    "name": "Tonga",
+    "code": "TO",
+    "dial_code": "+676",
+    "dialCode": "+676",
+    "flag": "🇹🇴",
+    "flagUrl": "https://flagcdn.com/w80/to.png",
+    "flag_url": "https://flagcdn.com/w80/to.png"
+  },
+  {
+    "name": "Trinidad and Tobago",
+    "code": "TT",
+    "dial_code": "+1868",
+    "dialCode": "+1868",
+    "flag": "🇹🇹",
+    "flagUrl": "https://flagcdn.com/w80/tt.png",
+    "flag_url": "https://flagcdn.com/w80/tt.png"
+  },
+  {
+    "name": "Tunisia",
+    "code": "TN",
+    "dial_code": "+216",
+    "dialCode": "+216",
+    "flag": "🇹🇳",
+    "flagUrl": "https://flagcdn.com/w80/tn.png",
+    "flag_url": "https://flagcdn.com/w80/tn.png"
+  },
+  {
+    "name": "Turkey",
+    "code": "TR",
+    "dial_code": "+90",
+    "dialCode": "+90",
+    "flag": "🇹🇷",
+    "flagUrl": "https://flagcdn.com/w80/tr.png",
+    "flag_url": "https://flagcdn.com/w80/tr.png"
+  },
+  {
+    "name": "Turkmenistan",
+    "code": "TM",
+    "dial_code": "+993",
+    "dialCode": "+993",
+    "flag": "🇹🇲",
+    "flagUrl": "https://flagcdn.com/w80/tm.png",
+    "flag_url": "https://flagcdn.com/w80/tm.png"
+  },
+  {
+    "name": "Turks and Caicos Islands",
+    "code": "TC",
+    "dial_code": "+1649",
+    "dialCode": "+1649",
+    "flag": "🇹🇨",
+    "flagUrl": "https://flagcdn.com/w80/tc.png",
+    "flag_url": "https://flagcdn.com/w80/tc.png"
+  },
+  {
+    "name": "Tuvalu",
+    "code": "TV",
+    "dial_code": "+688",
+    "dialCode": "+688",
+    "flag": "🇹🇻",
+    "flagUrl": "https://flagcdn.com/w80/tv.png",
+    "flag_url": "https://flagcdn.com/w80/tv.png"
+  },
+  {
+    "name": "Uganda",
+    "code": "UG",
+    "dial_code": "+256",
+    "dialCode": "+256",
+    "flag": "🇺🇬",
+    "flagUrl": "https://flagcdn.com/w80/ug.png",
+    "flag_url": "https://flagcdn.com/w80/ug.png"
+  },
+  {
+    "name": "Ukraine",
+    "code": "UA",
+    "dial_code": "+380",
+    "dialCode": "+380",
+    "flag": "🇺🇦",
+    "flagUrl": "https://flagcdn.com/w80/ua.png",
+    "flag_url": "https://flagcdn.com/w80/ua.png"
+  },
+  {
+    "name": "United Arab Emirates",
+    "code": "AE",
+    "dial_code": "+971",
+    "dialCode": "+971",
+    "flag": "🇦🇪",
+    "flagUrl": "https://flagcdn.com/w80/ae.png",
+    "flag_url": "https://flagcdn.com/w80/ae.png"
+  },
+  {
+    "name": "United Kingdom",
+    "code": "GB",
+    "dial_code": "+44",
+    "dialCode": "+44",
+    "flag": "🇬🇧",
+    "flagUrl": "https://flagcdn.com/w80/gb.png",
+    "flag_url": "https://flagcdn.com/w80/gb.png"
+  },
+  {
+    "name": "United States",
+    "code": "US",
+    "dial_code": "+1",
+    "dialCode": "+1",
+    "flag": "🇺🇸",
+    "flagUrl": "https://flagcdn.com/w80/us.png",
+    "flag_url": "https://flagcdn.com/w80/us.png"
+  },
+  {
+    "name": "Uruguay",
+    "code": "UY",
+    "dial_code": "+598",
+    "dialCode": "+598",
+    "flag": "🇺🇾",
+    "flagUrl": "https://flagcdn.com/w80/uy.png",
+    "flag_url": "https://flagcdn.com/w80/uy.png"
+  },
+  {
+    "name": "Uzbekistan",
+    "code": "UZ",
+    "dial_code": "+998",
+    "dialCode": "+998",
+    "flag": "🇺🇿",
+    "flagUrl": "https://flagcdn.com/w80/uz.png",
+    "flag_url": "https://flagcdn.com/w80/uz.png"
+  },
+  {
+    "name": "Vanuatu",
+    "code": "VU",
+    "dial_code": "+678",
+    "dialCode": "+678",
+    "flag": "🇻🇺",
+    "flagUrl": "https://flagcdn.com/w80/vu.png",
+    "flag_url": "https://flagcdn.com/w80/vu.png"
+  },
+  {
+    "name": "Venezuela, Bolivarian Republic of Venezuela",
+    "code": "VE",
+    "dial_code": "+58",
+    "dialCode": "+58",
+    "flag": "🇻🇪",
+    "flagUrl": "https://flagcdn.com/w80/ve.png",
+    "flag_url": "https://flagcdn.com/w80/ve.png"
+  },
+  {
+    "name": "Vietnam",
+    "code": "VN",
+    "dial_code": "+84",
+    "dialCode": "+84",
+    "flag": "🇻🇳",
+    "flagUrl": "https://flagcdn.com/w80/vn.png",
+    "flag_url": "https://flagcdn.com/w80/vn.png"
+  },
+  {
+    "name": "Virgin Islands, British",
+    "code": "VG",
+    "dial_code": "+1284",
+    "dialCode": "+1284",
+    "flag": "🇻🇬",
+    "flagUrl": "https://flagcdn.com/w80/vg.png",
+    "flag_url": "https://flagcdn.com/w80/vg.png"
+  },
+  {
+    "name": "Virgin Islands, U.S.",
+    "code": "VI",
+    "dial_code": "+1340",
+    "dialCode": "+1340",
+    "flag": "🇻🇮",
+    "flagUrl": "https://flagcdn.com/w80/vi.png",
+    "flag_url": "https://flagcdn.com/w80/vi.png"
+  },
+  {
+    "name": "Wallis and Futuna",
+    "code": "WF",
+    "dial_code": "+681",
+    "dialCode": "+681",
+    "flag": "🇼🇫",
+    "flagUrl": "https://flagcdn.com/w80/wf.png",
+    "flag_url": "https://flagcdn.com/w80/wf.png"
+  },
+  {
+    "name": "Yemen",
+    "code": "YE",
+    "dial_code": "+967",
+    "dialCode": "+967",
+    "flag": "🇾🇪",
+    "flagUrl": "https://flagcdn.com/w80/ye.png",
+    "flag_url": "https://flagcdn.com/w80/ye.png"
+  },
+  {
+    "name": "Zambia",
+    "code": "ZM",
+    "dial_code": "+260",
+    "dialCode": "+260",
+    "flag": "🇿🇲",
+    "flagUrl": "https://flagcdn.com/w80/zm.png",
+    "flag_url": "https://flagcdn.com/w80/zm.png"
+  },
+  {
+    "name": "Zimbabwe",
+    "code": "ZW",
+    "dial_code": "+263",
+    "dialCode": "+263",
+    "flag": "🇿🇼",
+    "flagUrl": "https://flagcdn.com/w80/zw.png",
+    "flag_url": "https://flagcdn.com/w80/zw.png"
+  }
+];
+
+app.get('/api/countries', (req, res) => {
+  const { search } = req.query;
+  if (search) {
+    const query = search.toLowerCase();
+    const filtered = countriesList.filter(c => 
+      c.name.toLowerCase().includes(query) || 
+      c.code.toLowerCase().includes(query) ||
+      c.dialCode.includes(query) ||
+      c.dial_code.includes(query)
+    );
+    return res.json({
+      success: true,
+      countries: filtered,
+      message: `Countries matching "${search}" retrieved successfully`
+    });
+  }
+  res.json({
+    success: true,
+    countries: countriesList,
+    message: "Countries retrieved successfully"
+  });
+});
+
 const STATES_CITIES = {
   "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik"],
   "Delhi": ["New Delhi", "Dwarka", "Rohini", "Vasant Kunj"],
