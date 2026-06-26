@@ -274,7 +274,7 @@ async function initMySqlDb() {
 
     // Auto-delete services requested by user
     try {
-      await conn.query("DELETE FROM node_services WHERE title IN ('AC Gas Charging', 'Bike', 'Hair Coloring', 'Hair Cut')");
+      await conn.query("DELETE FROM node_services WHERE title IN ('AC Gas Charging', 'Bike', 'Hair Coloring', 'Hair Cut', 'Furniture Repair')");
       console.log("[Migration] Successfully removed targeted services from node_services table");
     } catch (dbErr) {
       console.log("Could not auto-delete target services:", dbErr.message);
@@ -889,9 +889,7 @@ const SERVICES_DATA = {
   "Painter": [
     { title: "Wall Paint", price: 1999, description: "Single room wall painting with premium finishes", image: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400&auto=format&fit=crop", discount: 20, rating: 4.8, reviewsCount: 76, cutPrice: 2499 }
   ],
-  "Carpenter": [
-    { title: "Furniture Repair", price: 499, description: "Door alignment and wood repair work", image: "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=400&auto=format&fit=crop", discount: 16, rating: 4.7, reviewsCount: 190, cutPrice: 599 }
-  ],
+  "Carpenter": [],
   "Bike Services": [],
   "Architecture": [
     { title: "Design Draft", price: 4999, description: "Floor plans and basic architectural layout mapping", image: "/assets/services/design_draft.png", discount: 16, rating: 4.9, reviewsCount: 52, cutPrice: 5999 }
