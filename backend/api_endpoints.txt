@@ -348,7 +348,7 @@ POST /api/address
     "longitude": 75.7873,
     "name": "John Doe",
     "alternateNumber": "9999911111",
-    "countryCode": "+91"
+    "countryCode": "+91"                              (Required/Compulsory)
   }
 - Response: {
     "success": true,
@@ -400,7 +400,8 @@ POST /api/checkout-api
     "productId": "Tap Repair",                        (Required; format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`)
     "timeSlot": "4:00 PM - 5:00 PM",                (optional - auto-computed if omitted)
     "date": "2026-05-28",                            (optional - auto-computed if omitted)
-    "payment": { "paymentMethod": "Online", "amountPaid": 0 }
+    "payment": { "paymentMethod": "Online", "amountPaid": 0 },
+    "address": { ... }                               (optional; if provided, "countryCode" is compulsory/required inside it)
   }
 - Response: {
     "success": true,

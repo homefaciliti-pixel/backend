@@ -3555,6 +3555,15 @@ app.get('/api/bookings', async (req, res) => {
 const handleAddAddress = async (req, res) => {
   const { type, houseNo, society, floor, landmark, city, locality, pincode, lat, latitude, lon, longitude, lng, name, alternateNumber, alternate_number, countryCode, country_code } = req.body;
   
+  const resolvedCountryCode = countryCode || country_code;
+  if (!resolvedCountryCode) {
+    return res.status(400).json({
+      success: false,
+      error: "Bad Request: countryCode is compulsory in the request body",
+      message: "countryCode is required"
+    });
+  }
+  
   try {
     let phone;
     let userCountryCode = "+91";
@@ -3664,6 +3673,14 @@ const handlePostCheckout = async (req, res) => {
     // Retrieve the user's latest saved address or save new one if passed in body
     let resolvedAddress = null;
     if (req.body.address) {
+      const addressCountryCode = req.body.address.countryCode || req.body.address.country_code;
+      if (!addressCountryCode) {
+        return res.status(400).json({
+          success: false,
+          error: "Bad Request: countryCode is compulsory in the address object",
+          message: "countryCode is required"
+        });
+      }
       try {
         const newAddress = {
           userPhone: phone,
