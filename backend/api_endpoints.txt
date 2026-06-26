@@ -347,7 +347,8 @@ POST /api/address
     "latitude": 26.9124,
     "longitude": 75.7873,
     "name": "John Doe",
-    "alternateNumber": "9999911111"
+    "alternateNumber": "9999911111",
+    "countryCode": "+91"
   }
 - Response: {
     "success": true,
@@ -364,7 +365,8 @@ POST /api/address
       "latitude": 26.9124,
       "longitude": 75.7873,
       "name": "John Doe",
-      "alternateNumber": "9999911111"
+      "alternateNumber": "9999911111",
+      "countryCode": "+91"
     },
     "message": "Address saved successfully"
   }
@@ -429,7 +431,10 @@ POST /api/checkout-api
         "locality": "Andheri West",
         "pincode": "400053",
         "latitude": 26.9124,
-        "longitude": 75.7873
+        "longitude": 75.7873,
+        "name": "John Doe",
+        "alternateNumber": "9999911111",
+        "countryCode": "+91"
       },
       "payment": { "paymentMethod": "Online", "amountPaid": 0 },
       "razorpayOrderId": "order_DBJOWqy2AuJZ59",

@@ -161,7 +161,8 @@ async function initMySqlDb() {
         latitude DECIMAL(10,8) DEFAULT NULL,
         longitude DECIMAL(11,8) DEFAULT NULL,
         name VARCHAR(255) DEFAULT '',
-        alternateNumber VARCHAR(50) DEFAULT ''
+        alternateNumber VARCHAR(50) DEFAULT '',
+        countryCode VARCHAR(10) DEFAULT '+91'
       )
     `);
 
@@ -173,6 +174,11 @@ async function initMySqlDb() {
     }
     try {
       await conn.query("ALTER TABLE node_addresses_v2 ADD COLUMN alternateNumber VARCHAR(50) DEFAULT ''");
+    } catch (err) {
+      // Column might already exist
+    }
+    try {
+      await conn.query("ALTER TABLE node_addresses_v2 ADD COLUMN countryCode VARCHAR(10) DEFAULT '+91'");
     } catch (err) {
       // Column might already exist
     }
@@ -499,12 +505,13 @@ const MySqlDbLayer = {
     return rows.map(r => {
       r.latitude = r.latitude !== null ? parseFloat(r.latitude) : null;
       r.longitude = r.longitude !== null ? parseFloat(r.longitude) : null;
+      r.countryCode = r.countryCode || "+91";
       return r;
     });
   },
 
   async createAddress(address) {
-    const { userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber, alternate_number } = address;
+    const { userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber, alternate_number, countryCode, country_code } = address;
     const finalType = type || "Home";
     const finalHouseNo = houseNo || "";
     const finalSociety = society || "";
@@ -515,17 +522,19 @@ const MySqlDbLayer = {
     const finalPincode = pincode || "";
     const finalName = name || "";
     const finalAltNum = alternateNumber || alternate_number || "";
+    const finalCountryCode = countryCode || country_code || "+91";
 
     await mysqlPool.query(
-      `INSERT INTO node_addresses_v2 (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userPhone, finalType, finalHouseNo, finalSociety, finalFloor, finalLandmark, finalCity, finalLocality, finalPincode, latitude, longitude, finalName, finalAltNum]
+      `INSERT INTO node_addresses_v2 (userPhone, type, houseNo, society, floor, landmark, city, locality, pincode, latitude, longitude, name, alternateNumber, countryCode)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userPhone, finalType, finalHouseNo, finalSociety, finalFloor, finalLandmark, finalCity, finalLocality, finalPincode, latitude, longitude, finalName, finalAltNum, finalCountryCode]
     );
 
     const [rows] = await mysqlPool.query("SELECT * FROM node_addresses_v2 WHERE userPhone = ? ORDER BY id DESC LIMIT 1", [userPhone]);
     if (rows.length > 0) {
       rows[0].latitude = rows[0].latitude !== null ? parseFloat(rows[0].latitude) : null;
       rows[0].longitude = rows[0].longitude !== null ? parseFloat(rows[0].longitude) : null;
+      rows[0].countryCode = rows[0].countryCode || "+91";
       return rows[0];
     }
     return address;
@@ -1371,7 +1380,8 @@ app.put('/api/auth/profile', async (req, res) => {
           latitude: 26.9124,
           longitude: 75.7873,
           name: updatedUser.name || user.name || "",
-          alternateNumber: ""
+          alternateNumber: "",
+          countryCode: updatedUser.countryCode || user.countryCode || "+91"
         });
         console.log(`[ProfileUpdate] Synced updated location/locality to node_addresses for user ${user.phone}`);
       } catch (addrErr) {
@@ -3542,13 +3552,17 @@ app.get('/api/bookings', async (req, res) => {
 
 // Addresses: Save a User Address
 const handleAddAddress = async (req, res) => {
-  const { type, houseNo, society, floor, landmark, city, locality, pincode, lat, latitude, lon, longitude, lng, name, alternateNumber, alternate_number } = req.body;
+  const { type, houseNo, society, floor, landmark, city, locality, pincode, lat, latitude, lon, longitude, lng, name, alternateNumber, alternate_number, countryCode, country_code } = req.body;
   
   try {
     let phone;
+    let userCountryCode = "+91";
     const authUser = await getAuthenticatedUser(req).catch(() => null);
     if (authUser) {
       phone = authUser.phone;
+      if (authUser.countryCode) {
+        userCountryCode = authUser.countryCode;
+      }
     } else {
       phone = req.body.userId || req.body.phone || req.body.userPhone || req.query.userId || req.query.phone;
     }
@@ -3573,7 +3587,8 @@ const handleAddAddress = async (req, res) => {
       latitude: latValue,
       longitude: lonValue,
       name: name || "",
-      alternateNumber: alternateNumber || alternate_number || ""
+      alternateNumber: alternateNumber || alternate_number || "",
+      countryCode: countryCode || country_code || userCountryCode
     };
     
     const savedAddress = await DbLayer.createAddress(newAddress);
@@ -3662,7 +3677,8 @@ const handlePostCheckout = async (req, res) => {
           latitude: Number(req.body.address.latitude) || 0,
           longitude: Number(req.body.address.longitude) || 0,
           name: req.body.address.name || "",
-          alternateNumber: req.body.address.alternateNumber || req.body.address.alternate_number || ""
+          alternateNumber: req.body.address.alternateNumber || req.body.address.alternate_number || "",
+          countryCode: req.body.address.countryCode || req.body.address.country_code || "+91"
         };
         resolvedAddress = await DbLayer.createAddress(newAddress);
         console.log(`[Checkout] Saved new address passed in body for user ${phone}`);
@@ -3994,7 +4010,8 @@ const resolveAddressForPhone = async (phone) => {
         latitude: 26.9124,
         longitude: 75.7873,
         name: user.name || "",
-        alternateNumber: ""
+        alternateNumber: "",
+        countryCode: user.countryCode || "+91"
       };
     }
   } catch (userErr) {
@@ -4014,7 +4031,8 @@ const resolveAddressForPhone = async (phone) => {
     latitude: 26.9124,
     longitude: 75.7873,
     name: "Mock Guest",
-    alternateNumber: ""
+    alternateNumber: "",
+    countryCode: "+91"
   };
 };
 
@@ -4106,6 +4124,7 @@ const sanitizeAddressObj = (addr) => {
     return {
       name: "",
       alternateNumber: "",
+      countryCode: "+91",
       type: "Home",
       houseNo: "",
       society: "",
@@ -4119,6 +4138,7 @@ const sanitizeAddressObj = (addr) => {
   return {
     name: String(addr.name || addr.userPhone || ""),
     alternateNumber: String(addr.alternateNumber || addr.alternate_number || addr.altPhoneNumber || ""),
+    countryCode: String(addr.countryCode || addr.country_code || "+91"),
     type: String(addr.type || "Home"),
     houseNo: String(addr.houseNo || addr.house_no || ""),
     society: String(addr.society || ""),
