@@ -272,6 +272,14 @@ async function initMySqlDb() {
       console.log("Could not sync slots table:", slotErr.message);
     }
 
+    // Auto-delete services requested by user
+    try {
+      await conn.query("DELETE FROM node_services WHERE title IN ('AC Gas Charging', 'Bike', 'Hair Coloring', 'Hair Cut')");
+      console.log("[Migration] Successfully removed targeted services from node_services table");
+    } catch (dbErr) {
+      console.log("Could not auto-delete target services:", dbErr.message);
+    }
+
     conn.release();
     console.log("MySQL database setup complete. Running in MySQL mode.");
     dbMode = "mysql";
@@ -869,15 +877,12 @@ const SERVICES_DATA = {
   ],
   "AcRepair": [
     { title: "Ac Service", price: 500, description: "Full filter and coil cleaning", image: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400&auto=format&fit=crop", discount: 16, rating: 4.8, reviewsCount: 420, cutPrice: 599 },
-    { title: "AC Gas Charging", price: 1500, description: "Refill refrigerant gas to restore peak cooling", image: "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=400&auto=format&fit=crop", discount: 25, rating: 4.7, reviewsCount: 215, cutPrice: 1999 },
     { title: "AC Installation", price: 1, description: "Mount and configure split or window AC unit", image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=400&auto=format&fit=crop", discount: 20, rating: 4.9, reviewsCount: 165, cutPrice: 1499 },
     { title: "AC Leakage Repair", price: 600, description: "Identify and plug water or gas leak issues", image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&auto=format&fit=crop", discount: 25, rating: 4.6, reviewsCount: 98, cutPrice: 799 },
     { title: "AC Condenser Replacement", price: 2500, description: "Install brand new copper condenser unit", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop", discount: 16, rating: 4.8, reviewsCount: 84, cutPrice: 2999 }
   ],
   "Salon And Spa": [
-    { title: "Hair Cut", price: 299, description: "Modern hair styling and trimming", image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop", discount: 25, rating: 4.9, reviewsCount: 540, cutPrice: 399 },
     { title: "Facial & Grooming", price: 1, description: "Deep cleansing facial treatment and face massage", image: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?q=80&w=400&auto=format&fit=crop", discount: 16, rating: 4.7, reviewsCount: 280, cutPrice: 599 },
-    { title: "Hair Coloring", price: 599, description: "Professional ammonia-free hair coloring", image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=400&auto=format&fit=crop", discount: 25, rating: 4.6, reviewsCount: 145, cutPrice: 799 },
     { title: "Massage Therapy", price: 899, description: "Stress-relieving full body Swedish massage", image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop", discount: 25, rating: 4.8, reviewsCount: 310, cutPrice: 1199 },
     { title: "Pedicure & Manicure", price: 399, description: "Hand and foot grooming and nail clean spa", image: "https://images.unsplash.com/photo-1604654894610-df490651e56c?q=80&w=400&auto=format&fit=crop", discount: 20, rating: 4.7, reviewsCount: 185, cutPrice: 499 }
   ],
@@ -887,9 +892,7 @@ const SERVICES_DATA = {
   "Carpenter": [
     { title: "Furniture Repair", price: 499, description: "Door alignment and wood repair work", image: "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=400&auto=format&fit=crop", discount: 16, rating: 4.7, reviewsCount: 190, cutPrice: 599 }
   ],
-  "Bike Services": [
-    { title: "Bike", price: 700, description: "General washing, engine oil change & inspection", image: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?q=80&w=400&auto=format&fit=crop", discount: 22, rating: 4.6, reviewsCount: 145, cutPrice: 899 }
-  ],
+  "Bike Services": [],
   "Architecture": [
     { title: "Design Draft", price: 4999, description: "Floor plans and basic architectural layout mapping", image: "/assets/services/design_draft.png", discount: 16, rating: 4.9, reviewsCount: 52, cutPrice: 5999 }
   ],
