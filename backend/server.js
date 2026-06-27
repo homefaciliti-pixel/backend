@@ -280,15 +280,6 @@ async function initMySqlDb() {
       console.log("Could not auto-delete target services:", dbErr.message);
     }
 
-    // Complete all existing orders in MySQL database
-    try {
-      const [result] = await conn.query(
-        "UPDATE node_orders_v2 SET status = 'Completed', bookingStatus = 'completed' WHERE status != 'Completed' OR bookingStatus != 'completed'"
-      );
-      console.log(`[Migration] Successfully completed ${result.affectedRows} orders in node_orders_v2 table`);
-    } catch (dbErr) {
-      console.log("Could not auto-complete existing orders in MySQL:", dbErr.message);
-    }
 
     // Create and seed node_app_version table
     try {
@@ -652,15 +643,7 @@ function initJsonDb() {
           return c;
         });
       }
-      if (parsed.orders && Array.isArray(parsed.orders)) {
-        parsed.orders.forEach(o => {
-          if (o.status !== 'Completed' || o.bookingStatus !== 'completed') {
-            o.status = 'Completed';
-            o.bookingStatus = 'completed';
-            changed = true;
-          }
-        });
-      }
+
       if (!parsed.appVersion) {
         parsed.appVersion = {
           android: { latestVersion: "1.0.3", minSupportedVersion: "1.0.2", forceUpdate: false },
