@@ -710,3 +710,56 @@ POST /api/contact
   }
 - Note: Saves customer support and contact form inquiries to the database
   (`node_contacts` MySQL table or JSON fallback contacts list).
+
+---------------------------------------------------------
+16. App Version Config API
+---------------------------------------------------------
+
+GET /api/app-version
+- Response:
+  {
+    "success": true,
+    "android": {
+      "latestVersion": "1.0.3",
+      "minSupportedVersion": "1.0.2",
+      "forceUpdate": false
+    },
+    "ios": {
+      "latestVersion": "1.0.4",
+      "minSupportedVersion": "1.0.3",
+      "forceUpdate": true
+    }
+  }
+- Note: Public endpoint to fetch configuration values of current latest app versions and minimal supported versions.
+
+POST /api/app-version
+- Body:
+  {
+    "android": {
+      "latestVersion": "1.0.4",
+      "minSupportedVersion": "1.0.3",
+      "forceUpdate": false
+    },
+    "ios": {
+      "latestVersion": "1.0.5",
+      "minSupportedVersion": "1.0.4",
+      "forceUpdate": true
+    }
+  }
+- Response:
+  {
+    "success": true,
+    "android": {
+      "latestVersion": "1.0.4",
+      "minSupportedVersion": "1.0.3",
+      "forceUpdate": false
+    },
+    "ios": {
+      "latestVersion": "1.0.5",
+      "minSupportedVersion": "1.0.4",
+      "forceUpdate": true
+    },
+    "message": "App version configuration updated successfully"
+  }
+- Note: Dynamic admin endpoint to update the app version parameters. Any of the keys can be omitted for partial updates.
+

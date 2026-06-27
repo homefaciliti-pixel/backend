@@ -290,6 +290,27 @@ async function initMySqlDb() {
       console.log("Could not auto-complete existing orders in MySQL:", dbErr.message);
     }
 
+    // Create and seed node_app_version table
+    try {
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS node_app_version (
+          platform VARCHAR(20) PRIMARY KEY,
+          latestVersion VARCHAR(20) NOT NULL,
+          minSupportedVersion VARCHAR(20) NOT NULL,
+          forceUpdate TINYINT(1) DEFAULT 0
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      const [versionCountRows] = await conn.query("SELECT COUNT(*) as count FROM node_app_version");
+      if (versionCountRows[0].count === 0) {
+        console.log("Seeding default app versions in MySQL node_app_version table...");
+        await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['android', '1.0.3', '1.0.2', 0]);
+        await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['ios', '1.0.4', '1.0.3', 1]);
+      }
+    } catch (verErr) {
+      console.log("Could not initialize node_app_version table:", verErr.message);
+    }
+
     conn.release();
     console.log("MySQL database setup complete. Running in MySQL mode.");
     dbMode = "mysql";
@@ -556,6 +577,42 @@ const MySqlDbLayer = {
       return rows[0];
     }
     return address;
+  },
+
+  async getAppVersion() {
+    const [rows] = await mysqlPool.query("SELECT * FROM node_app_version");
+    const result = {};
+    rows.forEach(r => {
+      result[r.platform] = {
+        latestVersion: r.latestVersion,
+        minSupportedVersion: r.minSupportedVersion,
+        forceUpdate: r.forceUpdate === 1
+      };
+    });
+    return result;
+  },
+
+  async updateAppVersion(platform, updates) {
+    const fields = [];
+    const params = [];
+    if (updates.latestVersion !== undefined) {
+      fields.push("latestVersion = ?");
+      params.push(updates.latestVersion);
+    }
+    if (updates.minSupportedVersion !== undefined) {
+      fields.push("minSupportedVersion = ?");
+      params.push(updates.minSupportedVersion);
+    }
+    if (updates.forceUpdate !== undefined) {
+      fields.push("forceUpdate = ?");
+      params.push(updates.forceUpdate ? 1 : 0);
+    }
+    if (fields.length === 0) return;
+    params.push(platform);
+    await mysqlPool.query(
+      `UPDATE node_app_version SET ${fields.join(", ")} WHERE platform = ?`,
+      params
+    );
   }
 };
 
@@ -603,6 +660,13 @@ function initJsonDb() {
             changed = true;
           }
         });
+      }
+      if (!parsed.appVersion) {
+        parsed.appVersion = {
+          android: { latestVersion: "1.0.3", minSupportedVersion: "1.0.2", forceUpdate: false },
+          ios: { latestVersion: "1.0.4", minSupportedVersion: "1.0.3", forceUpdate: true }
+        };
+        changed = true;
       }
       if (changed) {
         fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
@@ -819,6 +883,31 @@ const JsonDbLayer = {
     data.addresses.push(address);
     this.writeData(data);
     return address;
+  },
+
+  async getAppVersion() {
+    const data = this.readData();
+    return data.appVersion || {
+      android: { latestVersion: "1.0.3", minSupportedVersion: "1.0.2", forceUpdate: false },
+      ios: { latestVersion: "1.0.4", minSupportedVersion: "1.0.3", forceUpdate: true }
+    };
+  },
+
+  async updateAppVersion(platform, updates) {
+    const data = this.readData();
+    if (!data.appVersion) {
+      data.appVersion = {
+        android: { latestVersion: "1.0.3", minSupportedVersion: "1.0.2", forceUpdate: false },
+        ios: { latestVersion: "1.0.4", minSupportedVersion: "1.0.3", forceUpdate: true }
+      };
+    }
+    if (!data.appVersion[platform]) {
+      data.appVersion[platform] = { latestVersion: "1.0.0", minSupportedVersion: "1.0.0", forceUpdate: false };
+    }
+    if (updates.latestVersion !== undefined) data.appVersion[platform].latestVersion = updates.latestVersion;
+    if (updates.minSupportedVersion !== undefined) data.appVersion[platform].minSupportedVersion = updates.minSupportedVersion;
+    if (updates.forceUpdate !== undefined) data.appVersion[platform].forceUpdate = !!updates.forceUpdate;
+    this.writeData(data);
   }
 };
 
@@ -855,7 +944,9 @@ const DbLayer = {
   async getCategories() { return this.getLayer().getCategories(); },
   async addCategory(categoryData) { return this.getLayer().addCategory(categoryData); },
   async getAddressesByUserPhone(phone) { return this.getLayer().getAddressesByUserPhone(phone); },
-  async createAddress(address) { return this.getLayer().createAddress(address); }
+  async createAddress(address) { return this.getLayer().createAddress(address); },
+  async getAppVersion() { return this.getLayer().getAppVersion(); },
+  async updateAppVersion(platform, updates) { return this.getLayer().updateAppVersion(platform, updates); }
 };
 
 // ----------------------------------------
@@ -7367,6 +7458,62 @@ app.get('/api/localities', async (req, res) => {
     localities: fallbackLocalities,
     message: "Localities retrieved successfully (JSON fallback)"
   });
+});
+
+// --- APP VERSION ENDPOINTS ---
+// GET /api/app-version - Retrieve app version settings
+app.get('/api/app-version', async (req, res) => {
+  try {
+    const versionInfo = await DbLayer.getAppVersion();
+    res.json({
+      success: true,
+      android: versionInfo.android || { latestVersion: "1.0.3", minSupportedVersion: "1.0.2", forceUpdate: false },
+      ios: versionInfo.ios || { latestVersion: "1.0.4", minSupportedVersion: "1.0.3", forceUpdate: true }
+    });
+  } catch (err) {
+    console.error("Failed to retrieve app version config:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /api/app-version - Update app version settings
+app.post('/api/app-version', async (req, res) => {
+  const { android, ios } = req.body;
+
+  try {
+    if (android) {
+      const updates = {};
+      if (android.latestVersion !== undefined) updates.latestVersion = String(android.latestVersion);
+      if (android.minSupportedVersion !== undefined) updates.minSupportedVersion = String(android.minSupportedVersion);
+      if (android.forceUpdate !== undefined) updates.forceUpdate = !!android.forceUpdate;
+      
+      if (Object.keys(updates).length > 0) {
+        await DbLayer.updateAppVersion('android', updates);
+      }
+    }
+
+    if (ios) {
+      const updates = {};
+      if (ios.latestVersion !== undefined) updates.latestVersion = String(ios.latestVersion);
+      if (ios.minSupportedVersion !== undefined) updates.minSupportedVersion = String(ios.minSupportedVersion);
+      if (ios.forceUpdate !== undefined) updates.forceUpdate = !!ios.forceUpdate;
+      
+      if (Object.keys(updates).length > 0) {
+        await DbLayer.updateAppVersion('ios', updates);
+      }
+    }
+
+    const updatedConfig = await DbLayer.getAppVersion();
+    res.json({
+      success: true,
+      android: updatedConfig.android || { latestVersion: "1.0.3", minSupportedVersion: "1.0.2", forceUpdate: false },
+      ios: updatedConfig.ios || { latestVersion: "1.0.4", minSupportedVersion: "1.0.3", forceUpdate: true },
+      message: "App version configuration updated successfully"
+    });
+  } catch (err) {
+    console.error("Failed to update app version config:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 app.listen(PORT, () => {
