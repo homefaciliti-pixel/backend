@@ -295,8 +295,8 @@ async function initMySqlDb() {
       const [versionCountRows] = await conn.query("SELECT COUNT(*) as count FROM node_app_version");
       if (versionCountRows[0].count === 0) {
         console.log("Seeding default app versions in MySQL node_app_version table...");
-        await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['android', '1.0.02', '1.0.02', 0]);
-        await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['ios', '1.0.03', '1.0.03', 1]);
+        await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['android', '1.0.2', '1.0.2', 0]);
+        await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['ios', '1.0.3', '1.0.3', 1]);
       }
     } catch (verErr) {
       console.log("Could not initialize node_app_version table:", verErr.message);
@@ -646,8 +646,8 @@ function initJsonDb() {
 
       if (!parsed.appVersion) {
         parsed.appVersion = {
-          android: { latestVersion: "1.0.02", minSupportedVersion: "1.0.02", forceUpdate: false },
-          ios: { latestVersion: "1.0.03", minSupportedVersion: "1.0.03", forceUpdate: true }
+          android: { latestVersion: "1.0.2", minSupportedVersion: "1.0.2", forceUpdate: false },
+          ios: { latestVersion: "1.0.3", minSupportedVersion: "1.0.3", forceUpdate: true }
         };
         changed = true;
       }
@@ -871,8 +871,8 @@ const JsonDbLayer = {
   async getAppVersion() {
     const data = this.readData();
     return data.appVersion || {
-      android: { latestVersion: "1.0.02", minSupportedVersion: "1.0.02", forceUpdate: false },
-      ios: { latestVersion: "1.0.03", minSupportedVersion: "1.0.03", forceUpdate: true }
+      android: { latestVersion: "1.0.2", minSupportedVersion: "1.0.2", forceUpdate: false },
+      ios: { latestVersion: "1.0.3", minSupportedVersion: "1.0.3", forceUpdate: true }
     };
   },
 
@@ -880,8 +880,8 @@ const JsonDbLayer = {
     const data = this.readData();
     if (!data.appVersion) {
       data.appVersion = {
-        android: { latestVersion: "1.0.02", minSupportedVersion: "1.0.02", forceUpdate: false },
-        ios: { latestVersion: "1.0.03", minSupportedVersion: "1.0.03", forceUpdate: true }
+        android: { latestVersion: "1.0.2", minSupportedVersion: "1.0.2", forceUpdate: false },
+        ios: { latestVersion: "1.0.3", minSupportedVersion: "1.0.3", forceUpdate: true }
       };
     }
     if (!data.appVersion[platform]) {
@@ -8856,8 +8856,8 @@ app.get('/api/app-version', async (req, res) => {
     const versionInfo = await DbLayer.getAppVersion();
     res.json({
       success: true,
-      android: versionInfo.android || { latestVersion: "1.0.02", minSupportedVersion: "1.0.02", forceUpdate: false },
-      ios: versionInfo.ios || { latestVersion: "1.0.03", minSupportedVersion: "1.0.03", forceUpdate: true }
+      android: versionInfo.android || { latestVersion: "1.0.2", minSupportedVersion: "1.0.2", forceUpdate: false },
+      ios: versionInfo.ios || { latestVersion: "1.0.3", minSupportedVersion: "1.0.3", forceUpdate: true }
     });
   } catch (err) {
     console.error("Failed to retrieve app version config:", err);
@@ -8895,8 +8895,8 @@ app.post('/api/app-version', async (req, res) => {
     const updatedConfig = await DbLayer.getAppVersion();
     res.json({
       success: true,
-      android: updatedConfig.android || { latestVersion: "1.0.02", minSupportedVersion: "1.0.02", forceUpdate: false },
-      ios: updatedConfig.ios || { latestVersion: "1.0.03", minSupportedVersion: "1.0.03", forceUpdate: true },
+      android: updatedConfig.android || { latestVersion: "1.0.2", minSupportedVersion: "1.0.2", forceUpdate: false },
+      ios: updatedConfig.ios || { latestVersion: "1.0.3", minSupportedVersion: "1.0.3", forceUpdate: true },
       message: "App version configuration updated successfully"
     });
   } catch (err) {
