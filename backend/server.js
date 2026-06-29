@@ -1245,6 +1245,33 @@ app.get('/api/debug/logs', (req, res) => {
   res.json({ success: true, logs: debugLogs });
 });
 
+function validatePhoneNumberLength(phone, prefix) {
+  const country = countriesList.find(c => c.dialCode === prefix);
+  if (!country) return true;
+
+  let cleanNumber = phone.trim().replace(/\D/g, '');
+  if (cleanNumber.startsWith('0')) {
+    cleanNumber = cleanNumber.substring(1);
+  }
+  const dialDigits = prefix.replace(/\D/g, '');
+  if (dialDigits && cleanNumber.startsWith(dialDigits) && cleanNumber.length > dialDigits.length) {
+    const tempNum = cleanNumber.substring(dialDigits.length);
+    if (tempNum.length === country.phoneLength) {
+      cleanNumber = tempNum;
+    }
+  }
+  return cleanNumber.length === country.phoneLength;
+}
+
+function getExpectedPhoneLength(prefix) {
+  const country = countriesList.find(c => c.dialCode === prefix);
+  return country ? country.phoneLength : 10;
+}
+
+function getCountryNameByPrefix(prefix) {
+  const country = countriesList.find(c => c.dialCode === prefix);
+  return country ? country.name : "this country";
+}
 
 // 1. Auth: Send OTP
 app.post('/api/auth/send-otp', async (req, res) => {
@@ -1254,6 +1281,14 @@ app.post('/api/auth/send-otp', async (req, res) => {
     return res.status(400).json({ error: "Phone number / userId is required" });
   }
   const prefix = countryCode || "+91";
+  
+  if (!validatePhoneNumberLength(phone, prefix)) {
+    const expected = getExpectedPhoneLength(prefix);
+    const countryName = getCountryNameByPrefix(prefix);
+    return res.status(400).json({
+      error: `Phone number for ${countryName} must be ${expected} digits long.`
+    });
+  }
   
   // Generate OTP (static 1234 only for test number 9199953391)
   const TEST_PHONE = '9199953391';
@@ -3668,6 +3703,17 @@ const handleAddAddress = async (req, res) => {
     const latValue = latitude !== undefined ? Number(latitude) : (lat !== undefined ? Number(lat) : null);
     const lonValue = longitude !== undefined ? Number(longitude) : (lon !== undefined ? Number(lon) : (lng !== undefined ? Number(lng) : null));
     
+    const finalAltNum = alternateNumber || alternate_number || "";
+    const finalCountryCode = countryCode || country_code || userCountryCode;
+
+    if (finalAltNum && !validatePhoneNumberLength(finalAltNum, finalCountryCode)) {
+      const expected = getExpectedPhoneLength(finalCountryCode);
+      const countryName = getCountryNameByPrefix(finalCountryCode);
+      return res.status(400).json({
+        error: `Alternate phone number for ${countryName} must be ${expected} digits long.`
+      });
+    }
+
     const newAddress = {
       userPhone: phone,
       type: type || "Home",
@@ -3681,8 +3727,8 @@ const handleAddAddress = async (req, res) => {
       latitude: latValue,
       longitude: lonValue,
       name: name || "",
-      alternateNumber: alternateNumber || alternate_number || "",
-      countryCode: countryCode || country_code || userCountryCode
+      alternateNumber: finalAltNum,
+      countryCode: finalCountryCode
     };
     
     const savedAddress = await DbLayer.createAddress(newAddress);
@@ -5036,7 +5082,11 @@ const countriesList = [
     "dialCode": "+93",
     "flag": "🇦🇫",
     "flagUrl": "https://flagcdn.com/w80/af.png",
-    "flag_url": "https://flagcdn.com/w80/af.png"
+    "flag_url": "https://flagcdn.com/w80/af.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Åland Islands",
@@ -5045,7 +5095,18 @@ const countriesList = [
     "dialCode": "+358",
     "flag": "🇦🇽",
     "flagUrl": "https://flagcdn.com/w80/ax.png",
-    "flag_url": "https://flagcdn.com/w80/ax.png"
+    "flag_url": "https://flagcdn.com/w80/ax.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Albania",
@@ -5054,7 +5115,14 @@ const countriesList = [
     "dialCode": "+355",
     "flag": "🇦🇱",
     "flagUrl": "https://flagcdn.com/w80/al.png",
-    "flag_url": "https://flagcdn.com/w80/al.png"
+    "flag_url": "https://flagcdn.com/w80/al.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9
+    ]
   },
   {
     "name": "Algeria",
@@ -5063,7 +5131,12 @@ const countriesList = [
     "dialCode": "+213",
     "flag": "🇩🇿",
     "flagUrl": "https://flagcdn.com/w80/dz.png",
-    "flag_url": "https://flagcdn.com/w80/dz.png"
+    "flag_url": "https://flagcdn.com/w80/dz.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "American Samoa",
@@ -5072,7 +5145,11 @@ const countriesList = [
     "dialCode": "+1684",
     "flag": "🇦🇸",
     "flagUrl": "https://flagcdn.com/w80/as.png",
-    "flag_url": "https://flagcdn.com/w80/as.png"
+    "flag_url": "https://flagcdn.com/w80/as.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Andorra",
@@ -5081,7 +5158,13 @@ const countriesList = [
     "dialCode": "+376",
     "flag": "🇦🇩",
     "flagUrl": "https://flagcdn.com/w80/ad.png",
-    "flag_url": "https://flagcdn.com/w80/ad.png"
+    "flag_url": "https://flagcdn.com/w80/ad.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      6,
+      8,
+      9
+    ]
   },
   {
     "name": "Angola",
@@ -5090,7 +5173,11 @@ const countriesList = [
     "dialCode": "+244",
     "flag": "🇦🇴",
     "flagUrl": "https://flagcdn.com/w80/ao.png",
-    "flag_url": "https://flagcdn.com/w80/ao.png"
+    "flag_url": "https://flagcdn.com/w80/ao.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Anguilla",
@@ -5099,7 +5186,11 @@ const countriesList = [
     "dialCode": "+1264",
     "flag": "🇦🇮",
     "flagUrl": "https://flagcdn.com/w80/ai.png",
-    "flag_url": "https://flagcdn.com/w80/ai.png"
+    "flag_url": "https://flagcdn.com/w80/ai.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Antarctica",
@@ -5108,7 +5199,11 @@ const countriesList = [
     "dialCode": "+672",
     "flag": "🇦🇶",
     "flagUrl": "https://flagcdn.com/w80/aq.png",
-    "flag_url": "https://flagcdn.com/w80/aq.png"
+    "flag_url": "https://flagcdn.com/w80/aq.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Antigua and Barbuda",
@@ -5117,7 +5212,11 @@ const countriesList = [
     "dialCode": "+1268",
     "flag": "🇦🇬",
     "flagUrl": "https://flagcdn.com/w80/ag.png",
-    "flag_url": "https://flagcdn.com/w80/ag.png"
+    "flag_url": "https://flagcdn.com/w80/ag.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Argentina",
@@ -5126,7 +5225,12 @@ const countriesList = [
     "dialCode": "+54",
     "flag": "🇦🇷",
     "flagUrl": "https://flagcdn.com/w80/ar.png",
-    "flag_url": "https://flagcdn.com/w80/ar.png"
+    "flag_url": "https://flagcdn.com/w80/ar.png",
+    "phoneLength": 11,
+    "phoneLengths": [
+      10,
+      11
+    ]
   },
   {
     "name": "Armenia",
@@ -5135,7 +5239,11 @@ const countriesList = [
     "dialCode": "+374",
     "flag": "🇦🇲",
     "flagUrl": "https://flagcdn.com/w80/am.png",
-    "flag_url": "https://flagcdn.com/w80/am.png"
+    "flag_url": "https://flagcdn.com/w80/am.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Aruba",
@@ -5144,7 +5252,11 @@ const countriesList = [
     "dialCode": "+297",
     "flag": "🇦🇼",
     "flagUrl": "https://flagcdn.com/w80/aw.png",
-    "flag_url": "https://flagcdn.com/w80/aw.png"
+    "flag_url": "https://flagcdn.com/w80/aw.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Australia",
@@ -5153,7 +5265,17 @@ const countriesList = [
     "dialCode": "+61",
     "flag": "🇦🇺",
     "flagUrl": "https://flagcdn.com/w80/au.png",
-    "flag_url": "https://flagcdn.com/w80/au.png"
+    "flag_url": "https://flagcdn.com/w80/au.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      12
+    ]
   },
   {
     "name": "Austria",
@@ -5162,7 +5284,20 @@ const countriesList = [
     "dialCode": "+43",
     "flag": "🇦🇹",
     "flagUrl": "https://flagcdn.com/w80/at.png",
-    "flag_url": "https://flagcdn.com/w80/at.png"
+    "flag_url": "https://flagcdn.com/w80/at.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ]
   },
   {
     "name": "Azerbaijan",
@@ -5171,7 +5306,11 @@ const countriesList = [
     "dialCode": "+994",
     "flag": "🇦🇿",
     "flagUrl": "https://flagcdn.com/w80/az.png",
-    "flag_url": "https://flagcdn.com/w80/az.png"
+    "flag_url": "https://flagcdn.com/w80/az.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Bahamas",
@@ -5180,7 +5319,11 @@ const countriesList = [
     "dialCode": "+1242",
     "flag": "🇧🇸",
     "flagUrl": "https://flagcdn.com/w80/bs.png",
-    "flag_url": "https://flagcdn.com/w80/bs.png"
+    "flag_url": "https://flagcdn.com/w80/bs.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Bahrain",
@@ -5189,7 +5332,11 @@ const countriesList = [
     "dialCode": "+973",
     "flag": "🇧🇭",
     "flagUrl": "https://flagcdn.com/w80/bh.png",
-    "flag_url": "https://flagcdn.com/w80/bh.png"
+    "flag_url": "https://flagcdn.com/w80/bh.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Bangladesh",
@@ -5198,7 +5345,15 @@ const countriesList = [
     "dialCode": "+880",
     "flag": "🇧🇩",
     "flagUrl": "https://flagcdn.com/w80/bd.png",
-    "flag_url": "https://flagcdn.com/w80/bd.png"
+    "flag_url": "https://flagcdn.com/w80/bd.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Barbados",
@@ -5207,7 +5362,11 @@ const countriesList = [
     "dialCode": "+1246",
     "flag": "🇧🇧",
     "flagUrl": "https://flagcdn.com/w80/bb.png",
-    "flag_url": "https://flagcdn.com/w80/bb.png"
+    "flag_url": "https://flagcdn.com/w80/bb.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Belarus",
@@ -5216,7 +5375,16 @@ const countriesList = [
     "dialCode": "+375",
     "flag": "🇧🇾",
     "flagUrl": "https://flagcdn.com/w80/by.png",
-    "flag_url": "https://flagcdn.com/w80/by.png"
+    "flag_url": "https://flagcdn.com/w80/by.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "Belgium",
@@ -5225,7 +5393,12 @@ const countriesList = [
     "dialCode": "+32",
     "flag": "🇧🇪",
     "flagUrl": "https://flagcdn.com/w80/be.png",
-    "flag_url": "https://flagcdn.com/w80/be.png"
+    "flag_url": "https://flagcdn.com/w80/be.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Belize",
@@ -5234,7 +5407,12 @@ const countriesList = [
     "dialCode": "+501",
     "flag": "🇧🇿",
     "flagUrl": "https://flagcdn.com/w80/bz.png",
-    "flag_url": "https://flagcdn.com/w80/bz.png"
+    "flag_url": "https://flagcdn.com/w80/bz.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7,
+      11
+    ]
   },
   {
     "name": "Benin",
@@ -5243,7 +5421,12 @@ const countriesList = [
     "dialCode": "+229",
     "flag": "🇧🇯",
     "flagUrl": "https://flagcdn.com/w80/bj.png",
-    "flag_url": "https://flagcdn.com/w80/bj.png"
+    "flag_url": "https://flagcdn.com/w80/bj.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      10
+    ]
   },
   {
     "name": "Bermuda",
@@ -5252,7 +5435,11 @@ const countriesList = [
     "dialCode": "+1441",
     "flag": "🇧🇲",
     "flagUrl": "https://flagcdn.com/w80/bm.png",
-    "flag_url": "https://flagcdn.com/w80/bm.png"
+    "flag_url": "https://flagcdn.com/w80/bm.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Bhutan",
@@ -5261,7 +5448,12 @@ const countriesList = [
     "dialCode": "+975",
     "flag": "🇧🇹",
     "flagUrl": "https://flagcdn.com/w80/bt.png",
-    "flag_url": "https://flagcdn.com/w80/bt.png"
+    "flag_url": "https://flagcdn.com/w80/bt.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8
+    ]
   },
   {
     "name": "Bolivia, Plurinational State of bolivia",
@@ -5270,7 +5462,12 @@ const countriesList = [
     "dialCode": "+591",
     "flag": "🇧🇴",
     "flagUrl": "https://flagcdn.com/w80/bo.png",
-    "flag_url": "https://flagcdn.com/w80/bo.png"
+    "flag_url": "https://flagcdn.com/w80/bo.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Bosnia and Herzegovina",
@@ -5279,7 +5476,12 @@ const countriesList = [
     "dialCode": "+387",
     "flag": "🇧🇦",
     "flagUrl": "https://flagcdn.com/w80/ba.png",
-    "flag_url": "https://flagcdn.com/w80/ba.png"
+    "flag_url": "https://flagcdn.com/w80/ba.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Botswana",
@@ -5288,7 +5490,13 @@ const countriesList = [
     "dialCode": "+267",
     "flag": "🇧🇼",
     "flagUrl": "https://flagcdn.com/w80/bw.png",
-    "flag_url": "https://flagcdn.com/w80/bw.png"
+    "flag_url": "https://flagcdn.com/w80/bw.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8,
+      10
+    ]
   },
   {
     "name": "Bouvet Island",
@@ -5297,7 +5505,11 @@ const countriesList = [
     "dialCode": "+47",
     "flag": "🇧🇻",
     "flagUrl": "https://flagcdn.com/w80/bv.png",
-    "flag_url": "https://flagcdn.com/w80/bv.png"
+    "flag_url": "https://flagcdn.com/w80/bv.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Brazil",
@@ -5306,7 +5518,14 @@ const countriesList = [
     "dialCode": "+55",
     "flag": "🇧🇷",
     "flagUrl": "https://flagcdn.com/w80/br.png",
-    "flag_url": "https://flagcdn.com/w80/br.png"
+    "flag_url": "https://flagcdn.com/w80/br.png",
+    "phoneLength": 11,
+    "phoneLengths": [
+      8,
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "British Indian Ocean Territory",
@@ -5315,7 +5534,11 @@ const countriesList = [
     "dialCode": "+246",
     "flag": "🇮🇴",
     "flagUrl": "https://flagcdn.com/w80/io.png",
-    "flag_url": "https://flagcdn.com/w80/io.png"
+    "flag_url": "https://flagcdn.com/w80/io.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Brunei Darussalam",
@@ -5324,7 +5547,11 @@ const countriesList = [
     "dialCode": "+673",
     "flag": "🇧🇳",
     "flagUrl": "https://flagcdn.com/w80/bn.png",
-    "flag_url": "https://flagcdn.com/w80/bn.png"
+    "flag_url": "https://flagcdn.com/w80/bn.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Bulgaria",
@@ -5333,7 +5560,15 @@ const countriesList = [
     "dialCode": "+359",
     "flag": "🇧🇬",
     "flagUrl": "https://flagcdn.com/w80/bg.png",
-    "flag_url": "https://flagcdn.com/w80/bg.png"
+    "flag_url": "https://flagcdn.com/w80/bg.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      12
+    ]
   },
   {
     "name": "Burkina Faso",
@@ -5342,7 +5577,11 @@ const countriesList = [
     "dialCode": "+226",
     "flag": "🇧🇫",
     "flagUrl": "https://flagcdn.com/w80/bf.png",
-    "flag_url": "https://flagcdn.com/w80/bf.png"
+    "flag_url": "https://flagcdn.com/w80/bf.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Burundi",
@@ -5351,7 +5590,11 @@ const countriesList = [
     "dialCode": "+257",
     "flag": "🇧🇮",
     "flagUrl": "https://flagcdn.com/w80/bi.png",
-    "flag_url": "https://flagcdn.com/w80/bi.png"
+    "flag_url": "https://flagcdn.com/w80/bi.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Cambodia",
@@ -5360,7 +5603,13 @@ const countriesList = [
     "dialCode": "+855",
     "flag": "🇰🇭",
     "flagUrl": "https://flagcdn.com/w80/kh.png",
-    "flag_url": "https://flagcdn.com/w80/kh.png"
+    "flag_url": "https://flagcdn.com/w80/kh.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Cameroon",
@@ -5369,7 +5618,12 @@ const countriesList = [
     "dialCode": "+237",
     "flag": "🇨🇲",
     "flagUrl": "https://flagcdn.com/w80/cm.png",
-    "flag_url": "https://flagcdn.com/w80/cm.png"
+    "flag_url": "https://flagcdn.com/w80/cm.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Canada",
@@ -5378,7 +5632,12 @@ const countriesList = [
     "dialCode": "+1",
     "flag": "🇨🇦",
     "flagUrl": "https://flagcdn.com/w80/ca.png",
-    "flag_url": "https://flagcdn.com/w80/ca.png"
+    "flag_url": "https://flagcdn.com/w80/ca.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      7,
+      10
+    ]
   },
   {
     "name": "Cape Verde",
@@ -5387,7 +5646,11 @@ const countriesList = [
     "dialCode": "+238",
     "flag": "🇨🇻",
     "flagUrl": "https://flagcdn.com/w80/cv.png",
-    "flag_url": "https://flagcdn.com/w80/cv.png"
+    "flag_url": "https://flagcdn.com/w80/cv.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Cayman Islands",
@@ -5396,7 +5659,11 @@ const countriesList = [
     "dialCode": "+345",
     "flag": "🇰🇾",
     "flagUrl": "https://flagcdn.com/w80/ky.png",
-    "flag_url": "https://flagcdn.com/w80/ky.png"
+    "flag_url": "https://flagcdn.com/w80/ky.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Central African Republic",
@@ -5405,7 +5672,11 @@ const countriesList = [
     "dialCode": "+236",
     "flag": "🇨🇫",
     "flagUrl": "https://flagcdn.com/w80/cf.png",
-    "flag_url": "https://flagcdn.com/w80/cf.png"
+    "flag_url": "https://flagcdn.com/w80/cf.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Chad",
@@ -5414,7 +5685,11 @@ const countriesList = [
     "dialCode": "+235",
     "flag": "🇹🇩",
     "flagUrl": "https://flagcdn.com/w80/td.png",
-    "flag_url": "https://flagcdn.com/w80/td.png"
+    "flag_url": "https://flagcdn.com/w80/td.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Chile",
@@ -5423,7 +5698,13 @@ const countriesList = [
     "dialCode": "+56",
     "flag": "🇨🇱",
     "flagUrl": "https://flagcdn.com/w80/cl.png",
-    "flag_url": "https://flagcdn.com/w80/cl.png"
+    "flag_url": "https://flagcdn.com/w80/cl.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "China",
@@ -5432,7 +5713,16 @@ const countriesList = [
     "dialCode": "+86",
     "flag": "🇨🇳",
     "flagUrl": "https://flagcdn.com/w80/cn.png",
-    "flag_url": "https://flagcdn.com/w80/cn.png"
+    "flag_url": "https://flagcdn.com/w80/cn.png",
+    "phoneLength": 11,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Christmas Island",
@@ -5441,7 +5731,16 @@ const countriesList = [
     "dialCode": "+61",
     "flag": "🇨🇽",
     "flagUrl": "https://flagcdn.com/w80/cx.png",
-    "flag_url": "https://flagcdn.com/w80/cx.png"
+    "flag_url": "https://flagcdn.com/w80/cx.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      12
+    ]
   },
   {
     "name": "Cocos (Keeling) Islands",
@@ -5450,7 +5749,16 @@ const countriesList = [
     "dialCode": "+61",
     "flag": "🇨🇨",
     "flagUrl": "https://flagcdn.com/w80/cc.png",
-    "flag_url": "https://flagcdn.com/w80/cc.png"
+    "flag_url": "https://flagcdn.com/w80/cc.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      12
+    ]
   },
   {
     "name": "Colombia",
@@ -5459,7 +5767,13 @@ const countriesList = [
     "dialCode": "+57",
     "flag": "🇨🇴",
     "flagUrl": "https://flagcdn.com/w80/co.png",
-    "flag_url": "https://flagcdn.com/w80/co.png"
+    "flag_url": "https://flagcdn.com/w80/co.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      10,
+      11
+    ]
   },
   {
     "name": "Comoros",
@@ -5468,7 +5782,11 @@ const countriesList = [
     "dialCode": "+269",
     "flag": "🇰🇲",
     "flagUrl": "https://flagcdn.com/w80/km.png",
-    "flag_url": "https://flagcdn.com/w80/km.png"
+    "flag_url": "https://flagcdn.com/w80/km.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Congo",
@@ -5477,7 +5795,11 @@ const countriesList = [
     "dialCode": "+242",
     "flag": "🇨🇬",
     "flagUrl": "https://flagcdn.com/w80/cg.png",
-    "flag_url": "https://flagcdn.com/w80/cg.png"
+    "flag_url": "https://flagcdn.com/w80/cg.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Congo, The Democratic Republic of the Congo",
@@ -5486,7 +5808,14 @@ const countriesList = [
     "dialCode": "+243",
     "flag": "🇨🇩",
     "flagUrl": "https://flagcdn.com/w80/cd.png",
-    "flag_url": "https://flagcdn.com/w80/cd.png"
+    "flag_url": "https://flagcdn.com/w80/cd.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Cook Islands",
@@ -5495,7 +5824,11 @@ const countriesList = [
     "dialCode": "+682",
     "flag": "🇨🇰",
     "flagUrl": "https://flagcdn.com/w80/ck.png",
-    "flag_url": "https://flagcdn.com/w80/ck.png"
+    "flag_url": "https://flagcdn.com/w80/ck.png",
+    "phoneLength": 5,
+    "phoneLengths": [
+      5
+    ]
   },
   {
     "name": "Costa Rica",
@@ -5504,7 +5837,12 @@ const countriesList = [
     "dialCode": "+506",
     "flag": "🇨🇷",
     "flagUrl": "https://flagcdn.com/w80/cr.png",
-    "flag_url": "https://flagcdn.com/w80/cr.png"
+    "flag_url": "https://flagcdn.com/w80/cr.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      10
+    ]
   },
   {
     "name": "Cote d'Ivoire",
@@ -5513,7 +5851,11 @@ const countriesList = [
     "dialCode": "+225",
     "flag": "🇨🇮",
     "flagUrl": "https://flagcdn.com/w80/ci.png",
-    "flag_url": "https://flagcdn.com/w80/ci.png"
+    "flag_url": "https://flagcdn.com/w80/ci.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Croatia",
@@ -5522,7 +5864,13 @@ const countriesList = [
     "dialCode": "+385",
     "flag": "🇭🇷",
     "flagUrl": "https://flagcdn.com/w80/hr.png",
-    "flag_url": "https://flagcdn.com/w80/hr.png"
+    "flag_url": "https://flagcdn.com/w80/hr.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9
+    ]
   },
   {
     "name": "Cuba",
@@ -5531,7 +5879,14 @@ const countriesList = [
     "dialCode": "+53",
     "flag": "🇨🇺",
     "flagUrl": "https://flagcdn.com/w80/cu.png",
-    "flag_url": "https://flagcdn.com/w80/cu.png"
+    "flag_url": "https://flagcdn.com/w80/cu.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      10
+    ]
   },
   {
     "name": "Cyprus",
@@ -5540,7 +5895,11 @@ const countriesList = [
     "dialCode": "+357",
     "flag": "🇨🇾",
     "flagUrl": "https://flagcdn.com/w80/cy.png",
-    "flag_url": "https://flagcdn.com/w80/cy.png"
+    "flag_url": "https://flagcdn.com/w80/cy.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Czech Republic",
@@ -5549,7 +5908,14 @@ const countriesList = [
     "dialCode": "+420",
     "flag": "🇨🇿",
     "flagUrl": "https://flagcdn.com/w80/cz.png",
-    "flag_url": "https://flagcdn.com/w80/cz.png"
+    "flag_url": "https://flagcdn.com/w80/cz.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Denmark",
@@ -5558,7 +5924,11 @@ const countriesList = [
     "dialCode": "+45",
     "flag": "🇩🇰",
     "flagUrl": "https://flagcdn.com/w80/dk.png",
-    "flag_url": "https://flagcdn.com/w80/dk.png"
+    "flag_url": "https://flagcdn.com/w80/dk.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Djibouti",
@@ -5567,7 +5937,11 @@ const countriesList = [
     "dialCode": "+253",
     "flag": "🇩🇯",
     "flagUrl": "https://flagcdn.com/w80/dj.png",
-    "flag_url": "https://flagcdn.com/w80/dj.png"
+    "flag_url": "https://flagcdn.com/w80/dj.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Dominica",
@@ -5576,7 +5950,11 @@ const countriesList = [
     "dialCode": "+1767",
     "flag": "🇩🇲",
     "flagUrl": "https://flagcdn.com/w80/dm.png",
-    "flag_url": "https://flagcdn.com/w80/dm.png"
+    "flag_url": "https://flagcdn.com/w80/dm.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Dominican Republic",
@@ -5585,7 +5963,11 @@ const countriesList = [
     "dialCode": "+1849",
     "flag": "🇩🇴",
     "flagUrl": "https://flagcdn.com/w80/do.png",
-    "flag_url": "https://flagcdn.com/w80/do.png"
+    "flag_url": "https://flagcdn.com/w80/do.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Ecuador",
@@ -5594,7 +5976,14 @@ const countriesList = [
     "dialCode": "+593",
     "flag": "🇪🇨",
     "flagUrl": "https://flagcdn.com/w80/ec.png",
-    "flag_url": "https://flagcdn.com/w80/ec.png"
+    "flag_url": "https://flagcdn.com/w80/ec.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "Egypt",
@@ -5603,7 +5992,13 @@ const countriesList = [
     "dialCode": "+20",
     "flag": "🇪🇬",
     "flagUrl": "https://flagcdn.com/w80/eg.png",
-    "flag_url": "https://flagcdn.com/w80/eg.png"
+    "flag_url": "https://flagcdn.com/w80/eg.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "El Salvador",
@@ -5612,7 +6007,13 @@ const countriesList = [
     "dialCode": "+503",
     "flag": "🇸🇻",
     "flagUrl": "https://flagcdn.com/w80/sv.png",
-    "flag_url": "https://flagcdn.com/w80/sv.png"
+    "flag_url": "https://flagcdn.com/w80/sv.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8,
+      11
+    ]
   },
   {
     "name": "Equatorial Guinea",
@@ -5621,7 +6022,11 @@ const countriesList = [
     "dialCode": "+240",
     "flag": "🇬🇶",
     "flagUrl": "https://flagcdn.com/w80/gq.png",
-    "flag_url": "https://flagcdn.com/w80/gq.png"
+    "flag_url": "https://flagcdn.com/w80/gq.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Eritrea",
@@ -5630,7 +6035,11 @@ const countriesList = [
     "dialCode": "+291",
     "flag": "🇪🇷",
     "flagUrl": "https://flagcdn.com/w80/er.png",
-    "flag_url": "https://flagcdn.com/w80/er.png"
+    "flag_url": "https://flagcdn.com/w80/er.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Estonia",
@@ -5639,7 +6048,13 @@ const countriesList = [
     "dialCode": "+372",
     "flag": "🇪🇪",
     "flagUrl": "https://flagcdn.com/w80/ee.png",
-    "flag_url": "https://flagcdn.com/w80/ee.png"
+    "flag_url": "https://flagcdn.com/w80/ee.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8,
+      10
+    ]
   },
   {
     "name": "Eswatini",
@@ -5648,7 +6063,12 @@ const countriesList = [
     "dialCode": "+268",
     "flag": "🇸🇿",
     "flagUrl": "https://flagcdn.com/w80/sz.png",
-    "flag_url": "https://flagcdn.com/w80/sz.png"
+    "flag_url": "https://flagcdn.com/w80/sz.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Ethiopia",
@@ -5657,7 +6077,11 @@ const countriesList = [
     "dialCode": "+251",
     "flag": "🇪🇹",
     "flagUrl": "https://flagcdn.com/w80/et.png",
-    "flag_url": "https://flagcdn.com/w80/et.png"
+    "flag_url": "https://flagcdn.com/w80/et.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Falkland Islands (Malvinas)",
@@ -5666,7 +6090,11 @@ const countriesList = [
     "dialCode": "+500",
     "flag": "🇫🇰",
     "flagUrl": "https://flagcdn.com/w80/fk.png",
-    "flag_url": "https://flagcdn.com/w80/fk.png"
+    "flag_url": "https://flagcdn.com/w80/fk.png",
+    "phoneLength": 5,
+    "phoneLengths": [
+      5
+    ]
   },
   {
     "name": "Faroe Islands",
@@ -5675,7 +6103,11 @@ const countriesList = [
     "dialCode": "+298",
     "flag": "🇫🇴",
     "flagUrl": "https://flagcdn.com/w80/fo.png",
-    "flag_url": "https://flagcdn.com/w80/fo.png"
+    "flag_url": "https://flagcdn.com/w80/fo.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      6
+    ]
   },
   {
     "name": "Fiji",
@@ -5684,7 +6116,12 @@ const countriesList = [
     "dialCode": "+679",
     "flag": "🇫🇯",
     "flagUrl": "https://flagcdn.com/w80/fj.png",
-    "flag_url": "https://flagcdn.com/w80/fj.png"
+    "flag_url": "https://flagcdn.com/w80/fj.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7,
+      11
+    ]
   },
   {
     "name": "Finland",
@@ -5693,7 +6130,18 @@ const countriesList = [
     "dialCode": "+358",
     "flag": "🇫🇮",
     "flagUrl": "https://flagcdn.com/w80/fi.png",
-    "flag_url": "https://flagcdn.com/w80/fi.png"
+    "flag_url": "https://flagcdn.com/w80/fi.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "France",
@@ -5702,7 +6150,11 @@ const countriesList = [
     "dialCode": "+33",
     "flag": "🇫🇷",
     "flagUrl": "https://flagcdn.com/w80/fr.png",
-    "flag_url": "https://flagcdn.com/w80/fr.png"
+    "flag_url": "https://flagcdn.com/w80/fr.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "French Guiana",
@@ -5711,7 +6163,11 @@ const countriesList = [
     "dialCode": "+594",
     "flag": "🇬🇫",
     "flagUrl": "https://flagcdn.com/w80/gf.png",
-    "flag_url": "https://flagcdn.com/w80/gf.png"
+    "flag_url": "https://flagcdn.com/w80/gf.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "French Polynesia",
@@ -5720,7 +6176,13 @@ const countriesList = [
     "dialCode": "+689",
     "flag": "🇵🇫",
     "flagUrl": "https://flagcdn.com/w80/pf.png",
-    "flag_url": "https://flagcdn.com/w80/pf.png"
+    "flag_url": "https://flagcdn.com/w80/pf.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      6,
+      8,
+      9
+    ]
   },
   {
     "name": "French Southern Territories",
@@ -5729,7 +6191,11 @@ const countriesList = [
     "dialCode": "+262",
     "flag": "🇹🇫",
     "flagUrl": "https://flagcdn.com/w80/tf.png",
-    "flag_url": "https://flagcdn.com/w80/tf.png"
+    "flag_url": "https://flagcdn.com/w80/tf.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Gabon",
@@ -5738,7 +6204,12 @@ const countriesList = [
     "dialCode": "+241",
     "flag": "🇬🇦",
     "flagUrl": "https://flagcdn.com/w80/ga.png",
-    "flag_url": "https://flagcdn.com/w80/ga.png"
+    "flag_url": "https://flagcdn.com/w80/ga.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8
+    ]
   },
   {
     "name": "Gambia",
@@ -5747,7 +6218,11 @@ const countriesList = [
     "dialCode": "+220",
     "flag": "🇬🇲",
     "flagUrl": "https://flagcdn.com/w80/gm.png",
-    "flag_url": "https://flagcdn.com/w80/gm.png"
+    "flag_url": "https://flagcdn.com/w80/gm.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Georgia",
@@ -5756,7 +6231,11 @@ const countriesList = [
     "dialCode": "+995",
     "flag": "🇬🇪",
     "flagUrl": "https://flagcdn.com/w80/ge.png",
-    "flag_url": "https://flagcdn.com/w80/ge.png"
+    "flag_url": "https://flagcdn.com/w80/ge.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Germany",
@@ -5765,7 +6244,22 @@ const countriesList = [
     "dialCode": "+49",
     "flag": "🇩🇪",
     "flagUrl": "https://flagcdn.com/w80/de.png",
-    "flag_url": "https://flagcdn.com/w80/de.png"
+    "flag_url": "https://flagcdn.com/w80/de.png",
+    "phoneLength": 11,
+    "phoneLengths": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
   },
   {
     "name": "Ghana",
@@ -5774,7 +6268,12 @@ const countriesList = [
     "dialCode": "+233",
     "flag": "🇬🇭",
     "flagUrl": "https://flagcdn.com/w80/gh.png",
-    "flag_url": "https://flagcdn.com/w80/gh.png"
+    "flag_url": "https://flagcdn.com/w80/gh.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Gibraltar",
@@ -5783,7 +6282,11 @@ const countriesList = [
     "dialCode": "+350",
     "flag": "🇬🇮",
     "flagUrl": "https://flagcdn.com/w80/gi.png",
-    "flag_url": "https://flagcdn.com/w80/gi.png"
+    "flag_url": "https://flagcdn.com/w80/gi.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Greece",
@@ -5792,7 +6295,13 @@ const countriesList = [
     "dialCode": "+30",
     "flag": "🇬🇷",
     "flagUrl": "https://flagcdn.com/w80/gr.png",
-    "flag_url": "https://flagcdn.com/w80/gr.png"
+    "flag_url": "https://flagcdn.com/w80/gr.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Greenland",
@@ -5801,7 +6310,11 @@ const countriesList = [
     "dialCode": "+299",
     "flag": "🇬🇱",
     "flagUrl": "https://flagcdn.com/w80/gl.png",
-    "flag_url": "https://flagcdn.com/w80/gl.png"
+    "flag_url": "https://flagcdn.com/w80/gl.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      6
+    ]
   },
   {
     "name": "Grenada",
@@ -5810,7 +6323,11 @@ const countriesList = [
     "dialCode": "+1473",
     "flag": "🇬🇩",
     "flagUrl": "https://flagcdn.com/w80/gd.png",
-    "flag_url": "https://flagcdn.com/w80/gd.png"
+    "flag_url": "https://flagcdn.com/w80/gd.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Guadeloupe",
@@ -5819,7 +6336,11 @@ const countriesList = [
     "dialCode": "+590",
     "flag": "🇬🇵",
     "flagUrl": "https://flagcdn.com/w80/gp.png",
-    "flag_url": "https://flagcdn.com/w80/gp.png"
+    "flag_url": "https://flagcdn.com/w80/gp.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Guam",
@@ -5828,7 +6349,11 @@ const countriesList = [
     "dialCode": "+1671",
     "flag": "🇬🇺",
     "flagUrl": "https://flagcdn.com/w80/gu.png",
-    "flag_url": "https://flagcdn.com/w80/gu.png"
+    "flag_url": "https://flagcdn.com/w80/gu.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Guatemala",
@@ -5837,7 +6362,12 @@ const countriesList = [
     "dialCode": "+502",
     "flag": "🇬🇹",
     "flagUrl": "https://flagcdn.com/w80/gt.png",
-    "flag_url": "https://flagcdn.com/w80/gt.png"
+    "flag_url": "https://flagcdn.com/w80/gt.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      11
+    ]
   },
   {
     "name": "Guernsey",
@@ -5846,7 +6376,13 @@ const countriesList = [
     "dialCode": "+44",
     "flag": "🇬🇬",
     "flagUrl": "https://flagcdn.com/w80/gg.png",
-    "flag_url": "https://flagcdn.com/w80/gg.png"
+    "flag_url": "https://flagcdn.com/w80/gg.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      7,
+      9,
+      10
+    ]
   },
   {
     "name": "Guinea",
@@ -5855,7 +6391,12 @@ const countriesList = [
     "dialCode": "+224",
     "flag": "🇬🇳",
     "flagUrl": "https://flagcdn.com/w80/gn.png",
-    "flag_url": "https://flagcdn.com/w80/gn.png"
+    "flag_url": "https://flagcdn.com/w80/gn.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Guinea-Bissau",
@@ -5864,7 +6405,12 @@ const countriesList = [
     "dialCode": "+245",
     "flag": "🇬🇼",
     "flagUrl": "https://flagcdn.com/w80/gw.png",
-    "flag_url": "https://flagcdn.com/w80/gw.png"
+    "flag_url": "https://flagcdn.com/w80/gw.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      9
+    ]
   },
   {
     "name": "Guyana",
@@ -5873,7 +6419,11 @@ const countriesList = [
     "dialCode": "+592",
     "flag": "🇬🇾",
     "flagUrl": "https://flagcdn.com/w80/gy.png",
-    "flag_url": "https://flagcdn.com/w80/gy.png"
+    "flag_url": "https://flagcdn.com/w80/gy.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Haiti",
@@ -5882,7 +6432,11 @@ const countriesList = [
     "dialCode": "+509",
     "flag": "🇭🇹",
     "flagUrl": "https://flagcdn.com/w80/ht.png",
-    "flag_url": "https://flagcdn.com/w80/ht.png"
+    "flag_url": "https://flagcdn.com/w80/ht.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Heard Island and Mcdonald Islands",
@@ -5891,7 +6445,11 @@ const countriesList = [
     "dialCode": "+672",
     "flag": "🇭🇲",
     "flagUrl": "https://flagcdn.com/w80/hm.png",
-    "flag_url": "https://flagcdn.com/w80/hm.png"
+    "flag_url": "https://flagcdn.com/w80/hm.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Holy See (Vatican City State)",
@@ -5900,7 +6458,17 @@ const countriesList = [
     "dialCode": "+379",
     "flag": "🇻🇦",
     "flagUrl": "https://flagcdn.com/w80/va.png",
-    "flag_url": "https://flagcdn.com/w80/va.png"
+    "flag_url": "https://flagcdn.com/w80/va.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Honduras",
@@ -5909,7 +6477,12 @@ const countriesList = [
     "dialCode": "+504",
     "flag": "🇭🇳",
     "flagUrl": "https://flagcdn.com/w80/hn.png",
-    "flag_url": "https://flagcdn.com/w80/hn.png"
+    "flag_url": "https://flagcdn.com/w80/hn.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      11
+    ]
   },
   {
     "name": "Hong Kong",
@@ -5918,7 +6491,16 @@ const countriesList = [
     "dialCode": "+852",
     "flag": "🇭🇰",
     "flagUrl": "https://flagcdn.com/w80/hk.png",
-    "flag_url": "https://flagcdn.com/w80/hk.png"
+    "flag_url": "https://flagcdn.com/w80/hk.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      11
+    ]
   },
   {
     "name": "Hungary",
@@ -5927,7 +6509,12 @@ const countriesList = [
     "dialCode": "+36",
     "flag": "🇭🇺",
     "flagUrl": "https://flagcdn.com/w80/hu.png",
-    "flag_url": "https://flagcdn.com/w80/hu.png"
+    "flag_url": "https://flagcdn.com/w80/hu.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Iceland",
@@ -5936,7 +6523,12 @@ const countriesList = [
     "dialCode": "+354",
     "flag": "🇮🇸",
     "flagUrl": "https://flagcdn.com/w80/is.png",
-    "flag_url": "https://flagcdn.com/w80/is.png"
+    "flag_url": "https://flagcdn.com/w80/is.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7,
+      9
+    ]
   },
   {
     "name": "India",
@@ -5945,7 +6537,16 @@ const countriesList = [
     "dialCode": "+91",
     "flag": "🇮🇳",
     "flagUrl": "https://flagcdn.com/w80/in.png",
-    "flag_url": "https://flagcdn.com/w80/in.png"
+    "flag_url": "https://flagcdn.com/w80/in.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ]
   },
   {
     "name": "Indonesia",
@@ -5954,7 +6555,21 @@ const countriesList = [
     "dialCode": "+62",
     "flag": "🇮🇩",
     "flagUrl": "https://flagcdn.com/w80/id.png",
-    "flag_url": "https://flagcdn.com/w80/id.png"
+    "flag_url": "https://flagcdn.com/w80/id.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
   },
   {
     "name": "Iran, Islamic Republic of Persian Gulf",
@@ -5963,7 +6578,15 @@ const countriesList = [
     "dialCode": "+98",
     "flag": "🇮🇷",
     "flagUrl": "https://flagcdn.com/w80/ir.png",
-    "flag_url": "https://flagcdn.com/w80/ir.png"
+    "flag_url": "https://flagcdn.com/w80/ir.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      4,
+      5,
+      6,
+      7,
+      10
+    ]
   },
   {
     "name": "Iraq",
@@ -5972,7 +6595,13 @@ const countriesList = [
     "dialCode": "+964",
     "flag": "🇮🇶",
     "flagUrl": "https://flagcdn.com/w80/iq.png",
-    "flag_url": "https://flagcdn.com/w80/iq.png"
+    "flag_url": "https://flagcdn.com/w80/iq.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Ireland",
@@ -5981,7 +6610,14 @@ const countriesList = [
     "dialCode": "+353",
     "flag": "🇮🇪",
     "flagUrl": "https://flagcdn.com/w80/ie.png",
-    "flag_url": "https://flagcdn.com/w80/ie.png"
+    "flag_url": "https://flagcdn.com/w80/ie.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Isle of Man",
@@ -5990,7 +6626,11 @@ const countriesList = [
     "dialCode": "+44",
     "flag": "🇮🇲",
     "flagUrl": "https://flagcdn.com/w80/im.png",
-    "flag_url": "https://flagcdn.com/w80/im.png"
+    "flag_url": "https://flagcdn.com/w80/im.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Israel",
@@ -5999,7 +6639,16 @@ const countriesList = [
     "dialCode": "+972",
     "flag": "🇮🇱",
     "flagUrl": "https://flagcdn.com/w80/il.png",
-    "flag_url": "https://flagcdn.com/w80/il.png"
+    "flag_url": "https://flagcdn.com/w80/il.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Italy",
@@ -6008,7 +6657,17 @@ const countriesList = [
     "dialCode": "+39",
     "flag": "🇮🇹",
     "flagUrl": "https://flagcdn.com/w80/it.png",
-    "flag_url": "https://flagcdn.com/w80/it.png"
+    "flag_url": "https://flagcdn.com/w80/it.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Jamaica",
@@ -6017,7 +6676,11 @@ const countriesList = [
     "dialCode": "+1876",
     "flag": "🇯🇲",
     "flagUrl": "https://flagcdn.com/w80/jm.png",
-    "flag_url": "https://flagcdn.com/w80/jm.png"
+    "flag_url": "https://flagcdn.com/w80/jm.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Japan",
@@ -6026,7 +6689,20 @@ const countriesList = [
     "dialCode": "+81",
     "flag": "🇯🇵",
     "flagUrl": "https://flagcdn.com/w80/jp.png",
-    "flag_url": "https://flagcdn.com/w80/jp.png"
+    "flag_url": "https://flagcdn.com/w80/jp.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
   },
   {
     "name": "Jersey",
@@ -6035,7 +6711,11 @@ const countriesList = [
     "dialCode": "+44",
     "flag": "🇯🇪",
     "flagUrl": "https://flagcdn.com/w80/je.png",
-    "flag_url": "https://flagcdn.com/w80/je.png"
+    "flag_url": "https://flagcdn.com/w80/je.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Jordan",
@@ -6044,7 +6724,12 @@ const countriesList = [
     "dialCode": "+962",
     "flag": "🇯🇴",
     "flagUrl": "https://flagcdn.com/w80/jo.png",
-    "flag_url": "https://flagcdn.com/w80/jo.png"
+    "flag_url": "https://flagcdn.com/w80/jo.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Kazakhstan",
@@ -6053,7 +6738,12 @@ const countriesList = [
     "dialCode": "+7",
     "flag": "🇰🇿",
     "flagUrl": "https://flagcdn.com/w80/kz.png",
-    "flag_url": "https://flagcdn.com/w80/kz.png"
+    "flag_url": "https://flagcdn.com/w80/kz.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10,
+      14
+    ]
   },
   {
     "name": "Kenya",
@@ -6062,7 +6752,14 @@ const countriesList = [
     "dialCode": "+254",
     "flag": "🇰🇪",
     "flagUrl": "https://flagcdn.com/w80/ke.png",
-    "flag_url": "https://flagcdn.com/w80/ke.png"
+    "flag_url": "https://flagcdn.com/w80/ke.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Kiribati",
@@ -6071,7 +6768,12 @@ const countriesList = [
     "dialCode": "+686",
     "flag": "🇰🇮",
     "flagUrl": "https://flagcdn.com/w80/ki.png",
-    "flag_url": "https://flagcdn.com/w80/ki.png"
+    "flag_url": "https://flagcdn.com/w80/ki.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      5,
+      8
+    ]
   },
   {
     "name": "Korea, Democratic People's Republic of Korea",
@@ -6080,7 +6782,12 @@ const countriesList = [
     "dialCode": "+850",
     "flag": "🇰🇵",
     "flagUrl": "https://flagcdn.com/w80/kp.png",
-    "flag_url": "https://flagcdn.com/w80/kp.png"
+    "flag_url": "https://flagcdn.com/w80/kp.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      10
+    ]
   },
   {
     "name": "Korea, Republic of South Korea",
@@ -6089,7 +6796,19 @@ const countriesList = [
     "dialCode": "+82",
     "flag": "🇰🇷",
     "flagUrl": "https://flagcdn.com/w80/kr.png",
-    "flag_url": "https://flagcdn.com/w80/kr.png"
+    "flag_url": "https://flagcdn.com/w80/kr.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      5,
+      6,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ]
   },
   {
     "name": "Kosovo",
@@ -6098,7 +6817,15 @@ const countriesList = [
     "dialCode": "+383",
     "flag": "🇽🇰",
     "flagUrl": "https://flagcdn.com/w80/xk.png",
-    "flag_url": "https://flagcdn.com/w80/xk.png"
+    "flag_url": "https://flagcdn.com/w80/xk.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Kuwait",
@@ -6107,7 +6834,12 @@ const countriesList = [
     "dialCode": "+965",
     "flag": "🇰🇼",
     "flagUrl": "https://flagcdn.com/w80/kw.png",
-    "flag_url": "https://flagcdn.com/w80/kw.png"
+    "flag_url": "https://flagcdn.com/w80/kw.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8
+    ]
   },
   {
     "name": "Kyrgyzstan",
@@ -6116,7 +6848,12 @@ const countriesList = [
     "dialCode": "+996",
     "flag": "🇰🇬",
     "flagUrl": "https://flagcdn.com/w80/kg.png",
-    "flag_url": "https://flagcdn.com/w80/kg.png"
+    "flag_url": "https://flagcdn.com/w80/kg.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9,
+      10
+    ]
   },
   {
     "name": "Laos",
@@ -6125,7 +6862,13 @@ const countriesList = [
     "dialCode": "+856",
     "flag": "🇱🇦",
     "flagUrl": "https://flagcdn.com/w80/la.png",
-    "flag_url": "https://flagcdn.com/w80/la.png"
+    "flag_url": "https://flagcdn.com/w80/la.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Latvia",
@@ -6134,7 +6877,11 @@ const countriesList = [
     "dialCode": "+371",
     "flag": "🇱🇻",
     "flagUrl": "https://flagcdn.com/w80/lv.png",
-    "flag_url": "https://flagcdn.com/w80/lv.png"
+    "flag_url": "https://flagcdn.com/w80/lv.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Lebanon",
@@ -6143,7 +6890,12 @@ const countriesList = [
     "dialCode": "+961",
     "flag": "🇱🇧",
     "flagUrl": "https://flagcdn.com/w80/lb.png",
-    "flag_url": "https://flagcdn.com/w80/lb.png"
+    "flag_url": "https://flagcdn.com/w80/lb.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8
+    ]
   },
   {
     "name": "Lesotho",
@@ -6152,7 +6904,11 @@ const countriesList = [
     "dialCode": "+266",
     "flag": "🇱🇸",
     "flagUrl": "https://flagcdn.com/w80/ls.png",
-    "flag_url": "https://flagcdn.com/w80/ls.png"
+    "flag_url": "https://flagcdn.com/w80/ls.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Liberia",
@@ -6161,7 +6917,13 @@ const countriesList = [
     "dialCode": "+231",
     "flag": "🇱🇷",
     "flagUrl": "https://flagcdn.com/w80/lr.png",
-    "flag_url": "https://flagcdn.com/w80/lr.png"
+    "flag_url": "https://flagcdn.com/w80/lr.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9
+    ]
   },
   {
     "name": "Libyan Arab Jamahiriya",
@@ -6170,7 +6932,11 @@ const countriesList = [
     "dialCode": "+218",
     "flag": "🇱🇾",
     "flagUrl": "https://flagcdn.com/w80/ly.png",
-    "flag_url": "https://flagcdn.com/w80/ly.png"
+    "flag_url": "https://flagcdn.com/w80/ly.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Liechtenstein",
@@ -6179,7 +6945,12 @@ const countriesList = [
     "dialCode": "+423",
     "flag": "🇱🇮",
     "flagUrl": "https://flagcdn.com/w80/li.png",
-    "flag_url": "https://flagcdn.com/w80/li.png"
+    "flag_url": "https://flagcdn.com/w80/li.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      9
+    ]
   },
   {
     "name": "Lithuania",
@@ -6188,7 +6959,11 @@ const countriesList = [
     "dialCode": "+370",
     "flag": "🇱🇹",
     "flagUrl": "https://flagcdn.com/w80/lt.png",
-    "flag_url": "https://flagcdn.com/w80/lt.png"
+    "flag_url": "https://flagcdn.com/w80/lt.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Luxembourg",
@@ -6197,7 +6972,18 @@ const countriesList = [
     "dialCode": "+352",
     "flag": "🇱🇺",
     "flagUrl": "https://flagcdn.com/w80/lu.png",
-    "flag_url": "https://flagcdn.com/w80/lu.png"
+    "flag_url": "https://flagcdn.com/w80/lu.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "Macao",
@@ -6206,7 +6992,12 @@ const countriesList = [
     "dialCode": "+853",
     "flag": "🇲🇴",
     "flagUrl": "https://flagcdn.com/w80/mo.png",
-    "flag_url": "https://flagcdn.com/w80/mo.png"
+    "flag_url": "https://flagcdn.com/w80/mo.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8
+    ]
   },
   {
     "name": "Macedonia",
@@ -6215,7 +7006,11 @@ const countriesList = [
     "dialCode": "+389",
     "flag": "🇲🇰",
     "flagUrl": "https://flagcdn.com/w80/mk.png",
-    "flag_url": "https://flagcdn.com/w80/mk.png"
+    "flag_url": "https://flagcdn.com/w80/mk.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Madagascar",
@@ -6224,7 +7019,11 @@ const countriesList = [
     "dialCode": "+261",
     "flag": "🇲🇬",
     "flagUrl": "https://flagcdn.com/w80/mg.png",
-    "flag_url": "https://flagcdn.com/w80/mg.png"
+    "flag_url": "https://flagcdn.com/w80/mg.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Malawi",
@@ -6233,7 +7032,12 @@ const countriesList = [
     "dialCode": "+265",
     "flag": "🇲🇼",
     "flagUrl": "https://flagcdn.com/w80/mw.png",
-    "flag_url": "https://flagcdn.com/w80/mw.png"
+    "flag_url": "https://flagcdn.com/w80/mw.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      9
+    ]
   },
   {
     "name": "Malaysia",
@@ -6242,7 +7046,13 @@ const countriesList = [
     "dialCode": "+60",
     "flag": "🇲🇾",
     "flagUrl": "https://flagcdn.com/w80/my.png",
-    "flag_url": "https://flagcdn.com/w80/my.png"
+    "flag_url": "https://flagcdn.com/w80/my.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Maldives",
@@ -6251,7 +7061,12 @@ const countriesList = [
     "dialCode": "+960",
     "flag": "🇲🇻",
     "flagUrl": "https://flagcdn.com/w80/mv.png",
-    "flag_url": "https://flagcdn.com/w80/mv.png"
+    "flag_url": "https://flagcdn.com/w80/mv.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7,
+      10
+    ]
   },
   {
     "name": "Mali",
@@ -6260,7 +7075,11 @@ const countriesList = [
     "dialCode": "+223",
     "flag": "🇲🇱",
     "flagUrl": "https://flagcdn.com/w80/ml.png",
-    "flag_url": "https://flagcdn.com/w80/ml.png"
+    "flag_url": "https://flagcdn.com/w80/ml.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Malta",
@@ -6269,7 +7088,11 @@ const countriesList = [
     "dialCode": "+356",
     "flag": "🇲🇹",
     "flagUrl": "https://flagcdn.com/w80/mt.png",
-    "flag_url": "https://flagcdn.com/w80/mt.png"
+    "flag_url": "https://flagcdn.com/w80/mt.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Marshall Islands",
@@ -6278,7 +7101,11 @@ const countriesList = [
     "dialCode": "+692",
     "flag": "🇲🇭",
     "flagUrl": "https://flagcdn.com/w80/mh.png",
-    "flag_url": "https://flagcdn.com/w80/mh.png"
+    "flag_url": "https://flagcdn.com/w80/mh.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Martinique",
@@ -6287,7 +7114,11 @@ const countriesList = [
     "dialCode": "+596",
     "flag": "🇲🇶",
     "flagUrl": "https://flagcdn.com/w80/mq.png",
-    "flag_url": "https://flagcdn.com/w80/mq.png"
+    "flag_url": "https://flagcdn.com/w80/mq.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Mauritania",
@@ -6296,7 +7127,11 @@ const countriesList = [
     "dialCode": "+222",
     "flag": "🇲🇷",
     "flagUrl": "https://flagcdn.com/w80/mr.png",
-    "flag_url": "https://flagcdn.com/w80/mr.png"
+    "flag_url": "https://flagcdn.com/w80/mr.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Mauritius",
@@ -6305,7 +7140,13 @@ const countriesList = [
     "dialCode": "+230",
     "flag": "🇲🇺",
     "flagUrl": "https://flagcdn.com/w80/mu.png",
-    "flag_url": "https://flagcdn.com/w80/mu.png"
+    "flag_url": "https://flagcdn.com/w80/mu.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8,
+      10
+    ]
   },
   {
     "name": "Mayotte",
@@ -6314,7 +7155,11 @@ const countriesList = [
     "dialCode": "+262",
     "flag": "🇾🇹",
     "flagUrl": "https://flagcdn.com/w80/yt.png",
-    "flag_url": "https://flagcdn.com/w80/yt.png"
+    "flag_url": "https://flagcdn.com/w80/yt.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Mexico",
@@ -6323,7 +7168,11 @@ const countriesList = [
     "dialCode": "+52",
     "flag": "🇲🇽",
     "flagUrl": "https://flagcdn.com/w80/mx.png",
-    "flag_url": "https://flagcdn.com/w80/mx.png"
+    "flag_url": "https://flagcdn.com/w80/mx.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Micronesia, Federated States of Micronesia",
@@ -6332,7 +7181,11 @@ const countriesList = [
     "dialCode": "+691",
     "flag": "🇫🇲",
     "flagUrl": "https://flagcdn.com/w80/fm.png",
-    "flag_url": "https://flagcdn.com/w80/fm.png"
+    "flag_url": "https://flagcdn.com/w80/fm.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Moldova",
@@ -6341,7 +7194,11 @@ const countriesList = [
     "dialCode": "+373",
     "flag": "🇲🇩",
     "flagUrl": "https://flagcdn.com/w80/md.png",
-    "flag_url": "https://flagcdn.com/w80/md.png"
+    "flag_url": "https://flagcdn.com/w80/md.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Monaco",
@@ -6350,7 +7207,12 @@ const countriesList = [
     "dialCode": "+377",
     "flag": "🇲🇨",
     "flagUrl": "https://flagcdn.com/w80/mc.png",
-    "flag_url": "https://flagcdn.com/w80/mc.png"
+    "flag_url": "https://flagcdn.com/w80/mc.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Mongolia",
@@ -6359,7 +7221,13 @@ const countriesList = [
     "dialCode": "+976",
     "flag": "🇲🇳",
     "flagUrl": "https://flagcdn.com/w80/mn.png",
-    "flag_url": "https://flagcdn.com/w80/mn.png"
+    "flag_url": "https://flagcdn.com/w80/mn.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Montenegro",
@@ -6368,7 +7236,12 @@ const countriesList = [
     "dialCode": "+382",
     "flag": "🇲🇪",
     "flagUrl": "https://flagcdn.com/w80/me.png",
-    "flag_url": "https://flagcdn.com/w80/me.png"
+    "flag_url": "https://flagcdn.com/w80/me.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Montserrat",
@@ -6377,7 +7250,11 @@ const countriesList = [
     "dialCode": "+1664",
     "flag": "🇲🇸",
     "flagUrl": "https://flagcdn.com/w80/ms.png",
-    "flag_url": "https://flagcdn.com/w80/ms.png"
+    "flag_url": "https://flagcdn.com/w80/ms.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Morocco",
@@ -6386,7 +7263,11 @@ const countriesList = [
     "dialCode": "+212",
     "flag": "🇲🇦",
     "flagUrl": "https://flagcdn.com/w80/ma.png",
-    "flag_url": "https://flagcdn.com/w80/ma.png"
+    "flag_url": "https://flagcdn.com/w80/ma.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Mozambique",
@@ -6395,7 +7276,12 @@ const countriesList = [
     "dialCode": "+258",
     "flag": "🇲🇿",
     "flagUrl": "https://flagcdn.com/w80/mz.png",
-    "flag_url": "https://flagcdn.com/w80/mz.png"
+    "flag_url": "https://flagcdn.com/w80/mz.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Myanmar",
@@ -6404,7 +7290,15 @@ const countriesList = [
     "dialCode": "+95",
     "flag": "🇲🇲",
     "flagUrl": "https://flagcdn.com/w80/mm.png",
-    "flag_url": "https://flagcdn.com/w80/mm.png"
+    "flag_url": "https://flagcdn.com/w80/mm.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Namibia",
@@ -6413,7 +7307,12 @@ const countriesList = [
     "dialCode": "+264",
     "flag": "🇳🇦",
     "flagUrl": "https://flagcdn.com/w80/na.png",
-    "flag_url": "https://flagcdn.com/w80/na.png"
+    "flag_url": "https://flagcdn.com/w80/na.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Nauru",
@@ -6422,7 +7321,11 @@ const countriesList = [
     "dialCode": "+674",
     "flag": "🇳🇷",
     "flagUrl": "https://flagcdn.com/w80/nr.png",
-    "flag_url": "https://flagcdn.com/w80/nr.png"
+    "flag_url": "https://flagcdn.com/w80/nr.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Nepal",
@@ -6431,7 +7334,13 @@ const countriesList = [
     "dialCode": "+977",
     "flag": "🇳🇵",
     "flagUrl": "https://flagcdn.com/w80/np.png",
-    "flag_url": "https://flagcdn.com/w80/np.png"
+    "flag_url": "https://flagcdn.com/w80/np.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      10,
+      11
+    ]
   },
   {
     "name": "Netherlands",
@@ -6440,7 +7349,17 @@ const countriesList = [
     "dialCode": "+31",
     "flag": "🇳🇱",
     "flagUrl": "https://flagcdn.com/w80/nl.png",
-    "flag_url": "https://flagcdn.com/w80/nl.png"
+    "flag_url": "https://flagcdn.com/w80/nl.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "Netherlands Antilles",
@@ -6449,7 +7368,11 @@ const countriesList = [
     "dialCode": "+599",
     "flag": "",
     "flagUrl": "https://flagcdn.com/w80/an.png",
-    "flag_url": "https://flagcdn.com/w80/an.png"
+    "flag_url": "https://flagcdn.com/w80/an.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "New Caledonia",
@@ -6458,7 +7381,11 @@ const countriesList = [
     "dialCode": "+687",
     "flag": "🇳🇨",
     "flagUrl": "https://flagcdn.com/w80/nc.png",
-    "flag_url": "https://flagcdn.com/w80/nc.png"
+    "flag_url": "https://flagcdn.com/w80/nc.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      6
+    ]
   },
   {
     "name": "New Zealand",
@@ -6467,7 +7394,16 @@ const countriesList = [
     "dialCode": "+64",
     "flag": "🇳🇿",
     "flagUrl": "https://flagcdn.com/w80/nz.png",
-    "flag_url": "https://flagcdn.com/w80/nz.png"
+    "flag_url": "https://flagcdn.com/w80/nz.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Nicaragua",
@@ -6476,7 +7412,11 @@ const countriesList = [
     "dialCode": "+505",
     "flag": "🇳🇮",
     "flagUrl": "https://flagcdn.com/w80/ni.png",
-    "flag_url": "https://flagcdn.com/w80/ni.png"
+    "flag_url": "https://flagcdn.com/w80/ni.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Niger",
@@ -6485,7 +7425,11 @@ const countriesList = [
     "dialCode": "+227",
     "flag": "🇳🇪",
     "flagUrl": "https://flagcdn.com/w80/ne.png",
-    "flag_url": "https://flagcdn.com/w80/ne.png"
+    "flag_url": "https://flagcdn.com/w80/ne.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Nigeria",
@@ -6494,7 +7438,15 @@ const countriesList = [
     "dialCode": "+234",
     "flag": "🇳🇬",
     "flagUrl": "https://flagcdn.com/w80/ng.png",
-    "flag_url": "https://flagcdn.com/w80/ng.png"
+    "flag_url": "https://flagcdn.com/w80/ng.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10,
+      11,
+      12,
+      13,
+      14
+    ]
   },
   {
     "name": "Niue",
@@ -6503,7 +7455,12 @@ const countriesList = [
     "dialCode": "+683",
     "flag": "🇳🇺",
     "flagUrl": "https://flagcdn.com/w80/nu.png",
-    "flag_url": "https://flagcdn.com/w80/nu.png"
+    "flag_url": "https://flagcdn.com/w80/nu.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      4,
+      7
+    ]
   },
   {
     "name": "Norfolk Island",
@@ -6512,7 +7469,11 @@ const countriesList = [
     "dialCode": "+672",
     "flag": "🇳🇫",
     "flagUrl": "https://flagcdn.com/w80/nf.png",
-    "flag_url": "https://flagcdn.com/w80/nf.png"
+    "flag_url": "https://flagcdn.com/w80/nf.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      6
+    ]
   },
   {
     "name": "Northern Mariana Islands",
@@ -6521,7 +7482,11 @@ const countriesList = [
     "dialCode": "+1670",
     "flag": "🇲🇵",
     "flagUrl": "https://flagcdn.com/w80/mp.png",
-    "flag_url": "https://flagcdn.com/w80/mp.png"
+    "flag_url": "https://flagcdn.com/w80/mp.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Norway",
@@ -6530,7 +7495,12 @@ const countriesList = [
     "dialCode": "+47",
     "flag": "🇳🇴",
     "flagUrl": "https://flagcdn.com/w80/no.png",
-    "flag_url": "https://flagcdn.com/w80/no.png"
+    "flag_url": "https://flagcdn.com/w80/no.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      5,
+      8
+    ]
   },
   {
     "name": "Oman",
@@ -6539,7 +7509,13 @@ const countriesList = [
     "dialCode": "+968",
     "flag": "🇴🇲",
     "flagUrl": "https://flagcdn.com/w80/om.png",
-    "flag_url": "https://flagcdn.com/w80/om.png"
+    "flag_url": "https://flagcdn.com/w80/om.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8,
+      9
+    ]
   },
   {
     "name": "Pakistan",
@@ -6548,7 +7524,15 @@ const countriesList = [
     "dialCode": "+92",
     "flag": "🇵🇰",
     "flagUrl": "https://flagcdn.com/w80/pk.png",
-    "flag_url": "https://flagcdn.com/w80/pk.png"
+    "flag_url": "https://flagcdn.com/w80/pk.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Palau",
@@ -6557,7 +7541,11 @@ const countriesList = [
     "dialCode": "+680",
     "flag": "🇵🇼",
     "flagUrl": "https://flagcdn.com/w80/pw.png",
-    "flag_url": "https://flagcdn.com/w80/pw.png"
+    "flag_url": "https://flagcdn.com/w80/pw.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Palestinian Territory, Occupied",
@@ -6566,7 +7554,13 @@ const countriesList = [
     "dialCode": "+970",
     "flag": "🇵🇸",
     "flagUrl": "https://flagcdn.com/w80/ps.png",
-    "flag_url": "https://flagcdn.com/w80/ps.png"
+    "flag_url": "https://flagcdn.com/w80/ps.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Panama",
@@ -6575,7 +7569,14 @@ const countriesList = [
     "dialCode": "+507",
     "flag": "🇵🇦",
     "flagUrl": "https://flagcdn.com/w80/pa.png",
-    "flag_url": "https://flagcdn.com/w80/pa.png"
+    "flag_url": "https://flagcdn.com/w80/pa.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8,
+      10,
+      11
+    ]
   },
   {
     "name": "Papua New Guinea",
@@ -6584,7 +7585,12 @@ const countriesList = [
     "dialCode": "+675",
     "flag": "🇵🇬",
     "flagUrl": "https://flagcdn.com/w80/pg.png",
-    "flag_url": "https://flagcdn.com/w80/pg.png"
+    "flag_url": "https://flagcdn.com/w80/pg.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8
+    ]
   },
   {
     "name": "Paraguay",
@@ -6593,7 +7599,16 @@ const countriesList = [
     "dialCode": "+595",
     "flag": "🇵🇾",
     "flagUrl": "https://flagcdn.com/w80/py.png",
-    "flag_url": "https://flagcdn.com/w80/py.png"
+    "flag_url": "https://flagcdn.com/w80/py.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "Peru",
@@ -6602,7 +7617,12 @@ const countriesList = [
     "dialCode": "+51",
     "flag": "🇵🇪",
     "flagUrl": "https://flagcdn.com/w80/pe.png",
-    "flag_url": "https://flagcdn.com/w80/pe.png"
+    "flag_url": "https://flagcdn.com/w80/pe.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Philippines",
@@ -6611,7 +7631,17 @@ const countriesList = [
     "dialCode": "+63",
     "flag": "🇵🇭",
     "flagUrl": "https://flagcdn.com/w80/ph.png",
-    "flag_url": "https://flagcdn.com/w80/ph.png"
+    "flag_url": "https://flagcdn.com/w80/ph.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      6,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ]
   },
   {
     "name": "Pitcairn",
@@ -6620,7 +7650,11 @@ const countriesList = [
     "dialCode": "+64",
     "flag": "🇵🇳",
     "flagUrl": "https://flagcdn.com/w80/pn.png",
-    "flag_url": "https://flagcdn.com/w80/pn.png"
+    "flag_url": "https://flagcdn.com/w80/pn.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Poland",
@@ -6629,7 +7663,15 @@ const countriesList = [
     "dialCode": "+48",
     "flag": "🇵🇱",
     "flagUrl": "https://flagcdn.com/w80/pl.png",
-    "flag_url": "https://flagcdn.com/w80/pl.png"
+    "flag_url": "https://flagcdn.com/w80/pl.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Portugal",
@@ -6638,7 +7680,11 @@ const countriesList = [
     "dialCode": "+351",
     "flag": "🇵🇹",
     "flagUrl": "https://flagcdn.com/w80/pt.png",
-    "flag_url": "https://flagcdn.com/w80/pt.png"
+    "flag_url": "https://flagcdn.com/w80/pt.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Puerto Rico",
@@ -6647,7 +7693,11 @@ const countriesList = [
     "dialCode": "+1939",
     "flag": "🇵🇷",
     "flagUrl": "https://flagcdn.com/w80/pr.png",
-    "flag_url": "https://flagcdn.com/w80/pr.png"
+    "flag_url": "https://flagcdn.com/w80/pr.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Qatar",
@@ -6656,7 +7706,14 @@ const countriesList = [
     "dialCode": "+974",
     "flag": "🇶🇦",
     "flagUrl": "https://flagcdn.com/w80/qa.png",
-    "flag_url": "https://flagcdn.com/w80/qa.png"
+    "flag_url": "https://flagcdn.com/w80/qa.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      11
+    ]
   },
   {
     "name": "Reunion",
@@ -6665,7 +7722,11 @@ const countriesList = [
     "dialCode": "+262",
     "flag": "🇷🇪",
     "flagUrl": "https://flagcdn.com/w80/re.png",
-    "flag_url": "https://flagcdn.com/w80/re.png"
+    "flag_url": "https://flagcdn.com/w80/re.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Romania",
@@ -6674,7 +7735,12 @@ const countriesList = [
     "dialCode": "+40",
     "flag": "🇷🇴",
     "flagUrl": "https://flagcdn.com/w80/ro.png",
-    "flag_url": "https://flagcdn.com/w80/ro.png"
+    "flag_url": "https://flagcdn.com/w80/ro.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      9
+    ]
   },
   {
     "name": "Russia",
@@ -6683,7 +7749,12 @@ const countriesList = [
     "dialCode": "+7",
     "flag": "🇷����",
     "flagUrl": "https://flagcdn.com/w80/ru.png",
-    "flag_url": "https://flagcdn.com/w80/ru.png"
+    "flag_url": "https://flagcdn.com/w80/ru.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10,
+      14
+    ]
   },
   {
     "name": "Rwanda",
@@ -6692,7 +7763,12 @@ const countriesList = [
     "dialCode": "+250",
     "flag": "🇷🇼",
     "flagUrl": "https://flagcdn.com/w80/rw.png",
-    "flag_url": "https://flagcdn.com/w80/rw.png"
+    "flag_url": "https://flagcdn.com/w80/rw.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Saint Barthelemy",
@@ -6701,7 +7777,11 @@ const countriesList = [
     "dialCode": "+590",
     "flag": "🇧🇱",
     "flagUrl": "https://flagcdn.com/w80/bl.png",
-    "flag_url": "https://flagcdn.com/w80/bl.png"
+    "flag_url": "https://flagcdn.com/w80/bl.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Saint Helena, Ascension and Tristan Da Cunha",
@@ -6710,7 +7790,12 @@ const countriesList = [
     "dialCode": "+290",
     "flag": "🇸🇭",
     "flagUrl": "https://flagcdn.com/w80/sh.png",
-    "flag_url": "https://flagcdn.com/w80/sh.png"
+    "flag_url": "https://flagcdn.com/w80/sh.png",
+    "phoneLength": 5,
+    "phoneLengths": [
+      4,
+      5
+    ]
   },
   {
     "name": "Saint Kitts and Nevis",
@@ -6719,7 +7804,11 @@ const countriesList = [
     "dialCode": "+1869",
     "flag": "🇰🇳",
     "flagUrl": "https://flagcdn.com/w80/kn.png",
-    "flag_url": "https://flagcdn.com/w80/kn.png"
+    "flag_url": "https://flagcdn.com/w80/kn.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Saint Lucia",
@@ -6728,7 +7817,11 @@ const countriesList = [
     "dialCode": "+1758",
     "flag": "🇱🇨",
     "flagUrl": "https://flagcdn.com/w80/lc.png",
-    "flag_url": "https://flagcdn.com/w80/lc.png"
+    "flag_url": "https://flagcdn.com/w80/lc.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Saint Martin",
@@ -6737,7 +7830,11 @@ const countriesList = [
     "dialCode": "+590",
     "flag": "🇲🇫",
     "flagUrl": "https://flagcdn.com/w80/mf.png",
-    "flag_url": "https://flagcdn.com/w80/mf.png"
+    "flag_url": "https://flagcdn.com/w80/mf.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Saint Pierre and Miquelon",
@@ -6746,7 +7843,12 @@ const countriesList = [
     "dialCode": "+508",
     "flag": "🇵🇲",
     "flagUrl": "https://flagcdn.com/w80/pm.png",
-    "flag_url": "https://flagcdn.com/w80/pm.png"
+    "flag_url": "https://flagcdn.com/w80/pm.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      6,
+      9
+    ]
   },
   {
     "name": "Saint Vincent and the Grenadines",
@@ -6755,7 +7857,11 @@ const countriesList = [
     "dialCode": "+1784",
     "flag": "🇻🇨",
     "flagUrl": "https://flagcdn.com/w80/vc.png",
-    "flag_url": "https://flagcdn.com/w80/vc.png"
+    "flag_url": "https://flagcdn.com/w80/vc.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Samoa",
@@ -6764,7 +7870,14 @@ const countriesList = [
     "dialCode": "+685",
     "flag": "🇼🇸",
     "flagUrl": "https://flagcdn.com/w80/ws.png",
-    "flag_url": "https://flagcdn.com/w80/ws.png"
+    "flag_url": "https://flagcdn.com/w80/ws.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      10
+    ]
   },
   {
     "name": "San Marino",
@@ -6773,7 +7886,12 @@ const countriesList = [
     "dialCode": "+378",
     "flag": "🇸🇲",
     "flagUrl": "https://flagcdn.com/w80/sm.png",
-    "flag_url": "https://flagcdn.com/w80/sm.png"
+    "flag_url": "https://flagcdn.com/w80/sm.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      10
+    ]
   },
   {
     "name": "Sao Tome and Principe",
@@ -6782,7 +7900,11 @@ const countriesList = [
     "dialCode": "+239",
     "flag": "🇸🇹",
     "flagUrl": "https://flagcdn.com/w80/st.png",
-    "flag_url": "https://flagcdn.com/w80/st.png"
+    "flag_url": "https://flagcdn.com/w80/st.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Saudi Arabia",
@@ -6791,7 +7913,12 @@ const countriesList = [
     "dialCode": "+966",
     "flag": "🇸🇦",
     "flagUrl": "https://flagcdn.com/w80/sa.png",
-    "flag_url": "https://flagcdn.com/w80/sa.png"
+    "flag_url": "https://flagcdn.com/w80/sa.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9,
+      10
+    ]
   },
   {
     "name": "Senegal",
@@ -6800,7 +7927,11 @@ const countriesList = [
     "dialCode": "+221",
     "flag": "🇸🇳",
     "flagUrl": "https://flagcdn.com/w80/sn.png",
-    "flag_url": "https://flagcdn.com/w80/sn.png"
+    "flag_url": "https://flagcdn.com/w80/sn.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Serbia",
@@ -6809,7 +7940,17 @@ const countriesList = [
     "dialCode": "+381",
     "flag": "🇷🇸",
     "flagUrl": "https://flagcdn.com/w80/rs.png",
-    "flag_url": "https://flagcdn.com/w80/rs.png"
+    "flag_url": "https://flagcdn.com/w80/rs.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "Seychelles",
@@ -6818,7 +7959,11 @@ const countriesList = [
     "dialCode": "+248",
     "flag": "🇸🇨",
     "flagUrl": "https://flagcdn.com/w80/sc.png",
-    "flag_url": "https://flagcdn.com/w80/sc.png"
+    "flag_url": "https://flagcdn.com/w80/sc.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      7
+    ]
   },
   {
     "name": "Sierra Leone",
@@ -6827,7 +7972,11 @@ const countriesList = [
     "dialCode": "+232",
     "flag": "🇸🇱",
     "flagUrl": "https://flagcdn.com/w80/sl.png",
-    "flag_url": "https://flagcdn.com/w80/sl.png"
+    "flag_url": "https://flagcdn.com/w80/sl.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Singapore",
@@ -6836,7 +7985,13 @@ const countriesList = [
     "dialCode": "+65",
     "flag": "🇸🇬",
     "flagUrl": "https://flagcdn.com/w80/sg.png",
-    "flag_url": "https://flagcdn.com/w80/sg.png"
+    "flag_url": "https://flagcdn.com/w80/sg.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8,
+      10,
+      11
+    ]
   },
   {
     "name": "Slovakia",
@@ -6845,7 +8000,13 @@ const countriesList = [
     "dialCode": "+421",
     "flag": "🇸🇰",
     "flagUrl": "https://flagcdn.com/w80/sk.png",
-    "flag_url": "https://flagcdn.com/w80/sk.png"
+    "flag_url": "https://flagcdn.com/w80/sk.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      9
+    ]
   },
   {
     "name": "Slovenia",
@@ -6854,7 +8015,14 @@ const countriesList = [
     "dialCode": "+386",
     "flag": "🇸🇮",
     "flagUrl": "https://flagcdn.com/w80/si.png",
-    "flag_url": "https://flagcdn.com/w80/si.png"
+    "flag_url": "https://flagcdn.com/w80/si.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8
+    ]
   },
   {
     "name": "Solomon Islands",
@@ -6863,7 +8031,12 @@ const countriesList = [
     "dialCode": "+677",
     "flag": "🇸🇧",
     "flagUrl": "https://flagcdn.com/w80/sb.png",
-    "flag_url": "https://flagcdn.com/w80/sb.png"
+    "flag_url": "https://flagcdn.com/w80/sb.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      5,
+      7
+    ]
   },
   {
     "name": "Somalia",
@@ -6872,7 +8045,14 @@ const countriesList = [
     "dialCode": "+252",
     "flag": "🇸🇴",
     "flagUrl": "https://flagcdn.com/w80/so.png",
-    "flag_url": "https://flagcdn.com/w80/so.png"
+    "flag_url": "https://flagcdn.com/w80/so.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9
+    ]
   },
   {
     "name": "South Africa",
@@ -6881,7 +8061,16 @@ const countriesList = [
     "dialCode": "+27",
     "flag": "🇿🇦",
     "flagUrl": "https://flagcdn.com/w80/za.png",
-    "flag_url": "https://flagcdn.com/w80/za.png"
+    "flag_url": "https://flagcdn.com/w80/za.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "South Georgia and the South Sandwich Islands",
@@ -6890,7 +8079,11 @@ const countriesList = [
     "dialCode": "+500",
     "flag": "🇬🇸",
     "flagUrl": "https://flagcdn.com/w80/gs.png",
-    "flag_url": "https://flagcdn.com/w80/gs.png"
+    "flag_url": "https://flagcdn.com/w80/gs.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "South Sudan",
@@ -6899,7 +8092,11 @@ const countriesList = [
     "dialCode": "+211",
     "flag": "🇸🇸",
     "flagUrl": "https://flagcdn.com/w80/ss.png",
-    "flag_url": "https://flagcdn.com/w80/ss.png"
+    "flag_url": "https://flagcdn.com/w80/ss.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Spain",
@@ -6908,7 +8105,11 @@ const countriesList = [
     "dialCode": "+34",
     "flag": "🇪🇸",
     "flagUrl": "https://flagcdn.com/w80/es.png",
-    "flag_url": "https://flagcdn.com/w80/es.png"
+    "flag_url": "https://flagcdn.com/w80/es.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Sri Lanka",
@@ -6917,7 +8118,11 @@ const countriesList = [
     "dialCode": "+94",
     "flag": "🇱🇰",
     "flagUrl": "https://flagcdn.com/w80/lk.png",
-    "flag_url": "https://flagcdn.com/w80/lk.png"
+    "flag_url": "https://flagcdn.com/w80/lk.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Sudan",
@@ -6926,7 +8131,11 @@ const countriesList = [
     "dialCode": "+249",
     "flag": "🇸🇩",
     "flagUrl": "https://flagcdn.com/w80/sd.png",
-    "flag_url": "https://flagcdn.com/w80/sd.png"
+    "flag_url": "https://flagcdn.com/w80/sd.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Suriname",
@@ -6935,7 +8144,12 @@ const countriesList = [
     "dialCode": "+597",
     "flag": "🇸🇷",
     "flagUrl": "https://flagcdn.com/w80/sr.png",
-    "flag_url": "https://flagcdn.com/w80/sr.png"
+    "flag_url": "https://flagcdn.com/w80/sr.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      6,
+      7
+    ]
   },
   {
     "name": "Svalbard and Jan Mayen",
@@ -6944,7 +8158,12 @@ const countriesList = [
     "dialCode": "+47",
     "flag": "🇸🇯",
     "flagUrl": "https://flagcdn.com/w80/sj.png",
-    "flag_url": "https://flagcdn.com/w80/sj.png"
+    "flag_url": "https://flagcdn.com/w80/sj.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      5,
+      8
+    ]
   },
   {
     "name": "Sweden",
@@ -6953,7 +8172,16 @@ const countriesList = [
     "dialCode": "+46",
     "flag": "🇸🇪",
     "flagUrl": "https://flagcdn.com/w80/se.png",
-    "flag_url": "https://flagcdn.com/w80/se.png"
+    "flag_url": "https://flagcdn.com/w80/se.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      12
+    ]
   },
   {
     "name": "Switzerland",
@@ -6962,7 +8190,12 @@ const countriesList = [
     "dialCode": "+41",
     "flag": "🇨🇭",
     "flagUrl": "https://flagcdn.com/w80/ch.png",
-    "flag_url": "https://flagcdn.com/w80/ch.png"
+    "flag_url": "https://flagcdn.com/w80/ch.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9,
+      12
+    ]
   },
   {
     "name": "Syrian Arab Republic",
@@ -6971,7 +8204,12 @@ const countriesList = [
     "dialCode": "+963",
     "flag": "🇸🇾",
     "flagUrl": "https://flagcdn.com/w80/sy.png",
-    "flag_url": "https://flagcdn.com/w80/sy.png"
+    "flag_url": "https://flagcdn.com/w80/sy.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9
+    ]
   },
   {
     "name": "Taiwan",
@@ -6980,7 +8218,15 @@ const countriesList = [
     "dialCode": "+886",
     "flag": "🇹🇼",
     "flagUrl": "https://flagcdn.com/w80/tw.png",
-    "flag_url": "https://flagcdn.com/w80/tw.png"
+    "flag_url": "https://flagcdn.com/w80/tw.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10,
+      11
+    ]
   },
   {
     "name": "Tajikistan",
@@ -6989,7 +8235,11 @@ const countriesList = [
     "dialCode": "+992",
     "flag": "🇹🇯",
     "flagUrl": "https://flagcdn.com/w80/tj.png",
-    "flag_url": "https://flagcdn.com/w80/tj.png"
+    "flag_url": "https://flagcdn.com/w80/tj.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Tanzania, United Republic of Tanzania",
@@ -6998,7 +8248,11 @@ const countriesList = [
     "dialCode": "+255",
     "flag": "🇹🇿",
     "flagUrl": "https://flagcdn.com/w80/tz.png",
-    "flag_url": "https://flagcdn.com/w80/tz.png"
+    "flag_url": "https://flagcdn.com/w80/tz.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Thailand",
@@ -7007,7 +8261,14 @@ const countriesList = [
     "dialCode": "+66",
     "flag": "🇹🇭",
     "flagUrl": "https://flagcdn.com/w80/th.png",
-    "flag_url": "https://flagcdn.com/w80/th.png"
+    "flag_url": "https://flagcdn.com/w80/th.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      8,
+      9,
+      10,
+      13
+    ]
   },
   {
     "name": "Timor-Leste",
@@ -7016,7 +8277,12 @@ const countriesList = [
     "dialCode": "+670",
     "flag": "🇹🇱",
     "flagUrl": "https://flagcdn.com/w80/tl.png",
-    "flag_url": "https://flagcdn.com/w80/tl.png"
+    "flag_url": "https://flagcdn.com/w80/tl.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      7,
+      8
+    ]
   },
   {
     "name": "Togo",
@@ -7025,7 +8291,11 @@ const countriesList = [
     "dialCode": "+228",
     "flag": "🇹🇬",
     "flagUrl": "https://flagcdn.com/w80/tg.png",
-    "flag_url": "https://flagcdn.com/w80/tg.png"
+    "flag_url": "https://flagcdn.com/w80/tg.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Tokelau",
@@ -7034,7 +8304,14 @@ const countriesList = [
     "dialCode": "+690",
     "flag": "🇹🇰",
     "flagUrl": "https://flagcdn.com/w80/tk.png",
-    "flag_url": "https://flagcdn.com/w80/tk.png"
+    "flag_url": "https://flagcdn.com/w80/tk.png",
+    "phoneLength": 4,
+    "phoneLengths": [
+      4,
+      5,
+      6,
+      7
+    ]
   },
   {
     "name": "Tonga",
@@ -7043,7 +8320,12 @@ const countriesList = [
     "dialCode": "+676",
     "flag": "🇹🇴",
     "flagUrl": "https://flagcdn.com/w80/to.png",
-    "flag_url": "https://flagcdn.com/w80/to.png"
+    "flag_url": "https://flagcdn.com/w80/to.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      5,
+      7
+    ]
   },
   {
     "name": "Trinidad and Tobago",
@@ -7052,7 +8334,11 @@ const countriesList = [
     "dialCode": "+1868",
     "flag": "🇹🇹",
     "flagUrl": "https://flagcdn.com/w80/tt.png",
-    "flag_url": "https://flagcdn.com/w80/tt.png"
+    "flag_url": "https://flagcdn.com/w80/tt.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Tunisia",
@@ -7061,7 +8347,11 @@ const countriesList = [
     "dialCode": "+216",
     "flag": "🇹🇳",
     "flagUrl": "https://flagcdn.com/w80/tn.png",
-    "flag_url": "https://flagcdn.com/w80/tn.png"
+    "flag_url": "https://flagcdn.com/w80/tn.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Turkey",
@@ -7070,7 +8360,14 @@ const countriesList = [
     "dialCode": "+90",
     "flag": "🇹🇷",
     "flagUrl": "https://flagcdn.com/w80/tr.png",
-    "flag_url": "https://flagcdn.com/w80/tr.png"
+    "flag_url": "https://flagcdn.com/w80/tr.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      7,
+      10,
+      12,
+      13
+    ]
   },
   {
     "name": "Turkmenistan",
@@ -7079,7 +8376,11 @@ const countriesList = [
     "dialCode": "+993",
     "flag": "🇹🇲",
     "flagUrl": "https://flagcdn.com/w80/tm.png",
-    "flag_url": "https://flagcdn.com/w80/tm.png"
+    "flag_url": "https://flagcdn.com/w80/tm.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      8
+    ]
   },
   {
     "name": "Turks and Caicos Islands",
@@ -7088,7 +8389,11 @@ const countriesList = [
     "dialCode": "+1649",
     "flag": "🇹🇨",
     "flagUrl": "https://flagcdn.com/w80/tc.png",
-    "flag_url": "https://flagcdn.com/w80/tc.png"
+    "flag_url": "https://flagcdn.com/w80/tc.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Tuvalu",
@@ -7097,7 +8402,13 @@ const countriesList = [
     "dialCode": "+688",
     "flag": "🇹🇻",
     "flagUrl": "https://flagcdn.com/w80/tv.png",
-    "flag_url": "https://flagcdn.com/w80/tv.png"
+    "flag_url": "https://flagcdn.com/w80/tv.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      5,
+      6,
+      7
+    ]
   },
   {
     "name": "Uganda",
@@ -7106,7 +8417,11 @@ const countriesList = [
     "dialCode": "+256",
     "flag": "🇺🇬",
     "flagUrl": "https://flagcdn.com/w80/ug.png",
-    "flag_url": "https://flagcdn.com/w80/ug.png"
+    "flag_url": "https://flagcdn.com/w80/ug.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Ukraine",
@@ -7115,7 +8430,12 @@ const countriesList = [
     "dialCode": "+380",
     "flag": "🇺🇦",
     "flagUrl": "https://flagcdn.com/w80/ua.png",
-    "flag_url": "https://flagcdn.com/w80/ua.png"
+    "flag_url": "https://flagcdn.com/w80/ua.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9,
+      10
+    ]
   },
   {
     "name": "United Arab Emirates",
@@ -7124,7 +8444,18 @@ const countriesList = [
     "dialCode": "+971",
     "flag": "🇦🇪",
     "flagUrl": "https://flagcdn.com/w80/ae.png",
-    "flag_url": "https://flagcdn.com/w80/ae.png"
+    "flag_url": "https://flagcdn.com/w80/ae.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ]
   },
   {
     "name": "United Kingdom",
@@ -7133,7 +8464,13 @@ const countriesList = [
     "dialCode": "+44",
     "flag": "🇬🇧",
     "flagUrl": "https://flagcdn.com/w80/gb.png",
-    "flag_url": "https://flagcdn.com/w80/gb.png"
+    "flag_url": "https://flagcdn.com/w80/gb.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      7,
+      9,
+      10
+    ]
   },
   {
     "name": "United States",
@@ -7142,7 +8479,11 @@ const countriesList = [
     "dialCode": "+1",
     "flag": "🇺🇸",
     "flagUrl": "https://flagcdn.com/w80/us.png",
-    "flag_url": "https://flagcdn.com/w80/us.png"
+    "flag_url": "https://flagcdn.com/w80/us.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Uruguay",
@@ -7151,7 +8492,20 @@ const countriesList = [
     "dialCode": "+598",
     "flag": "🇺🇾",
     "flagUrl": "https://flagcdn.com/w80/uy.png",
-    "flag_url": "https://flagcdn.com/w80/uy.png"
+    "flag_url": "https://flagcdn.com/w80/uy.png",
+    "phoneLength": 8,
+    "phoneLengths": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ]
   },
   {
     "name": "Uzbekistan",
@@ -7160,7 +8514,11 @@ const countriesList = [
     "dialCode": "+998",
     "flag": "🇺🇿",
     "flagUrl": "https://flagcdn.com/w80/uz.png",
-    "flag_url": "https://flagcdn.com/w80/uz.png"
+    "flag_url": "https://flagcdn.com/w80/uz.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Vanuatu",
@@ -7169,7 +8527,12 @@ const countriesList = [
     "dialCode": "+678",
     "flag": "🇻🇺",
     "flagUrl": "https://flagcdn.com/w80/vu.png",
-    "flag_url": "https://flagcdn.com/w80/vu.png"
+    "flag_url": "https://flagcdn.com/w80/vu.png",
+    "phoneLength": 7,
+    "phoneLengths": [
+      5,
+      7
+    ]
   },
   {
     "name": "Venezuela, Bolivarian Republic of Venezuela",
@@ -7178,7 +8541,11 @@ const countriesList = [
     "dialCode": "+58",
     "flag": "🇻🇪",
     "flagUrl": "https://flagcdn.com/w80/ve.png",
-    "flag_url": "https://flagcdn.com/w80/ve.png"
+    "flag_url": "https://flagcdn.com/w80/ve.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Vietnam",
@@ -7187,7 +8554,14 @@ const countriesList = [
     "dialCode": "+84",
     "flag": "🇻🇳",
     "flagUrl": "https://flagcdn.com/w80/vn.png",
-    "flag_url": "https://flagcdn.com/w80/vn.png"
+    "flag_url": "https://flagcdn.com/w80/vn.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9,
+      10
+    ]
   },
   {
     "name": "Virgin Islands, British",
@@ -7196,7 +8570,11 @@ const countriesList = [
     "dialCode": "+1284",
     "flag": "🇻🇬",
     "flagUrl": "https://flagcdn.com/w80/vg.png",
-    "flag_url": "https://flagcdn.com/w80/vg.png"
+    "flag_url": "https://flagcdn.com/w80/vg.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Virgin Islands, U.S.",
@@ -7205,7 +8583,11 @@ const countriesList = [
     "dialCode": "+1340",
     "flag": "🇻🇮",
     "flagUrl": "https://flagcdn.com/w80/vi.png",
-    "flag_url": "https://flagcdn.com/w80/vi.png"
+    "flag_url": "https://flagcdn.com/w80/vi.png",
+    "phoneLength": 10,
+    "phoneLengths": [
+      10
+    ]
   },
   {
     "name": "Wallis and Futuna",
@@ -7214,7 +8596,12 @@ const countriesList = [
     "dialCode": "+681",
     "flag": "🇼🇫",
     "flagUrl": "https://flagcdn.com/w80/wf.png",
-    "flag_url": "https://flagcdn.com/w80/wf.png"
+    "flag_url": "https://flagcdn.com/w80/wf.png",
+    "phoneLength": 6,
+    "phoneLengths": [
+      6,
+      9
+    ]
   },
   {
     "name": "Yemen",
@@ -7223,7 +8610,13 @@ const countriesList = [
     "dialCode": "+967",
     "flag": "🇾🇪",
     "flagUrl": "https://flagcdn.com/w80/ye.png",
-    "flag_url": "https://flagcdn.com/w80/ye.png"
+    "flag_url": "https://flagcdn.com/w80/ye.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      7,
+      8,
+      9
+    ]
   },
   {
     "name": "Zambia",
@@ -7232,7 +8625,11 @@ const countriesList = [
     "dialCode": "+260",
     "flag": "🇿🇲",
     "flagUrl": "https://flagcdn.com/w80/zm.png",
-    "flag_url": "https://flagcdn.com/w80/zm.png"
+    "flag_url": "https://flagcdn.com/w80/zm.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      9
+    ]
   },
   {
     "name": "Zimbabwe",
@@ -7241,7 +8638,16 @@ const countriesList = [
     "dialCode": "+263",
     "flag": "🇿🇼",
     "flagUrl": "https://flagcdn.com/w80/zw.png",
-    "flag_url": "https://flagcdn.com/w80/zw.png"
+    "flag_url": "https://flagcdn.com/w80/zw.png",
+    "phoneLength": 9,
+    "phoneLengths": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
   }
 ];
 
