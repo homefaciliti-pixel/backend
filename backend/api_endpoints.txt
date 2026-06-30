@@ -141,6 +141,24 @@ POST /api/wallet/deduct
 - Body: { "amount": number }
 - Response: { "success": true, "balance": number, "message": "Money deducted from wallet successfully" }
 
+GET /api/wallet/rules
+- Response: { "success": true, "maxPercentage": 20, "maxCap": 100, "message": "Wallet discount rules retrieved successfully" }
+- Note: Public endpoint showing the current Refer and Earn wallet discount policy rules (max 20% of order price can be paid by wallet, capped at ₹100 max).
+
+POST /api/wallet/calculate-discount
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "price": number }
+- Response: {
+    "success": true,
+    "price": 799,
+    "walletBalance": 500,
+    "allowedDiscount": 100,
+    "remainingPrice": 699,
+    "maxPercentage": 20,
+    "maxCap": 100
+  }
+- Note: Private endpoint to calculate the exact wallet deduction and remaining payment due for a given service price.
+
 ---------------------------------------------------------
 4. Referral Program APIs
 ---------------------------------------------------------
@@ -454,6 +472,11 @@ POST /api/checkout-api
     Razorpay credentials are invalid.
   - Flutter must extract BOTH `orderId` and `razorpayOrderId` from this response.
     `orderId` is used to build the payment URL. `razorpayOrderId` is for reference/logging.
+  - If paymentMethod is "Wallet", the server enforces the Refer and Earn wallet discount policy:
+    - Deducts a maximum of 20% of the service price, up to a maximum of ₹100, from the user's wallet.
+    - Sets `payment.amountPaid` in the order to the actual deducted wallet amount.
+    - Sets the order status to "Pending" (instead of "Paid") because the remaining balance is unpaid and will be collected upon service completion.
+
 
 GET /api/checkout
 GET /api/checkout-api

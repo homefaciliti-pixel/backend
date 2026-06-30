@@ -3331,6 +3331,53 @@ app.post('/api/wallet/deduct', async (req, res) => {
   }
 });
 
+// Wallet: Get rules for Refer and Earn wallet discounts
+app.get('/api/wallet/rules', (req, res) => {
+  res.json({
+    success: true,
+    maxPercentage: 20,
+    maxCap: 100,
+    message: "Wallet discount rules retrieved successfully"
+  });
+});
+
+// Wallet: Calculate allowed wallet discount for a given price
+app.post('/api/wallet/calculate-discount', async (req, res) => {
+  const { price } = req.body;
+  if (price === undefined || isNaN(price) || price < 0) {
+    return res.status(400).json({ error: "Invalid price" });
+  }
+
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const walletBalance = Number(user.walletBalance || 0);
+    const servicePrice = Number(price);
+    const maxPercentage = 20;
+    const maxCap = 100;
+
+    const maxAllowedFromWallet = Math.min(servicePrice * (maxPercentage / 100), maxCap);
+    const allowedDiscount = Math.min(walletBalance, maxAllowedFromWallet);
+    const remainingPrice = Math.max(0, servicePrice - allowedDiscount);
+
+    res.json({
+      success: true,
+      price: servicePrice,
+      walletBalance,
+      allowedDiscount,
+      remainingPrice,
+      maxPercentage,
+      maxCap
+    });
+  } catch (err) {
+    console.error("Calculate wallet discount failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // 11. Referral: Look up user by referral code
 app.get('/api/referrals/lookup/:code', async (req, res) => {
   const { code } = req.params;
@@ -3911,13 +3958,26 @@ const handlePostCheckout = async (req, res) => {
       }
     }
 
+    let allowedWalletDeduction = 0;
+    if (paymentMethod.toLowerCase() === "wallet") {
+      const userObj = await DbLayer.getUserByPhone(phone);
+      if (userObj) {
+        const userWalletBalance = Number(userObj.walletBalance || 0);
+        const servicePrice = Number(foundService.price);
+        const maxPercentage = 20;
+        const maxCap = 100;
+        const maxAllowedFromWallet = Math.min(servicePrice * (maxPercentage / 100), maxCap);
+        allowedWalletDeduction = Math.min(userWalletBalance, maxAllowedFromWallet);
+      }
+    }
+
     const resolvedDate = date || (existingOrder ? existingOrder.date : null) || new Date().toISOString().split('T')[0];
     const resolvedTimeSlot = timeSlot || (existingOrder ? existingOrder.timeSlot : null) || (await getDynamicDateAndSlot()).timeSlot;
     const resolvedAddressField = resolvedAddress || (existingOrder ? existingOrder.address : null);
     
     const isOnlinePayment = paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay";
     const resolvedBookingStatus = isOnlinePayment ? "draft" : "searching";
-    const resolvedStatus = paymentMethod.toLowerCase() === "wallet" ? "Paid" : "Pending";
+    const resolvedStatus = "Pending"; // Remains Pending since wallet only pays a portion
 
     const finalOrder = {
       id: orderId,
@@ -3936,7 +3996,7 @@ const handlePostCheckout = async (req, res) => {
       address: resolvedAddressField,
       payment: { 
         paymentMethod: paymentMethod, 
-        amountPaid: paymentMethod.toLowerCase() === "wallet" ? Number(foundService.price) : amountPaid 
+        amountPaid: paymentMethod.toLowerCase() === "wallet" ? allowedWalletDeduction : amountPaid 
       },
       razorpayOrderId: razorpayOrderId,
       razorpayPaymentId: (existingOrder ? existingOrder.razorpayPaymentId : null) || null,
@@ -3959,9 +4019,9 @@ const handlePostCheckout = async (req, res) => {
     if (paymentMethod.toLowerCase() === "wallet") {
       const userObj = await DbLayer.getUserByPhone(phone);
       if (userObj) {
-        const newBalance = Math.max(0, (userObj.walletBalance || 0) - Number(foundService.price));
+        const newBalance = Math.max(0, (userObj.walletBalance || 0) - allowedWalletDeduction);
         await DbLayer.updateUser(phone, { walletBalance: newBalance });
-        console.log(`Deducted ₹${foundService.price} from user ${phone} wallet. New balance: ₹${newBalance}`);
+        console.log(`Deducted ₹${allowedWalletDeduction} from user ${phone} wallet. New balance: ₹${newBalance}`);
       }
     }
     
