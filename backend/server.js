@@ -3335,8 +3335,10 @@ app.post('/api/wallet/deduct', async (req, res) => {
 app.get('/api/wallet/rules', (req, res) => {
   res.json({
     success: true,
-    maxPercentage: 20,
-    maxCap: 100,
+    rules: [
+      { condition: "price <= 800", maxWalletDeduction: 100, description: "Orders up to Rs.800: fixed cap of Rs.100 from wallet" },
+      { condition: "price > 800", maxWalletDeductionPercent: 20, description: "Orders above Rs.800: up to 20% of service price from wallet" }
+    ],
     message: "Wallet discount rules retrieved successfully"
   });
 });
@@ -3356,10 +3358,16 @@ app.post('/api/wallet/calculate-discount', async (req, res) => {
 
     const walletBalance = Number(user.walletBalance || 0);
     const servicePrice = Number(price);
-    const maxPercentage = 20;
-    const maxCap = 100;
 
-    const maxAllowedFromWallet = Math.min(servicePrice * (maxPercentage / 100), maxCap);
+    // Tiered wallet discount rule:
+    // - Orders <= Rs.800: fixed cap of Rs.100
+    // - Orders > Rs.800: 20% of service price (no fixed cap)
+    let maxAllowedFromWallet;
+    if (servicePrice <= 800) {
+      maxAllowedFromWallet = 100;
+    } else {
+      maxAllowedFromWallet = servicePrice * 0.20;
+    }
     const allowedDiscount = Math.min(walletBalance, maxAllowedFromWallet);
     const remainingPrice = Math.max(0, servicePrice - allowedDiscount);
 
@@ -3369,8 +3377,7 @@ app.post('/api/wallet/calculate-discount', async (req, res) => {
       walletBalance,
       allowedDiscount,
       remainingPrice,
-      maxPercentage,
-      maxCap
+      rule: servicePrice <= 800 ? "fixed_cap_100" : "percent_20"
     });
   } catch (err) {
     console.error("Calculate wallet discount failed:", err);
@@ -3964,10 +3971,17 @@ const handlePostCheckout = async (req, res) => {
       if (userObj) {
         const userWalletBalance = Number(userObj.walletBalance || 0);
         const servicePrice = Number(foundService.price);
-        const maxPercentage = 20;
-        const maxCap = 100;
-        const maxAllowedFromWallet = Math.min(servicePrice * (maxPercentage / 100), maxCap);
+        // Tiered wallet discount rule:
+        // - Orders <= Rs.800: fixed cap of Rs.100
+        // - Orders > Rs.800: 20% of service price (no fixed cap)
+        let maxAllowedFromWallet;
+        if (servicePrice <= 800) {
+          maxAllowedFromWallet = 100;
+        } else {
+          maxAllowedFromWallet = servicePrice * 0.20;
+        }
         allowedWalletDeduction = Math.min(userWalletBalance, maxAllowedFromWallet);
+        console.log(`[Wallet] Price: Rs.${servicePrice}, Rule: ${servicePrice <= 800 ? 'fixed cap Rs.100' : '20% = Rs.' + maxAllowedFromWallet}, Wallet Balance: Rs.${userWalletBalance}, Deduction: Rs.${allowedWalletDeduction}`);
       }
     }
 
