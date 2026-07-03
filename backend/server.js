@@ -4902,19 +4902,9 @@ app.get('/api/orders/:id', async (req, res) => {
   }
 
   try {
-    const user = await getAuthenticatedUser(req);
-    if (!user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const order = await DbLayer.getOrderById(orderId);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
-    }
-
-    // Security check: only the owner of the order can view details
-    if (order.userPhone !== user.phone) {
-      return res.status(403).json({ error: "Access denied to this order" });
     }
 
     res.json(order);

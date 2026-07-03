@@ -299,7 +299,6 @@ Note:
   - `orderlist` = { total: N, data: [...full orders] } — includes total count
 
 Endpoint: GET /api/orders/:id
-Headers: Authorization: Bearer <jwt_token>
 Path Parameter: id (the numeric database Order ID, e.g. 1000007)
 Response Payload:
 {
@@ -318,7 +317,7 @@ Response Payload:
   "payment": { ... },
   "createdAt": 1780480800000
 }
-Note: Retrieves all details of a specific order directly at the root by its numeric ID. Validates that the authenticated user owns the order.
+Note: Retrieves all details of a specific order directly at the root by its numeric ID. This is a public endpoint (no authorization header required).
 
 ---------------------------------------------------------
 6. Policies & Information APIs

@@ -190,7 +190,6 @@ GET /api/orders
 - Note: `orders` = full order objects. `list` = compact summary (id, serviceName, price, status, date, timeSlot, razorpayOrderId). `orderlist` = { total: N, data: [...full orders] }.
 
 GET /api/orders/:id
-- Headers: Authorization: Bearer <jwt_token>
 - Path Parameter: id (the numeric database Order ID, e.g. 1000007)
 - Response:
   {
@@ -209,7 +208,7 @@ GET /api/orders/:id
     "payment": { ... },
     "createdAt": 1780480800000
   }
-- Note: Retrieves all details of a specific order directly at the root by its numeric ID. Validates that the authenticated user owns the order.
+- Note: Retrieves all details of a specific order directly at the root by its numeric ID. This is a public endpoint (no authorization header required).
 
 
 POST /api/orders
