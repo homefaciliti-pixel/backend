@@ -303,26 +303,22 @@ Headers: Authorization: Bearer <jwt_token>
 Path Parameter: id (the numeric database Order ID, e.g. 1000007)
 Response Payload:
 {
-  "success": true,
-  "order": {
-    "id": 1000007,
-    "userPhone": "9876543210",
-    "serviceName": "AC Repair",
-    "price": 499,
-    "date": "2026-07-03T10:00:00.000Z",
-    "timeSlot": "10:00 AM - 11:00 AM",
-    "status": "Paid",
-    "bookingStatus": "accepted",
-    "partnerName": "Ravi Kumar",
-    "partnerDistance": "3.2 km away",
-    "partnerPhone": "9988776655",
-    "address": { ... },
-    "payment": { ... },
-    "createdAt": 1780480800000
-  },
-  "message": "Order details retrieved successfully"
+  "id": 1000007,
+  "userPhone": "9876543210",
+  "serviceName": "AC Repair",
+  "price": 499,
+  "date": "2026-07-03T10:00:00.000Z",
+  "timeSlot": "10:00 AM - 11:00 AM",
+  "status": "Paid",
+  "bookingStatus": "accepted",
+  "partnerName": "Ravi Kumar",
+  "partnerDistance": "3.2 km away",
+  "partnerPhone": "9988776655",
+  "address": { ... },
+  "payment": { ... },
+  "createdAt": 1780480800000
 }
-Note: Retrieves all details of a specific order by its numeric ID. Validates that the authenticated user owns the order.
+Note: Retrieves all details of a specific order directly at the root by its numeric ID. Validates that the authenticated user owns the order.
 
 ---------------------------------------------------------
 6. Policies & Information APIs

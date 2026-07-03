@@ -4917,11 +4917,7 @@ app.get('/api/orders/:id', async (req, res) => {
       return res.status(403).json({ error: "Access denied to this order" });
     }
 
-    res.json({
-      success: true,
-      order: order,
-      message: "Order details retrieved successfully"
-    });
+    res.json(order);
   } catch (err) {
     console.error("Fetch order details failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
