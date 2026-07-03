@@ -6,6 +6,18 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 
+function safeJsonParse(str, fallback = null) {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    if (typeof str === 'string' && str.trim().length > 0) {
+      return { houseNo: str, society: "", city: "", locality: "", landmark: "", pincode: "", name: "", alternateNumber: "", countryCode: "" };
+    }
+    return fallback;
+  }
+}
+
 let mysqlPool = null;
 
 const app = express();
@@ -387,8 +399,8 @@ const MySqlDbLayer = {
     const row = await this.queryOne("SELECT * FROM node_orders_v2 WHERE id = ?", [id]);
     if (!row) return null;
     row.price = parseFloat(row.price);
-    row.address = row.address ? JSON.parse(row.address) : null;
-    row.payment = row.payment ? JSON.parse(row.payment) : null;
+    row.address = safeJsonParse(row.address);
+    row.payment = safeJsonParse(row.payment);
     return row;
   },
 
@@ -396,8 +408,8 @@ const MySqlDbLayer = {
     const row = await this.queryOne("SELECT * FROM node_orders_v2 WHERE razorpayOrderId = ?", [rzpOrderId]);
     if (!row) return null;
     row.price = parseFloat(row.price);
-    row.address = row.address ? JSON.parse(row.address) : null;
-    row.payment = row.payment ? JSON.parse(row.payment) : null;
+    row.address = safeJsonParse(row.address);
+    row.payment = safeJsonParse(row.payment);
     return row;
   },
 
@@ -405,8 +417,8 @@ const MySqlDbLayer = {
     const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 WHERE userPhone = ? ORDER BY id DESC", [phone]);
     return rows.map(row => {
       row.price = parseFloat(row.price);
-      row.address = row.address ? JSON.parse(row.address) : null;
-      row.payment = row.payment ? JSON.parse(row.payment) : null;
+      row.address = safeJsonParse(row.address);
+      row.payment = safeJsonParse(row.payment);
       return row;
     });
   },
@@ -415,8 +427,8 @@ const MySqlDbLayer = {
     const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 ORDER BY id DESC");
     return rows.map(row => {
       row.price = parseFloat(row.price);
-      row.address = row.address ? JSON.parse(row.address) : null;
-      row.payment = row.payment ? JSON.parse(row.payment) : null;
+      row.address = safeJsonParse(row.address);
+      row.payment = safeJsonParse(row.payment);
       return row;
     });
   },
