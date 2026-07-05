@@ -310,8 +310,9 @@ async function initMySqlDb() {
         await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['android', '1.0.2', '1.0.2', 1]);
         await conn.query("INSERT INTO node_app_version (platform, latestVersion, minSupportedVersion, forceUpdate) VALUES (?, ?, ?, ?)", ['ios', '1.0.3', '1.0.3', 1]);
       } else {
-        // Force update to 1 for all platforms
-        await conn.query("UPDATE node_app_version SET forceUpdate = 1");
+        // Enforce Android version to 1.0.2 and update forceUpdate
+        await conn.query("UPDATE node_app_version SET latestVersion = '1.0.2', minSupportedVersion = '1.0.2', forceUpdate = 1 WHERE platform = 'android'");
+        await conn.query("UPDATE node_app_version SET forceUpdate = 1 WHERE platform = 'ios'");
       }
     } catch (verErr) {
       console.log("Could not initialize node_app_version table:", verErr.message);
