@@ -3456,8 +3456,9 @@ app.post('/api/referrals/apply', async (req, res) => {
     }
 
     // Reward both users
+    // Reward both users: Referrer gets ₹500, current user gets ₹50
     const newCurrentBalance = (currentUser.walletBalance || 0) + 50.0;
-    const newReferrerBalance = (referrer.walletBalance || 0) + 50.0;
+    const newReferrerBalance = (referrer.walletBalance || 0) + 500.0;
 
     const referralRecord = {
       userPhone: currentUser.phone,
@@ -3473,7 +3474,7 @@ app.post('/api/referrals/apply', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Referral code successfully applied! Rewarded both users with ₹50.`,
+      message: `Referral code successfully applied! You received ₹50 and the referrer received ₹500.`,
       newBalance: newCurrentBalance
     });
   } catch (err) {

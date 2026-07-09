@@ -170,8 +170,8 @@ GET /api/referrals/lookup/:code
 POST /api/referrals/apply
 - Headers: Authorization: Bearer <jwt_token>
 - Body: { "code": "string" }
-- Response: { "success": true, "message": "Referral code successfully applied!...", "newBalance": number }
-- Note: Adds Rs.50 to both the current user and the referrer's wallet balance.
+- Response: { "success": true, "message": "Referral code successfully applied! You received ₹50 and the referrer received ₹500.", "newBalance": number }
+- Note: Adds ₹50 to the current user and ₹500 to the referrer's wallet balance (whose referral code was applied).
 
 ---------------------------------------------------------
 5. Bookings & Orders APIs
