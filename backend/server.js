@@ -3558,13 +3558,13 @@ app.post('/api/referrals/apply', async (req, res) => {
         userPhone: currentUser.phone,
         amount: 50.0,
         type: 'credit',
-        description: `Referral code ${code} applied reward`
+        description: `Referral code applied (Referred by ${referrer.name || 'Guest'} - ${referrer.phone})`
       }),
       DbLayer.createWalletTransaction({
         userPhone: referrer.phone,
         amount: 500.0,
         type: 'credit',
-        description: `Referral bonus from user ${currentUser.phone}`
+        description: `Referral bonus from ${currentUser.name || 'Guest'} (${currentUser.phone})`
       })
     ]);
 
