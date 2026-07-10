@@ -256,6 +256,17 @@ async function initMySqlDb() {
       )
     `);
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS node_wallet_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userPhone VARCHAR(20) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        type VARCHAR(10) NOT NULL,
+        description VARCHAR(255) DEFAULT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
     // Sync database slots table with 11 hourly slots
     const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
     try {
@@ -432,6 +443,22 @@ const MySqlDbLayer = {
       row.payment = safeJsonParse(row.payment);
       return row;
     });
+  },
+
+  async getWalletTransactions(phone) {
+    const [rows] = await mysqlPool.query("SELECT * FROM node_wallet_transactions WHERE userPhone = ? ORDER BY id DESC", [phone]);
+    return rows.map(row => {
+      row.amount = parseFloat(row.amount);
+      return row;
+    });
+  },
+
+  async createWalletTransaction(tx) {
+    const { userPhone, amount, type, description } = tx;
+    await mysqlPool.query(
+      "INSERT INTO node_wallet_transactions (userPhone, amount, type, description) VALUES (?, ?, ?, ?)",
+      [userPhone, amount, type, description]
+    );
   },
 
   async createOrder(order) {
@@ -784,6 +811,29 @@ const JsonDbLayer = {
     return [...data.orders].sort((a, b) => b.id - a.id);
   },
 
+  async getWalletTransactions(phone) {
+    const data = this.readData();
+    data.wallet_transactions = data.wallet_transactions || [];
+    return data.wallet_transactions.filter(tx => tx.userPhone === phone).sort((a, b) => b.id - a.id);
+  },
+
+  async createWalletTransaction(tx) {
+    const data = this.readData();
+    data.wallet_transactions = data.wallet_transactions || [];
+    const nextId = data.wallet_transactions.length > 0 ? Math.max(...data.wallet_transactions.map(t => t.id || 0)) + 1 : 1;
+    const newTx = {
+      id: nextId,
+      userPhone: tx.userPhone,
+      amount: parseFloat(tx.amount),
+      type: tx.type,
+      description: tx.description || "",
+      createdAt: tx.createdAt || new Date().toISOString()
+    };
+    data.wallet_transactions.push(newTx);
+    this.writeData(data);
+    return newTx;
+  },
+
   async createOrder(order) {
     const data = this.readData();
     data.orders.push(order);
@@ -945,7 +995,9 @@ const DbLayer = {
   async getAddressesByUserPhone(phone) { return this.getLayer().getAddressesByUserPhone(phone); },
   async createAddress(address) { return this.getLayer().createAddress(address); },
   async getAppVersion() { return this.getLayer().getAppVersion(); },
-  async updateAppVersion(platform, updates) { return this.getLayer().updateAppVersion(platform, updates); }
+  async updateAppVersion(platform, updates) { return this.getLayer().updateAppVersion(platform, updates); },
+  async getWalletTransactions(phone) { return this.getLayer().getWalletTransactions(phone); },
+  async createWalletTransaction(tx) { return this.getLayer().createWalletTransaction(tx); }
 };
 
 // ----------------------------------------
@@ -3312,6 +3364,12 @@ app.post('/api/wallet/add', async (req, res) => {
 
     const newBalance = (user.walletBalance || 0) + Number(amount);
     await DbLayer.updateUser(user.phone, { walletBalance: newBalance });
+    await DbLayer.createWalletTransaction({
+      userPhone: user.phone,
+      amount: Number(amount),
+      type: 'credit',
+      description: 'Money added to wallet'
+    });
 
     res.json({ success: true, balance: newBalance, message: "Money added to wallet successfully" });
   } catch (err) {
@@ -3339,10 +3397,36 @@ app.post('/api/wallet/deduct', async (req, res) => {
 
     const newBalance = (user.walletBalance || 0) - Number(amount);
     await DbLayer.updateUser(user.phone, { walletBalance: newBalance });
+    await DbLayer.createWalletTransaction({
+      userPhone: user.phone,
+      amount: Number(amount),
+      type: 'debit',
+      description: 'Money deducted from wallet'
+    });
 
     res.json({ success: true, balance: newBalance, message: "Money deducted from wallet successfully" });
   } catch (err) {
     console.error("Deduct wallet money failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 12a. Wallet: Get Transaction History
+app.get('/api/wallet/history', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const transactions = await DbLayer.getWalletTransactions(user.phone);
+    res.json({
+      success: true,
+      transactions: transactions,
+      message: "Wallet transactions retrieved successfully"
+    });
+  } catch (err) {
+    console.error("Fetch wallet history failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -3469,7 +3553,19 @@ app.post('/api/referrals/apply', async (req, res) => {
     await Promise.all([
       DbLayer.updateUser(currentUser.phone, { walletBalance: newCurrentBalance }),
       DbLayer.updateUser(referrer.phone, { walletBalance: newReferrerBalance }),
-      DbLayer.createReferralApplied(referralRecord)
+      DbLayer.createReferralApplied(referralRecord),
+      DbLayer.createWalletTransaction({
+        userPhone: currentUser.phone,
+        amount: 50.0,
+        type: 'credit',
+        description: `Referral code ${code} applied reward`
+      }),
+      DbLayer.createWalletTransaction({
+        userPhone: referrer.phone,
+        amount: 500.0,
+        type: 'credit',
+        description: `Referral bonus from user ${currentUser.phone}`
+      })
     ]);
 
     res.json({
@@ -4052,6 +4148,12 @@ const handlePostCheckout = async (req, res) => {
       if (userObj) {
         const newBalance = Math.max(0, (userObj.walletBalance || 0) - allowedWalletDeduction);
         await DbLayer.updateUser(phone, { walletBalance: newBalance });
+        await DbLayer.createWalletTransaction({
+          userPhone: phone,
+          amount: Number(allowedWalletDeduction),
+          type: 'debit',
+          description: `Payment for Order #${orderId}`
+        });
         console.log(`Deducted ₹${allowedWalletDeduction} from user ${phone} wallet. New balance: ₹${newBalance}`);
       }
     }

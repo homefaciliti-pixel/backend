@@ -159,6 +159,25 @@ POST /api/wallet/calculate-discount
   }
 - Note: Private endpoint to calculate the exact wallet deduction and remaining payment due for a given service price.
 
+GET /api/wallet/history
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "transactions": [
+      {
+        "id": 1,
+        "userPhone": "9876543210",
+        "amount": 500.00,
+        "type": "credit",
+        "description": "Money added to wallet",
+        "createdAt": "2026-07-10T08:00:00.000Z"
+      }
+    ],
+    "message": "Wallet transactions retrieved successfully"
+  }
+- Note: Private endpoint returning a complete transaction list of all credits/debits on the user's wallet (sorted newest first).
+
+
 ---------------------------------------------------------
 4. Referral Program APIs
 ---------------------------------------------------------
