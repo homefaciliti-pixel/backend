@@ -459,7 +459,8 @@ POST /api/checkout-api
     "productId": "Tap Repair",                        (Required; format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`)
     "timeSlot": "4:00 PM - 5:00 PM",                (optional - auto-computed if omitted)
     "date": "2026-05-28",                            (optional - auto-computed if omitted)
-    "payment": { "paymentMethod": "Online", "amountPaid": 0 },
+    "useAmc": true,                                  (optional; set to true to apply the AMC discount/coupon for free ₹0 service)
+    "payment": { "paymentMethod": "Online", "amountPaid": 0 },  (paymentMethod can be 'Online', 'Wallet', 'COD', or 'AMC')
     "address": { ... }                               (optional; nested address details)
   }
 - Response: {
@@ -499,7 +500,8 @@ POST /api/checkout-api
       "payment": { "paymentMethod": "Online", "amountPaid": 0 },
       "razorpayOrderId": "order_DBJOWqy2AuJZ59",
       "razorpayPaymentId": null,
-      "createdAt": 177993467
+      "createdAt": 177993467,
+      "amcId": "AMC45678912"                             (optional; linked AMC Subscription ID)
     },
     "message": "Checkout completed successfully and order placed"
   }
