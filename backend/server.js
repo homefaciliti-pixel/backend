@@ -263,9 +263,16 @@ async function initMySqlDb() {
         amount DECIMAL(10,2) NOT NULL,
         type VARCHAR(10) NOT NULL,
         description VARCHAR(255) DEFAULT NULL,
+        senderName VARCHAR(255) DEFAULT NULL,
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    try {
+      await conn.query("ALTER TABLE node_wallet_transactions ADD COLUMN senderName VARCHAR(255) DEFAULT NULL");
+    } catch (err) {
+      // Column might already exist
+    }
 
     // Sync database slots table with 11 hourly slots
     const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
@@ -454,10 +461,10 @@ const MySqlDbLayer = {
   },
 
   async createWalletTransaction(tx) {
-    const { userPhone, amount, type, description } = tx;
+    const { userPhone, amount, type, description, senderName } = tx;
     await mysqlPool.query(
-      "INSERT INTO node_wallet_transactions (userPhone, amount, type, description) VALUES (?, ?, ?, ?)",
-      [userPhone, amount, type, description]
+      "INSERT INTO node_wallet_transactions (userPhone, amount, type, description, senderName) VALUES (?, ?, ?, ?, ?)",
+      [userPhone, amount, type, description, senderName || null]
     );
   },
 
@@ -827,6 +834,7 @@ const JsonDbLayer = {
       amount: parseFloat(tx.amount),
       type: tx.type,
       description: tx.description || "",
+      senderName: tx.senderName || null,
       createdAt: tx.createdAt || new Date().toISOString()
     };
     data.wallet_transactions.push(newTx);
@@ -3564,13 +3572,15 @@ app.post('/api/referrals/apply', async (req, res) => {
         userPhone: currentUser.phone,
         amount: 50.0,
         type: 'credit',
-        description: `Referral code applied (Referred by ${referrer.name || 'Guest'} - ${referrer.phone})`
+        description: `Referral code applied (Referred by ${referrer.name || 'Guest'} - ${referrer.phone})`,
+        senderName: referrer.name || 'Guest User'
       }),
       DbLayer.createWalletTransaction({
         userPhone: referrer.phone,
         amount: 500.0,
         type: 'credit',
-        description: `Referral bonus from ${currentUser.name || 'Guest'} (${currentUser.phone})`
+        description: `Referral bonus from ${currentUser.name || 'Guest'} (${currentUser.phone})`,
+        senderName: currentUser.name || 'Guest User'
       })
     ]);
 
