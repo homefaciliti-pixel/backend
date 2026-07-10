@@ -3458,7 +3458,7 @@ app.get('/api/wallet/history', async (req, res) => {
         amount: tx.amount,
         type: tx.type,
         description: tx.description,
-        senderName: tx.senderName || null,
+        senderName: tx.senderName || user.name || "Guest User",
         createdAt: tx.createdAt
       };
     });
