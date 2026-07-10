@@ -167,6 +167,7 @@ GET /api/wallet/history
       {
         "id": 1,
         "userPhone": "9876543210",
+        "userName": "Rahul Arjun",
         "amount": 500.00,
         "type": "credit",
         "description": "Money added to wallet",

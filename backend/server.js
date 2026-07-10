@@ -3420,9 +3420,15 @@ app.get('/api/wallet/history', async (req, res) => {
     }
 
     const transactions = await DbLayer.getWalletTransactions(user.phone);
+    const mappedTransactions = transactions.map(tx => {
+      return {
+        ...tx,
+        userName: user.name || "Guest User"
+      };
+    });
     res.json({
       success: true,
-      transactions: transactions,
+      transactions: mappedTransactions,
       message: "Wallet transactions retrieved successfully"
     });
   } catch (err) {
