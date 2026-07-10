@@ -3428,12 +3428,41 @@ app.get('/api/wallet/history', async (req, res) => {
     }
 
     const transactions = await DbLayer.getWalletTransactions(user.phone);
+    
+    // Calculate the total sum of transactions to find any untracked starting balance
+    const transactionSum = transactions.reduce((sum, tx) => {
+      if (tx.type === 'credit') {
+        return sum + Number(tx.amount);
+      } else {
+        return sum - Number(tx.amount);
+      }
+    }, 0);
+
+    const currentBalance = Number(user.walletBalance || 0);
+    const discrepancy = currentBalance - transactionSum;
+
+    if (discrepancy > 0) {
+      transactions.push({
+        id: 0,
+        amount: discrepancy,
+        type: 'credit',
+        description: 'Starting wallet balance',
+        senderName: null,
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      });
+    }
+
     const mappedTransactions = transactions.map(tx => {
       return {
-        ...tx,
-        userName: user.name || "Guest User"
+        id: tx.id,
+        amount: tx.amount,
+        type: tx.type,
+        description: tx.description,
+        senderName: tx.senderName || null,
+        createdAt: tx.createdAt
       };
     });
+
     res.json({
       success: true,
       transactions: mappedTransactions,

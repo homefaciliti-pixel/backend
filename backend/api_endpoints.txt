@@ -166,8 +166,6 @@ GET /api/wallet/history
     "transactions": [
       {
         "id": 1,
-        "userPhone": "9876543210",
-        "userName": "Rahul Arjun",
         "senderName": "Hira Yadav",
         "amount": 500.00,
         "type": "credit",
