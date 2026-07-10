@@ -827,3 +827,103 @@ POST /api/app-version
   }
 - Note: Dynamic admin endpoint to update the app version parameters. Any of the keys can be omitted for partial updates.
 
+
+---------------------------------------------------------
+13. Annual Maintenance Contract (AMC) APIs
+---------------------------------------------------------
+
+GET /api/amc/plans
+- Response: {
+    "success": true,
+    "plans": [
+      {
+        "category": "Plumber",
+        "baseRatePerSqFt": 1.0,
+        "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor)."
+      }
+    ]
+  }
+- Note: Public endpoint listing all available categories for AMC subscription.
+
+POST /api/amc/subscribe
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "category": "Plumber",
+    "areaSqFt": 1200,
+    "floors": 2
+  }
+- Response: {
+    "success": true,
+    "message": "Successfully subscribed to AMC for Plumber! Valid for 1 year with 12 free bookings.",
+    "subscription": {
+      "amcId": "AMC45678912",
+      "userPhone": "9876543210",
+      "category": "Plumber",
+      "areaSqFt": 1200,
+      "floors": 2,
+      "price": 2400.00,
+      "status": "active",
+      "startDate": "2026-07-10T11:00:00.000Z",
+      "endDate": "2027-07-10T11:00:00.000Z"
+    }
+  }
+- Note: Private endpoint to buy an AMC plan. Dynamic price = areaSqFt * floors.
+
+GET /api/amc/subscriptions
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "activeSubscriptions": [
+      {
+        "amcId": "AMC45678912",
+        "userPhone": "9876543210",
+        "category": "Plumber",
+        "areaSqFt": 1200,
+        "floors": 2,
+        "price": 2400.00,
+        "status": "active",
+        "startDate": "2026-07-10T11:00:00.000Z",
+        "endDate": "2027-07-10T11:00:00.000Z",
+        "completedCount": 1,
+        "totalAllowed": 12,
+        "progressMessage": "1 complete out of 12",
+        "buttons": {
+          "bookService": "Book Service (at ₹0)",
+          "renewService": "Renew Service"
+        }
+      }
+    ],
+    "availablePlans": [
+      {
+        "category": "AcRepair",
+        "baseRatePerSqFt": 1.0,
+        "description": "Subscribe to Annual Maintenance Contract for AcRepair (12 free services per year at ₹1/sq ft base rate)."
+      }
+    ],
+    "message": "AMC subscriptions and plans retrieved successfully"
+  }
+- Note: Private endpoint that returns the user's active subscriptions (with progress/counters) and available category plans for slide views.
+
+POST /api/amc/renew
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "amcId": "AMC45678912"
+  }
+- Response: {
+    "success": true,
+    "message": "AMC subscription AMC45678912 renewed successfully! Extended for 1 year.",
+    "subscription": {
+      "amcId": "AMC45678912",
+      "userPhone": "9876543210",
+      "category": "Plumber",
+      "areaSqFt": 1200,
+      "floors": 2,
+      "price": 2400.00,
+      "status": "active",
+      "startDate": "2026-07-10T11:00:00.000Z",
+      "endDate": "2028-07-10T11:00:00.000Z"
+    }
+  }
+- Note: Private endpoint to renew an active or expired subscription, extending it by 1 year.
+
+

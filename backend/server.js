@@ -274,6 +274,26 @@ async function initMySqlDb() {
       // Column might already exist
     }
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS node_amc_subscriptions (
+        amcId VARCHAR(50) PRIMARY KEY,
+        userPhone VARCHAR(20) NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        areaSqFt INT NOT NULL,
+        floors INT NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        status VARCHAR(20) DEFAULT 'active',
+        startDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        endDate TIMESTAMP NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    try {
+      await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN amcId VARCHAR(50) DEFAULT NULL");
+    } catch (err) {
+      // Column might already exist
+    }
+
     // Sync database slots table with 11 hourly slots
     const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
     try {
@@ -468,11 +488,52 @@ const MySqlDbLayer = {
     );
   },
 
+  async getAmcSubscriptions(phone) {
+    const [rows] = await mysqlPool.query("SELECT * FROM node_amc_subscriptions WHERE userPhone = ? ORDER BY startDate DESC", [phone]);
+    return rows;
+  },
+
+  async createAmcSubscription(sub) {
+    const { amcId, userPhone, category, areaSqFt, floors, price, endDate } = sub;
+    await mysqlPool.query(
+      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [amcId, userPhone, category, areaSqFt, floors, price, endDate]
+    );
+  },
+
+  async getAmcSubscriptionById(amcId) {
+    const row = await this.queryOne("SELECT * FROM node_amc_subscriptions WHERE amcId = ?", [amcId]);
+    return row;
+  },
+
+  async countAmcBookingsCompleted(amcId) {
+    const row = await this.queryOne("SELECT COUNT(*) as count FROM node_orders_v2 WHERE amcId = ? AND status = 'Completed'", [amcId]);
+    return row ? row.count : 0;
+  },
+
+  async getAmcSubscriptionByCategory(phone, category) {
+    const row = await this.queryOne(
+      "SELECT * FROM node_amc_subscriptions WHERE userPhone = ? AND category = ? AND status = 'active' AND endDate > NOW() LIMIT 1",
+      [phone, category]
+    );
+    return row;
+  },
+
+  async updateAmcSubscription(amcId, updates) {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return this.getAmcSubscriptionById(amcId);
+    const sets = keys.map(k => `${k} = ?`).join(", ");
+    const values = keys.map(k => updates[k]);
+    await mysqlPool.query(`UPDATE node_amc_subscriptions SET ${sets} WHERE amcId = ?`, [...values, amcId]);
+    return this.getAmcSubscriptionById(amcId);
+  },
+
   async createOrder(order) {
     const {
       id, userPhone, serviceName, price, date, status, bookingStatus,
       partnerName, partnerDistance, productId, description, timeSlot,
-      address, payment, razorpayOrderId, razorpayPaymentId, createdAt
+      address, payment, razorpayOrderId, razorpayPaymentId, createdAt,
+      amcId
     } = order;
 
     const finalStatus = status || "Pending";
@@ -480,24 +541,25 @@ const MySqlDbLayer = {
     const finalAddress = address ? JSON.stringify(address) : null;
     const finalPayment = payment ? JSON.stringify(payment) : null;
     const finalCreatedAt = createdAt || Date.now();
+    const finalAmcId = amcId || null;
 
     await mysqlPool.query(
       `INSERT INTO node_orders_v2 (
         id, userPhone, serviceName, price, date, status, bookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
-        address, payment, razorpayOrderId, razorpayPaymentId, createdAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        address, payment, razorpayOrderId, razorpayPaymentId, createdAt, amcId
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         userPhone=VALUES(userPhone), serviceName=VALUES(serviceName), price=VALUES(price),
         date=VALUES(date), status=VALUES(status), bookingStatus=VALUES(bookingStatus),
         partnerName=VALUES(partnerName), partnerDistance=VALUES(partnerDistance),
         productId=VALUES(productId), description=VALUES(description), timeSlot=VALUES(timeSlot),
         address=VALUES(address), payment=VALUES(payment), razorpayOrderId=VALUES(razorpayOrderId),
-        razorpayPaymentId=VALUES(razorpayPaymentId), createdAt=VALUES(createdAt)`,
+        razorpayPaymentId=VALUES(razorpayPaymentId), createdAt=VALUES(createdAt), amcId=VALUES(amcId)`,
       [
         id, userPhone, serviceName, price, date, finalStatus, finalBookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
-        finalAddress, finalPayment, razorpayOrderId, razorpayPaymentId, finalCreatedAt
+        finalAddress, finalPayment, razorpayOrderId, razorpayPaymentId, finalCreatedAt, finalAmcId
       ]
     );
 
@@ -965,7 +1027,50 @@ const JsonDbLayer = {
     if (updates.minSupportedVersion !== undefined) data.appVersion[platform].minSupportedVersion = updates.minSupportedVersion;
     if (updates.forceUpdate !== undefined) data.appVersion[platform].forceUpdate = !!updates.forceUpdate;
     this.writeData(data);
-  }
+  },
+
+  async getAmcSubscriptions(phone) {
+    const data = this.readData();
+    data.amc_subscriptions = data.amc_subscriptions || [];
+    return data.amc_subscriptions.filter(s => s.userPhone === phone);
+  },
+
+  async createAmcSubscription(sub) {
+    const data = this.readData();
+    data.amc_subscriptions = data.amc_subscriptions || [];
+    data.amc_subscriptions.push(sub);
+    this.writeData(data);
+  },
+
+  async getAmcSubscriptionById(amcId) {
+    const data = this.readData();
+    data.amc_subscriptions = data.amc_subscriptions || [];
+    return data.amc_subscriptions.find(s => s.amcId === amcId) || null;
+  },
+
+  async countAmcBookingsCompleted(amcId) {
+    const data = this.readData();
+    return data.orders.filter(o => o.amcId === amcId && o.status === 'Completed').length;
+  },
+
+  async getAmcSubscriptionByCategory(phone, category) {
+    const data = this.readData();
+    data.amc_subscriptions = data.amc_subscriptions || [];
+    const nowStr = new Date().toISOString();
+    return data.amc_subscriptions.find(s => s.userPhone === phone && s.category === category && s.status === 'active' && s.endDate > nowStr) || null;
+  },
+
+  async updateAmcSubscription(amcId, updates) {
+    const data = this.readData();
+    data.amc_subscriptions = data.amc_subscriptions || [];
+    const idx = data.amc_subscriptions.findIndex(s => s.amcId === amcId);
+    if (idx !== -1) {
+      data.amc_subscriptions[idx] = { ...data.amc_subscriptions[idx], ...updates };
+      this.writeData(data);
+      return data.amc_subscriptions[idx];
+    }
+    return null;
+  },
 };
 
 // ----------------------------------------
@@ -1005,7 +1110,13 @@ const DbLayer = {
   async getAppVersion() { return this.getLayer().getAppVersion(); },
   async updateAppVersion(platform, updates) { return this.getLayer().updateAppVersion(platform, updates); },
   async getWalletTransactions(phone) { return this.getLayer().getWalletTransactions(phone); },
-  async createWalletTransaction(tx) { return this.getLayer().createWalletTransaction(tx); }
+  async createWalletTransaction(tx) { return this.getLayer().createWalletTransaction(tx); },
+  async getAmcSubscriptions(phone) { return this.getLayer().getAmcSubscriptions(phone); },
+  async createAmcSubscription(sub) { return this.getLayer().createAmcSubscription(sub); },
+  async getAmcSubscriptionById(amcId) { return this.getLayer().getAmcSubscriptionById(amcId); },
+  async countAmcBookingsCompleted(amcId) { return this.getLayer().countAmcBookingsCompleted(amcId); },
+  async getAmcSubscriptionByCategory(phone, category) { return this.getLayer().getAmcSubscriptionByCategory(phone, category); },
+  async updateAmcSubscription(amcId, updates) { return this.getLayer().updateAmcSubscription(amcId, updates); }
 };
 
 // ----------------------------------------
@@ -3474,6 +3585,177 @@ app.get('/api/wallet/history', async (req, res) => {
   }
 });
 
+// 12b. AMC: Get Plans
+app.get('/api/amc/plans', (req, res) => {
+  const plans = CATEGORIES_DATA.map(categoryName => {
+    return {
+      category: categoryName,
+      baseRatePerSqFt: 1.0,
+      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor).`
+    };
+  });
+  res.json({ success: true, plans });
+});
+
+// 12c. AMC: Subscribe to Plan
+app.post('/api/amc/subscribe', async (req, res) => {
+  const { category, areaSqFt, floors } = req.body;
+  if (!category || !areaSqFt || !floors || areaSqFt <= 0 || floors <= 0) {
+    return res.status(400).json({ error: "category, areaSqFt and floors are required and must be positive numbers" });
+  }
+
+  if (!CATEGORIES_DATA.includes(category)) {
+    return res.status(400).json({ error: "Invalid category" });
+  }
+
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Check if user already has an active subscription for this category
+    const existing = await DbLayer.getAmcSubscriptionByCategory(user.phone, category);
+    if (existing) {
+      return res.status(400).json({ error: `You already have an active AMC subscription for ${category} (AMC ID: ${existing.amcId})` });
+    }
+
+    // Calculate price: ₹1 per sq ft, plus ₹1 per sq ft for each additional floor
+    const ratePerSqFt = Number(floors);
+    const totalPrice = Number(areaSqFt) * ratePerSqFt;
+
+    // Generate unique AMC ID
+    const amcId = `AMC${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
+
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setFullYear(startDate.getFullYear() + 1); // 1 year validity
+
+    const newSub = {
+      amcId,
+      userPhone: user.phone,
+      category,
+      areaSqFt: Number(areaSqFt),
+      floors: Number(floors),
+      price: totalPrice,
+      status: 'active',
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    };
+
+    await DbLayer.createAmcSubscription(newSub);
+
+    res.json({
+      success: true,
+      message: `Successfully subscribed to AMC for ${category}! Valid for 1 year with 12 free bookings.`,
+      subscription: newSub
+    });
+  } catch (err) {
+    console.error("AMC subscription failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 12d. AMC: Get Active & Available Subscriptions
+app.get('/api/amc/subscriptions', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const subscriptions = await DbLayer.getAmcSubscriptions(user.phone);
+
+    // Map each subscription to include completed bookings progress count
+    const activeSubscriptions = await Promise.all(subscriptions.map(async (sub) => {
+      const completedCount = await DbLayer.countAmcBookingsCompleted(sub.amcId);
+      return {
+        amcId: sub.amcId,
+        userPhone: sub.userPhone,
+        category: sub.category,
+        areaSqFt: sub.areaSqFt,
+        floors: sub.floors,
+        price: parseFloat(sub.price),
+        status: sub.status,
+        startDate: sub.startDate,
+        endDate: sub.endDate,
+        completedCount,
+        totalAllowed: 12,
+        progressMessage: `${completedCount} complete out of 12`,
+        buttons: {
+          bookService: `Book Service (at ₹0)`,
+          renewService: `Renew Service`
+        }
+      };
+    }));
+
+    // Find which categories do NOT have an active subscription
+    const now = new Date();
+    const subscribedCategories = subscriptions
+      .filter(s => s.status === 'active' && new Date(s.endDate) > now)
+      .map(s => s.category);
+
+    const availablePlans = CATEGORIES_DATA
+      .filter(cat => !subscribedCategories.includes(cat))
+      .map(cat => {
+        return {
+          category: cat,
+          baseRatePerSqFt: 1.0,
+          description: `Subscribe to Annual Maintenance Contract for ${cat} (12 free services per year at ₹1/sq ft base rate).`
+        };
+      });
+
+    res.json({
+      success: true,
+      activeSubscriptions,
+      availablePlans,
+      message: "AMC subscriptions and plans retrieved successfully"
+    });
+  } catch (err) {
+    console.error("Fetch AMC subscriptions failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 12e. AMC: Renew Subscription
+app.post('/api/amc/renew', async (req, res) => {
+  const { amcId } = req.body;
+  if (!amcId) {
+    return res.status(400).json({ error: "amcId is required" });
+  }
+
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const sub = await DbLayer.getAmcSubscriptionById(amcId);
+    if (!sub || sub.userPhone !== user.phone) {
+      return res.status(404).json({ error: "AMC subscription not found" });
+    }
+
+    const now = new Date();
+    const baseDate = (sub.status === 'active' && new Date(sub.endDate) > now) ? new Date(sub.endDate) : now;
+    const newEndDate = new Date(baseDate);
+    newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+
+    const updated = await DbLayer.updateAmcSubscription(amcId, {
+      status: 'active',
+      endDate: newEndDate.toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: `AMC subscription ${amcId} renewed successfully! Extended for 1 year.`,
+      subscription: updated
+    });
+  } catch (err) {
+    console.error("Renew AMC subscription failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // Wallet: Get rules for Refer and Earn wallet discounts
 app.get('/api/wallet/rules', (req, res) => {
   res.json({
@@ -4129,9 +4411,6 @@ const handlePostCheckout = async (req, res) => {
       if (userObj) {
         const userWalletBalance = Number(userObj.walletBalance || 0);
         const servicePrice = Number(foundService.price);
-        // Tiered wallet discount rule:
-        // - Orders <= Rs.800: fixed cap of Rs.100
-        // - Orders > Rs.800: 20% of service price (no fixed cap)
         let maxAllowedFromWallet;
         if (servicePrice <= 800) {
           maxAllowedFromWallet = 100;
@@ -4143,20 +4422,44 @@ const handlePostCheckout = async (req, res) => {
       }
     }
 
+    // AMC coupon discount logic
+    const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc"));
+    let activeAmcId = null;
+    let finalPrice = Number(foundService.price);
+
+    if (useAmc) {
+      const category = getServiceCategory(foundService.title);
+      const activeAmc = await DbLayer.getAmcSubscriptionByCategory(phone, category);
+      if (!activeAmc) {
+        return res.status(400).json({ error: `No active AMC subscription found for category ${category}` });
+      }
+
+      const completedCount = await DbLayer.countAmcBookingsCompleted(activeAmc.amcId);
+      if (completedCount >= 12) {
+        return res.status(400).json({ error: "You have already completed all 12 free services for this AMC subscription" });
+      }
+
+      activeAmcId = activeAmc.amcId;
+      paymentMethod = "AMC";
+      allowedWalletDeduction = 0;
+      amountPaid = 0;
+      finalPrice = 0.00;
+    }
+
     const resolvedDate = date || (existingOrder ? existingOrder.date : null) || new Date().toISOString().split('T')[0];
     const resolvedTimeSlot = timeSlot || (existingOrder ? existingOrder.timeSlot : null) || (await getDynamicDateAndSlot()).timeSlot;
     const resolvedAddressField = resolvedAddress || (existingOrder ? existingOrder.address : null);
     
     const isOnlinePayment = paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay";
     const resolvedBookingStatus = isOnlinePayment ? "draft" : "searching";
-    const resolvedStatus = "Pending"; // Remains Pending since wallet only pays a portion
+    const resolvedStatus = "Pending"; 
 
     const finalOrder = {
       id: orderId,
       userPhone: phone,
       userId: phone,
       serviceName: foundService.title,
-      price: Number(foundService.price),
+      price: finalPrice,
       date: resolvedDate,
       status: resolvedStatus,
       bookingStatus: resolvedBookingStatus,
@@ -4168,11 +4471,12 @@ const handlePostCheckout = async (req, res) => {
       address: resolvedAddressField,
       payment: { 
         paymentMethod: paymentMethod, 
-        amountPaid: paymentMethod.toLowerCase() === "wallet" ? allowedWalletDeduction : amountPaid 
+        amountPaid: paymentMethod.toLowerCase() === "wallet" ? allowedWalletDeduction : (paymentMethod.toLowerCase() === "amc" ? 0 : amountPaid)
       },
       razorpayOrderId: razorpayOrderId,
       razorpayPaymentId: (existingOrder ? existingOrder.razorpayPaymentId : null) || null,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      amcId: activeAmcId
     };
     
     if (isOnlinePayment) {
@@ -4180,11 +4484,11 @@ const handlePostCheckout = async (req, res) => {
       draftOrders.set(phone, finalOrder);
       console.log(`[Checkout] Saved online draft order #${orderId} for phone ${phone} in-memory`);
     } else {
-      // Write the finalized order to the database (COD / Wallet)
+      // Write the finalized order to the database (COD / Wallet / AMC)
       await DbLayer.createOrder(finalOrder);
       // Delete from in-memory draft map
       draftOrders.delete(phone);
-      console.log(`[Checkout] Placed offline/wallet order #${orderId} for phone ${phone} to database`);
+      console.log(`[Checkout] Placed offline/wallet/amc order #${orderId} for phone ${phone} to database`);
     }
     
     // Only simulate wallet balance deduction if paymentMethod is Wallet
@@ -4627,6 +4931,23 @@ const resolveServiceDetails = async (productId) => {
   // Default fallback service - returning null as requested
   return null;
 };
+
+// Helper to determine category for a given service title
+function getServiceCategory(serviceTitle) {
+  if (!serviceTitle) return "Plumber";
+  for (const cat of Object.keys(SERVICES_DATA)) {
+    const found = SERVICES_DATA[cat].some(s => s.title.toLowerCase() === serviceTitle.toLowerCase());
+    if (found) return cat;
+  }
+  
+  const normTitle = serviceTitle.toLowerCase();
+  for (const cat of CATEGORIES_DATA) {
+    if (normTitle.includes(cat.toLowerCase()) || cat.toLowerCase().includes(normTitle)) {
+      return cat;
+    }
+  }
+  return "Plumber";
+}
 
 // Checkout: Retrieve Checkout Summary (Get details)
 const handleGetCheckout = async (req, res) => {
