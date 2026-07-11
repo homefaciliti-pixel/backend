@@ -520,8 +520,9 @@ POST /api/checkout-api
     `orderId` is used to build the payment URL. `razorpayOrderId` is for reference/logging.
   - If paymentMethod is "Wallet", the server enforces the Refer and Earn wallet discount policy:
     - Deducts a maximum of 20% of the service price, up to a maximum of ₹100, from the user's wallet.
-    - Sets `payment.amountPaid` in the order to the actual deducted wallet amount.
-    - Sets the order status to "Pending" (instead of "Paid") because the remaining balance is unpaid and will be collected upon service completion.
+    - Sets the order's `advancePayment` to the actual deducted wallet amount.
+    - Sets the order's `remainingAmount` to the remaining unpaid balance (`price - advancePayment`).
+    - Sets the order status to "Pending" because the remaining balance is unpaid and will be collected upon service completion.
 
 
 GET /api/checkout

@@ -4373,6 +4373,7 @@ const handlePostCheckout = async (req, res) => {
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
+      const advanceOnlineAmount = Math.min(Number(foundService.price), 199.00);
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
@@ -4382,7 +4383,7 @@ const handlePostCheckout = async (req, res) => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            amount: Math.round(Number(foundService.price) * 100), // amount in paisa
+            amount: Math.round(advanceOnlineAmount * 100), // amount in paisa (₹199 or price)
             currency: 'INR',
             receipt: `order_${orderId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
           })
@@ -4390,7 +4391,7 @@ const handlePostCheckout = async (req, res) => {
         const rzpData = await rzpRes.json();
         if (rzpData && rzpData.id) {
           razorpayOrderId = rzpData.id;
-          console.log(`[Razorpay] Successfully created order ${razorpayOrderId} for amount ₹${foundService.price}`);
+          console.log(`[Razorpay] Successfully created order ${razorpayOrderId} for advance amount ₹${advanceOnlineAmount}`);
         } else {
           console.warn('[Razorpay] Order creation failed:', JSON.stringify(rzpData));
         }
@@ -4459,8 +4460,22 @@ const handlePostCheckout = async (req, res) => {
     const resolvedBookingStatus = isOnlinePayment ? "draft" : "searching";
     const resolvedStatus = "Pending"; 
 
-    const finalAdvancePayment = useAmc ? 0.00 : Math.min(finalPrice, 199.00);
-    const finalRemainingAmount = useAmc ? 0.00 : Math.max(0, finalPrice - finalAdvancePayment);
+    let finalAdvancePayment = 0.00;
+    let finalRemainingAmount = finalPrice;
+
+    if (useAmc) {
+      finalAdvancePayment = 0.00;
+      finalRemainingAmount = 0.00;
+    } else if (paymentMethod.toLowerCase() === "wallet") {
+      finalAdvancePayment = allowedWalletDeduction;
+      finalRemainingAmount = Math.max(0, finalPrice - allowedWalletDeduction);
+    } else if (isOnlinePayment) {
+      finalAdvancePayment = Math.min(finalPrice, 199.00);
+      finalRemainingAmount = Math.max(0, finalPrice - finalAdvancePayment);
+    } else {
+      finalAdvancePayment = 0.00;
+      finalRemainingAmount = finalPrice;
+    }
 
     const finalOrder = {
       id: orderId,
