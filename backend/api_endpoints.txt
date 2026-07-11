@@ -42,6 +42,7 @@ POST /api/auth/verify-otp
     },
     "userId": "8504920167",
     "isNewUser": false,
+    "referralAppliedStatus": 0,
     "token": "<jwt_token>"
   }
 

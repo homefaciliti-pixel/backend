@@ -1618,6 +1618,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     }
 
     const token = jwt.sign({ phone: user.phone }, JWT_SECRET);
+    const referralApplied = await DbLayer.getReferralApplied(user.phone);
+    const referralAppliedStatus = referralApplied ? 1 : 0;
 
     res.json({
       success: true,
@@ -1625,6 +1627,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       user: { ...user, userId: user.phone },
       userId: user.phone,
       isNewUser: isNewUser,
+      referralAppliedStatus: referralAppliedStatus,
       token: token
     });
   } catch (err) {
