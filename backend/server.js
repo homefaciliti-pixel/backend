@@ -3864,9 +3864,7 @@ app.post('/api/referrals/apply', async (req, res) => {
       return res.status(400).json({ error: "Referral code already applied" });
     }
 
-    // Reward both users
-    // Reward both users: Referrer gets ₹500, current user gets ₹50
-    const newCurrentBalance = (currentUser.walletBalance || 0) + 50.0;
+    // Reward only the referrer (the one who referred) with ₹500
     const newReferrerBalance = (referrer.walletBalance || 0) + 500.0;
 
     const referralRecord = {
@@ -3876,16 +3874,8 @@ app.post('/api/referrals/apply', async (req, res) => {
     };
 
     await Promise.all([
-      DbLayer.updateUser(currentUser.phone, { walletBalance: newCurrentBalance }),
       DbLayer.updateUser(referrer.phone, { walletBalance: newReferrerBalance }),
       DbLayer.createReferralApplied(referralRecord),
-      DbLayer.createWalletTransaction({
-        userPhone: currentUser.phone,
-        amount: 50.0,
-        type: 'credit',
-        description: `Referral code applied (Referred by ${referrer.name || 'Guest'} - ${referrer.phone})`,
-        senderName: referrer.name || 'Guest User'
-      }),
       DbLayer.createWalletTransaction({
         userPhone: referrer.phone,
         amount: 500.0,
@@ -3897,8 +3887,8 @@ app.post('/api/referrals/apply', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Referral code successfully applied! You received ₹50 and the referrer received ₹500.`,
-      newBalance: newCurrentBalance
+      message: `Referral code successfully applied! The referrer received ₹500.`,
+      newBalance: currentUser.walletBalance || 0
     });
   } catch (err) {
     console.error("Apply referral code failed:", err);
