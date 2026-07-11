@@ -18,6 +18,16 @@ function safeJsonParse(str, fallback = null) {
   }
 }
 
+function parseOrderNumbers(row) {
+  if (!row) return null;
+  row.price = parseFloat(row.price);
+  row.address = safeJsonParse(row.address);
+  row.payment = safeJsonParse(row.payment);
+  row.advancePayment = row.advancePayment !== undefined && row.advancePayment !== null ? parseFloat(row.advancePayment) : 199.00;
+  row.remainingAmount = row.remainingAmount !== undefined && row.remainingAmount !== null ? parseFloat(row.remainingAmount) : 0.00;
+  return row;
+}
+
 let mysqlPool = null;
 
 const app = express();
@@ -146,7 +156,10 @@ async function initMySqlDb() {
         payment TEXT DEFAULT NULL,
         razorpayOrderId VARCHAR(100) DEFAULT NULL,
         razorpayPaymentId VARCHAR(100) DEFAULT NULL,
-        createdAt BIGINT NOT NULL
+        createdAt BIGINT NOT NULL,
+        amcId VARCHAR(50) DEFAULT NULL,
+        advancePayment DECIMAL(10,2) DEFAULT 199.00,
+        remainingAmount DECIMAL(10,2) DEFAULT 0.00
       )
     `);
 
@@ -294,6 +307,18 @@ async function initMySqlDb() {
       // Column might already exist
     }
 
+    try {
+      await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN advancePayment DECIMAL(10,2) DEFAULT 199.00");
+    } catch (err) {
+      // Column might already exist
+    }
+
+    try {
+      await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN remainingAmount DECIMAL(10,2) DEFAULT 0.00");
+    } catch (err) {
+      // Column might already exist
+    }
+
     // Sync database slots table with 11 hourly slots
     const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
     try {
@@ -436,40 +461,22 @@ const MySqlDbLayer = {
 
   async getOrderById(id) {
     const row = await this.queryOne("SELECT * FROM node_orders_v2 WHERE id = ?", [id]);
-    if (!row) return null;
-    row.price = parseFloat(row.price);
-    row.address = safeJsonParse(row.address);
-    row.payment = safeJsonParse(row.payment);
-    return row;
+    return parseOrderNumbers(row);
   },
 
   async getOrderByRazorpayOrderId(rzpOrderId) {
     const row = await this.queryOne("SELECT * FROM node_orders_v2 WHERE razorpayOrderId = ?", [rzpOrderId]);
-    if (!row) return null;
-    row.price = parseFloat(row.price);
-    row.address = safeJsonParse(row.address);
-    row.payment = safeJsonParse(row.payment);
-    return row;
+    return parseOrderNumbers(row);
   },
 
   async getOrdersByUserPhone(phone) {
     const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 WHERE userPhone = ? ORDER BY id DESC", [phone]);
-    return rows.map(row => {
-      row.price = parseFloat(row.price);
-      row.address = safeJsonParse(row.address);
-      row.payment = safeJsonParse(row.payment);
-      return row;
-    });
+    return rows.map(row => parseOrderNumbers(row));
   },
 
   async getAllOrders() {
     const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 ORDER BY id DESC");
-    return rows.map(row => {
-      row.price = parseFloat(row.price);
-      row.address = safeJsonParse(row.address);
-      row.payment = safeJsonParse(row.payment);
-      return row;
-    });
+    return rows.map(row => parseOrderNumbers(row));
   },
 
   async getWalletTransactions(phone) {
@@ -533,7 +540,7 @@ const MySqlDbLayer = {
       id, userPhone, serviceName, price, date, status, bookingStatus,
       partnerName, partnerDistance, productId, description, timeSlot,
       address, payment, razorpayOrderId, razorpayPaymentId, createdAt,
-      amcId
+      amcId, advancePayment, remainingAmount
     } = order;
 
     const finalStatus = status || "Pending";
@@ -542,24 +549,29 @@ const MySqlDbLayer = {
     const finalPayment = payment ? JSON.stringify(payment) : null;
     const finalCreatedAt = createdAt || Date.now();
     const finalAmcId = amcId || null;
+    const finalAdvance = advancePayment !== undefined ? advancePayment : 199.00;
+    const finalRemaining = remainingAmount !== undefined ? remainingAmount : 0.00;
 
     await mysqlPool.query(
       `INSERT INTO node_orders_v2 (
         id, userPhone, serviceName, price, date, status, bookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
-        address, payment, razorpayOrderId, razorpayPaymentId, createdAt, amcId
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        address, payment, razorpayOrderId, razorpayPaymentId, createdAt, amcId,
+        advancePayment, remainingAmount
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         userPhone=VALUES(userPhone), serviceName=VALUES(serviceName), price=VALUES(price),
         date=VALUES(date), status=VALUES(status), bookingStatus=VALUES(bookingStatus),
         partnerName=VALUES(partnerName), partnerDistance=VALUES(partnerDistance),
         productId=VALUES(productId), description=VALUES(description), timeSlot=VALUES(timeSlot),
         address=VALUES(address), payment=VALUES(payment), razorpayOrderId=VALUES(razorpayOrderId),
-        razorpayPaymentId=VALUES(razorpayPaymentId), createdAt=VALUES(createdAt), amcId=VALUES(amcId)`,
+        razorpayPaymentId=VALUES(razorpayPaymentId), createdAt=VALUES(createdAt), amcId=VALUES(amcId),
+        advancePayment=VALUES(advancePayment), remainingAmount=VALUES(remainingAmount)`,
       [
         id, userPhone, serviceName, price, date, finalStatus, finalBookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
-        finalAddress, finalPayment, razorpayOrderId, razorpayPaymentId, finalCreatedAt, finalAmcId
+        finalAddress, finalPayment, razorpayOrderId, razorpayPaymentId, finalCreatedAt, finalAmcId,
+        finalAdvance, finalRemaining
       ]
     );
 
@@ -4447,6 +4459,9 @@ const handlePostCheckout = async (req, res) => {
     const resolvedBookingStatus = isOnlinePayment ? "draft" : "searching";
     const resolvedStatus = "Pending"; 
 
+    const finalAdvancePayment = useAmc ? 0.00 : Math.min(finalPrice, 199.00);
+    const finalRemainingAmount = useAmc ? 0.00 : Math.max(0, finalPrice - finalAdvancePayment);
+
     const finalOrder = {
       id: orderId,
       userPhone: phone,
@@ -4469,7 +4484,9 @@ const handlePostCheckout = async (req, res) => {
       razorpayOrderId: razorpayOrderId,
       razorpayPaymentId: (existingOrder ? existingOrder.razorpayPaymentId : null) || null,
       createdAt: Date.now(),
-      amcId: activeAmcId
+      amcId: activeAmcId,
+      advancePayment: finalAdvancePayment,
+      remainingAmount: finalRemainingAmount
     };
     
     if (isOnlinePayment) {

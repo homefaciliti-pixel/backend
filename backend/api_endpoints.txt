@@ -502,7 +502,9 @@ POST /api/checkout-api
       "razorpayOrderId": "order_DBJOWqy2AuJZ59",
       "razorpayPaymentId": null,
       "createdAt": 177993467,
-      "amcId": "AMC45678912"                             (optional; linked AMC Subscription ID)
+      "amcId": "AMC45678912",                             (optional; linked AMC Subscription ID)
+      "advancePayment": 199.00,                           (Required; advance payment deposit, max(price, 199.00))
+      "remainingAmount": 100.00                           (Required; remaining balance to pay, max(0, price - advancePayment))
     },
     "message": "Checkout completed successfully and order placed"
   }
