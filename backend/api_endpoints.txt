@@ -933,3 +933,119 @@ POST /api/amc/renew
 - Note: Private endpoint to renew an active or expired subscription, extending it by 1 year.
 
 
+14. Extended AMC, Saved Cards & Payment APIs
+
+GET /api/amc/plans/:category
+- Headers: None
+- Response: {
+    "success": true,
+    "plan": {
+      "category": "Plumber",
+      "baseRatePerSqFt": 1.0,
+      "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹1 per sq feet..."
+    }
+  }
+
+POST /api/amc/plan-property-details
+- Headers: None
+- Body: {
+    "category": "Plumber",
+    "areaSqFt": 1200,
+    "floors": 2
+  }
+- Response: {
+    "success": true,
+    "category": "Plumber",
+    "areaSqFt": 1200,
+    "floors": 2,
+    "ratePerSqFt": 2,
+    "totalPrice": 2400,
+    "description": "Estimated AMC for Plumber over 1200 sq ft across 2 floor(s)."
+  }
+
+GET /api/cards
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "cards": [
+      {
+        "id": 1,
+        "userPhone": "9876543210",
+        "cardHolderName": "John Doe",
+        "cardNumber": "**** **** **** 1111",
+        "expiryDate": "12/29",
+        "cardType": "Visa"
+      }
+    ]
+  }
+
+POST /api/cards
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "cardHolderName": "John Doe",
+    "cardNumber": "1234567812341111",
+    "expiryDate": "12/29",
+    "cardType": "Visa"
+  }
+- Response: {
+    "success": true,
+    "card": {
+      "id": 1,
+      "userPhone": "9876543210",
+      "cardHolderName": "John Doe",
+      "cardNumber": "**** **** **** 1111",
+      "expiryDate": "12/29",
+      "cardType": "Visa"
+    },
+    "message": "Card saved successfully"
+  }
+
+POST /api/payments
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "orderId": 501,
+    "amount": 299,
+    "paymentMethod": "Online"
+  }
+- Response: {
+    "success": true,
+    "orderId": 501,
+    "amount": 299,
+    "paymentMethod": "Online",
+    "razorpayOrderId": "order_K7x9s...",
+    "status": "Initiated",
+    "message": "Razorpay order generated successfully"
+  }
+
+GET /api/categories/:category/services?status=AMC
+- Note: Adding `status=AMC` query/body parameter overrides service prices to ₹0 and sets `"status": "AMC"`.
+
+GET /api/services/detail/:title?status=AMC
+- Note: Adding `status=AMC` query/body parameter overrides details price to ₹0 and sets `"status": "AMC"`.
+
+POST /api/bookings (Add body status = AMC)
+- Body: {
+    "productId": "Tap Repair",
+    "date": "2026-07-13",
+    "timeSlot": "10:00 AM - 11:00 AM",
+    "status": "AMC"
+  }
+- Note: Configures the draft booking with AMC method, ₹0 price, and `"status": "AMC"`.
+
+POST /api/address (Add body status = AMC)
+- Note: Address creation accepts status in body and echoes it back in response: `{"success": true, "address": ..., "status": "AMC"}`.
+
+GET /api/checkout-api?status=AMC
+- Note: Calculates pricing as AMC booking (₹0 advancePayment, ₹0 remainingAmount, ₹0 platformCharge, ₹0 totalAmount) and sets `"status": "AMC"`.
+
+POST /api/checkout (Add body status = AMC)
+- Note: Placed order is registered as AMC in the database with `"status": "AMC"` and ₹0 price.
+
+GET /api/orders?status=AMC
+- Note: Filters orders list to return only orders linked to AMC (`status = 'AMC'` or `paymentMethod = 'AMC'`).
+
+GET /api/orders/:id
+- Note: Returns order details with top-level `status` and unified response.
+
+
+

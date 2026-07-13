@@ -172,6 +172,18 @@ async function initMySqlDb() {
     `);
 
     await conn.query(`
+      CREATE TABLE IF NOT EXISTS node_saved_cards (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userPhone VARCHAR(20) NOT NULL,
+        cardHolderName VARCHAR(255) NOT NULL,
+        cardNumber VARCHAR(50) NOT NULL,
+        expiryDate VARCHAR(10) NOT NULL,
+        cardType VARCHAR(20) NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS node_addresses_v2 (
         id INT AUTO_INCREMENT PRIMARY KEY,
         userPhone VARCHAR(20) NOT NULL,
@@ -533,6 +545,20 @@ const MySqlDbLayer = {
     const values = keys.map(k => updates[k]);
     await mysqlPool.query(`UPDATE node_amc_subscriptions SET ${sets} WHERE amcId = ?`, [...values, amcId]);
     return this.getAmcSubscriptionById(amcId);
+  },
+
+  async getSavedCards(phone) {
+    const [rows] = await mysqlPool.query("SELECT * FROM node_saved_cards WHERE userPhone = ? ORDER BY createdAt DESC", [phone]);
+    return rows;
+  },
+
+  async createSavedCard(card) {
+    const { userPhone, cardHolderName, cardNumber, expiryDate, cardType } = card;
+    const [result] = await mysqlPool.query(
+      "INSERT INTO node_saved_cards (userPhone, cardHolderName, cardNumber, expiryDate, cardType) VALUES (?, ?, ?, ?, ?)",
+      [userPhone, cardHolderName, cardNumber, expiryDate, cardType]
+    );
+    return { id: result.insertId, ...card };
   },
 
   async createOrder(order) {
@@ -1083,6 +1109,21 @@ const JsonDbLayer = {
     }
     return null;
   },
+
+  async getSavedCards(phone) {
+    const data = this.readData();
+    data.saved_cards = data.saved_cards || [];
+    return data.saved_cards.filter(c => c.userPhone === phone);
+  },
+
+  async createSavedCard(card) {
+    const data = this.readData();
+    data.saved_cards = data.saved_cards || [];
+    const newCard = { id: Date.now(), ...card };
+    data.saved_cards.push(newCard);
+    this.writeData(data);
+    return newCard;
+  },
 };
 
 // ----------------------------------------
@@ -1128,7 +1169,9 @@ const DbLayer = {
   async getAmcSubscriptionById(amcId) { return this.getLayer().getAmcSubscriptionById(amcId); },
   async countAmcBookingsCompleted(amcId) { return this.getLayer().countAmcBookingsCompleted(amcId); },
   async getAmcSubscriptionByCategory(phone, category) { return this.getLayer().getAmcSubscriptionByCategory(phone, category); },
-  async updateAmcSubscription(amcId, updates) { return this.getLayer().updateAmcSubscription(amcId, updates); }
+  async updateAmcSubscription(amcId, updates) { return this.getLayer().updateAmcSubscription(amcId, updates); },
+  async getSavedCards(phone) { return this.getLayer().getSavedCards(phone); },
+  async createSavedCard(card) { return this.getLayer().createSavedCard(card); }
 };
 
 // ----------------------------------------
@@ -1904,7 +1947,19 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-  const cleanCategory = category.toLowerCase().replace(/[\s\-_]/g, '');
+  const statusParam = req.query.status || req.body.status;
+  let hasActiveAmc = false;
+  try {
+    const user = await getAuthenticatedUser(req).catch(() => null);
+    if (user) {
+      const activeAmc = await DbLayer.getAmcSubscriptionByCategory(user.phone, category);
+      if (activeAmc) {
+        hasActiveAmc = true;
+      }
+    }
+  } catch (e) {}
+
+  const isAmcMode = statusParam === "AMC" || hasActiveAmc;
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
@@ -1945,11 +2000,19 @@ app.get('/api/categories/:category/services', async (req, res) => {
         const uniqueStatic = staticServices.filter(s => !dbTitles.has(s.title.toLowerCase()));
         const mergedServices = [...dbServices, ...uniqueStatic];
 
+        const finalServices = resolveServiceUrls(mergedServices, serverBaseUrl).map(s => {
+          if (isAmcMode) {
+            return { ...s, price: 0, status: "AMC" };
+          }
+          return s;
+        });
+
         return res.json({
           success: true,
           category: cat.title,
-          total: mergedServices.length,
-          services: resolveServiceUrls(mergedServices, serverBaseUrl)
+          status: isAmcMode ? "AMC" : "Regular",
+          total: finalServices.length,
+          services: finalServices
         });
       }
     } catch (err) {
@@ -1979,11 +2042,19 @@ app.get('/api/categories/:category/services', async (req, res) => {
     );
   }
 
+  const finalServices = resolveServiceUrls(services, serverBaseUrl).map(s => {
+    if (isAmcMode) {
+      return { ...s, price: 0, status: "AMC" };
+    }
+    return s;
+  });
+
   res.json({
     success: true,
     category: matchedCategory,
-    total: services.length,
-    services: resolveServiceUrls(services, serverBaseUrl)
+    status: isAmcMode ? "AMC" : "Regular",
+    total: finalServices.length,
+    services: finalServices
   });
 });
 
@@ -2256,6 +2327,11 @@ const handleServiceDetail = async (req, res) => {
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+  const statusParam = req.query.status || req.body.status;
+  let hasActiveAmc = false;
+  let detectedCategory = null;
+
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
       const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
@@ -2265,12 +2341,32 @@ const handleServiceDetail = async (req, res) => {
       );
       if (srvRows.length > 0) {
         const r = srvRows[0];
-        
         const enrichedService = sanitizeServiceDbObj(r, serverBaseUrl);
+        
+        detectedCategory = getServiceCategory(enrichedService.title);
+        if (statusParam === "AMC") {
+          hasActiveAmc = true;
+        } else {
+          try {
+            const user = await getAuthenticatedUser(req).catch(() => null);
+            if (user) {
+              const activeAmc = await DbLayer.getAmcSubscriptionByCategory(user.phone, detectedCategory);
+              if (activeAmc) {
+                hasActiveAmc = true;
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (hasActiveAmc) {
+          enrichedService.price = 0;
+          enrichedService.status = "AMC";
+        }
 
         return res.json({
           success: true,
           service: enrichedService,
+          status: hasActiveAmc ? "AMC" : "Regular",
           message: "Service details retrieved successfully"
         });
       }
@@ -2301,11 +2397,27 @@ const handleServiceDetail = async (req, res) => {
     resolvedImage = `${serverBaseUrl}${resolvedImage}`;
   }
 
+  detectedCategory = foundCategory || getServiceCategory(foundService.title);
+  if (statusParam === "AMC") {
+    hasActiveAmc = true;
+  } else {
+    try {
+      const user = await getAuthenticatedUser(req).catch(() => null);
+      if (user) {
+        const activeAmc = await DbLayer.getAmcSubscriptionByCategory(user.phone, detectedCategory);
+        if (activeAmc) {
+          hasActiveAmc = true;
+        }
+      }
+    } catch (e) {}
+  }
+
   // Add rich mock metadata for details
   const enrichedService = {
     productId: foundService.title,
     title: foundService.title,
-    price: foundService.price,
+    price: hasActiveAmc ? 0 : foundService.price,
+    status: hasActiveAmc ? "AMC" : "Regular",
     description: foundService.description,
     image: resolvedImage,
     category: foundCategory,
@@ -2325,6 +2437,7 @@ const handleServiceDetail = async (req, res) => {
   res.json({
     success: true,
     service: enrichedService,
+    status: hasActiveAmc ? "AMC" : "Regular",
     message: "Service details retrieved successfully"
   });
 };
@@ -3771,6 +3884,153 @@ app.post('/api/amc/renew', async (req, res) => {
   }
 });
 
+// 12f. AMC: Get Plan Details
+app.get('/api/amc/plans/:category', (req, res) => {
+  const { category } = req.params;
+  const exists = CATEGORIES_DATA.some(cat => cat.toLowerCase() === category.toLowerCase());
+  if (!exists) {
+    return res.status(404).json({ error: `AMC plan for category ${category} not found` });
+  }
+  const matchedCategory = CATEGORIES_DATA.find(cat => cat.toLowerCase() === category.toLowerCase());
+  res.json({
+    success: true,
+    plan: {
+      category: matchedCategory,
+      baseRatePerSqFt: 1.0,
+      description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor).`
+    }
+  });
+});
+
+// 12g. AMC: Plan Property Details Quote
+app.post('/api/amc/plan-property-details', (req, res) => {
+  const { category, areaSqFt, floors } = req.body;
+  if (!category || !areaSqFt || !floors || areaSqFt <= 0 || floors <= 0) {
+    return res.status(400).json({ error: "category, areaSqFt and floors are required and must be positive numbers" });
+  }
+  if (!CATEGORIES_DATA.some(cat => cat.toLowerCase() === category.toLowerCase())) {
+    return res.status(400).json({ error: "Invalid category" });
+  }
+  const matchedCategory = CATEGORIES_DATA.find(cat => cat.toLowerCase() === category.toLowerCase());
+  const ratePerSqFt = Number(floors);
+  const totalPrice = Number(areaSqFt) * ratePerSqFt;
+  res.json({
+    success: true,
+    category: matchedCategory,
+    areaSqFt: Number(areaSqFt),
+    floors: Number(floors),
+    ratePerSqFt,
+    totalPrice,
+    description: `Estimated AMC for ${matchedCategory} over ${areaSqFt} sq ft across ${floors} floor(s).`
+  });
+});
+
+// Cards: Get List
+app.get('/api/cards', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const cards = await DbLayer.getSavedCards(user.phone);
+    res.json({ success: true, cards });
+  } catch (err) {
+    console.error("Fetch saved cards failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Cards: Save Card
+app.post('/api/cards', async (req, res) => {
+  const { cardHolderName, cardNumber, expiryDate, cardType } = req.body;
+  if (!cardHolderName || !cardNumber || !expiryDate || !cardType) {
+    return res.status(400).json({ error: "cardHolderName, cardNumber, expiryDate, and cardType are required" });
+  }
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    let maskedNumber = cardNumber;
+    if (cardNumber.length > 4) {
+      maskedNumber = "**** **** **** " + cardNumber.slice(-4);
+    }
+    const newCard = await DbLayer.createSavedCard({
+      userPhone: user.phone,
+      cardHolderName,
+      cardNumber: maskedNumber,
+      expiryDate,
+      cardType
+    });
+    res.json({ success: true, card: newCard, message: "Card saved successfully" });
+  } catch (err) {
+    console.error("Save card failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Generic Payment API
+app.post('/api/payments', async (req, res) => {
+  const { orderId, amount, paymentMethod } = req.body;
+  if (!orderId || !amount || !paymentMethod) {
+    return res.status(400).json({ error: "orderId, amount, and paymentMethod are required" });
+  }
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const order = await DbLayer.getOrderById(parseInt(orderId));
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    let razorpayOrderId = null;
+    const isOnline = paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay";
+    if (isOnline) {
+      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
+      const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
+      try {
+        const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
+        const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount: Math.round(Number(amount) * 100),
+            currency: 'INR',
+            receipt: `pay_${orderId}_${Date.now()}`
+          })
+        });
+        const rzpData = await rzpRes.json();
+        if (rzpData && rzpData.id) {
+          razorpayOrderId = rzpData.id;
+        }
+      } catch (err) {
+        console.error('[Payments] Razorpay order generation failed:', err.message);
+      }
+      if (!razorpayOrderId) {
+        razorpayOrderId = `order_mock_${Math.random().toString(36).substring(2, 11)}`;
+      }
+    }
+
+    res.json({
+      success: true,
+      orderId: order.id,
+      amount: Number(amount),
+      paymentMethod,
+      razorpayOrderId,
+      status: isOnline ? "Initiated" : "Success",
+      message: isOnline ? "Razorpay order generated successfully" : "Payment processed successfully"
+    });
+  } catch (err) {
+    console.error("Create payment failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // Wallet: Get rules for Refer and Earn wallet discounts
 app.get('/api/wallet/rules', (req, res) => {
   res.json({
@@ -4068,19 +4328,27 @@ const handlePostBooking = async (req, res) => {
       pendingOrders.push(memDraft);
     }
 
+    const statusParam = req.body.status || req.query.status || (req.body.booking && req.body.booking.status);
+    const useAmc = statusParam === "AMC" || req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && String(req.body.payment.paymentMethod).toLowerCase() === "amc");
+
     let order;
     if (pendingOrders && pendingOrders.length > 0) {
       const existingOrder = pendingOrders[0];
       const updates = {
         productId: resolvedProduct.productId,
         serviceName: resolvedProduct.serviceName,
-        price: resolvedProduct.price,
+        price: useAmc ? 0.00 : resolvedProduct.price,
         description: resolvedProduct.description,
         date: date,
         timeSlot: timeSlot,
-        status: "Draft",
+        status: useAmc ? "AMC" : "Draft",
       };
-      if (existingOrder.payment) {
+      if (useAmc) {
+        updates.payment = {
+          paymentMethod: "AMC",
+          amountPaid: 0.00
+        };
+      } else if (existingOrder.payment) {
         updates.payment = {
           ...existingOrder.payment,
           amountPaid: resolvedProduct.price
@@ -4120,9 +4388,9 @@ const handlePostBooking = async (req, res) => {
         userPhone: user.phone,
         userId: user.phone,
         serviceName: resolvedProduct.serviceName,
-        price: resolvedProduct.price,
+        price: useAmc ? 0.00 : resolvedProduct.price,
         date: date,
-        status: "Draft",
+        status: useAmc ? "AMC" : "Draft",
         bookingStatus: "draft",
         partnerName: null,
         partnerDistance: null,
@@ -4131,8 +4399,8 @@ const handlePostBooking = async (req, res) => {
         timeSlot: timeSlot,
         address: resolvedAddr,
         payment: {
-          paymentMethod: "Wallet",
-          amountPaid: resolvedProduct.price
+          paymentMethod: useAmc ? "AMC" : "Wallet",
+          amountPaid: useAmc ? 0.00 : resolvedProduct.price
         },
         createdAt: Date.now()
       };
@@ -4232,7 +4500,7 @@ const handleAddAddress = async (req, res) => {
     
     const savedAddress = await DbLayer.createAddress(newAddress);
     console.log(`Saved address for phone ${phone}: ${savedAddress.houseNo}, ${savedAddress.city}`);
-    res.json({ success: true, address: savedAddress, message: "Address saved successfully" });
+    res.json({ success: true, address: savedAddress, status: req.body.status || "Regular", message: "Address saved successfully" });
   } catch (err) {
     console.error("Save address failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -4429,7 +4697,7 @@ const handlePostCheckout = async (req, res) => {
     }
 
     // AMC coupon discount logic
-    const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc"));
+    const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
     let activeAmcId = null;
     let finalPrice = Number(foundService.price);
 
@@ -4484,7 +4752,7 @@ const handlePostCheckout = async (req, res) => {
       serviceName: foundService.title,
       price: finalPrice,
       date: resolvedDate,
-      status: resolvedStatus,
+      status: useAmc ? "AMC" : resolvedStatus,
       bookingStatus: resolvedBookingStatus,
       partnerName: null,
       partnerDistance: null,
@@ -5311,6 +5579,37 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    // Support explicit payment method overrides passed via query/body parameters
+    let queryPaymentMethod = req.query.paymentMethod || req.query.payment_method || req.body.paymentMethod || req.body.payment_method || req.headers['x-payment-method'];
+    if (req.body.payment) {
+      queryPaymentMethod = queryPaymentMethod || req.body.payment.paymentMethod || req.body.payment.payment_method;
+    }
+    if (req.query.payment) {
+      queryPaymentMethod = queryPaymentMethod || req.query.payment.paymentMethod || req.query.payment.payment_method;
+    }
+
+    if (queryPaymentMethod) {
+      order.payment = order.payment || {};
+      order.payment.paymentMethod = queryPaymentMethod;
+    }
+
+    let currentMethod = (order.payment && order.payment.paymentMethod) || "Online";
+
+    // Support query/body status = AMC parameter
+    const statusParam = req.query.status || req.body.status || req.headers['x-status'];
+    let isAmc = currentMethod.toLowerCase() === "amc" || order.amcId !== null || statusParam === "AMC" || order.status === "AMC";
+    
+    // Auto-resolve active AMC subscription if not explicitly set to check
+    if (!isAmc) {
+      try {
+        const category = getServiceCategory(order.serviceName);
+        const activeAmc = await DbLayer.getAmcSubscriptionByCategory(order.userPhone, category);
+        if (activeAmc) {
+          isAmc = true;
+        }
+      } catch (e) {}
+    }
+
     // Resolve the target user profile dynamically for the final response
     const checkoutPhone = order ? order.userPhone : targetPhone;
     let targetUser = user;
@@ -5328,6 +5627,52 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    const userBalance = Number(targetUser.walletBalance || 0);
+    const srvPrice = Number(order.price || 0);
+    
+    let maxWallet = 0;
+    if (srvPrice <= 800) {
+      maxWallet = 100;
+    } else {
+      maxWallet = srvPrice * 0.20;
+    }
+    const allowedWallet = Math.min(userBalance, maxWallet);
+
+    let finalAdvance = 0.00;
+    let finalRemaining = 0.00;
+
+    if (isAmc) {
+      finalAdvance = 0.00;
+      finalRemaining = 0.00;
+      currentMethod = "AMC";
+      order.payment = order.payment || {};
+      order.payment.paymentMethod = "AMC";
+      order.price = 0;
+    } else {
+      const isOnline = currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay";
+      const isWallet = currentMethod.toLowerCase() === "wallet";
+      if (isOnline) {
+        finalAdvance = Math.max(0, srvPrice - allowedWallet);
+        finalRemaining = 0.00;
+      } else if (isWallet) {
+        finalAdvance = allowedWallet;
+        finalRemaining = Math.max(0, srvPrice - allowedWallet);
+      } else {
+        // COD / Other
+        finalAdvance = Math.min(srvPrice - allowedWallet, 199.00);
+        finalRemaining = Math.max(0, srvPrice - allowedWallet - finalAdvance);
+      }
+    }
+
+    let finalAmountPaid = 0.00;
+    if (currentMethod.toLowerCase() === "wallet") {
+      finalAmountPaid = finalAdvance;
+    } else if (currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay") {
+      finalAmountPaid = finalAdvance;
+    } else {
+      finalAmountPaid = (order.payment && order.payment.amountPaid) || 0.00;
+    }
+
     res.json({
       success: true,
       orderId: order.id,
@@ -5336,14 +5681,19 @@ const handleGetCheckout = async (req, res) => {
       product: sanitizeProductObj(order),
       address: sanitizeAddressObj(order.address),
       payment: {
-        paymentMethod: (order.payment && order.payment.paymentMethod) || "Online",
-        amountPaid: Number((order.payment && order.payment.amountPaid) || order.price || 0)
+        paymentMethod: currentMethod,
+        amountPaid: Number(finalAmountPaid)
       },
-      status: order.status || "Pending",
+      status: isAmc ? "AMC" : (order.status || "Pending"),
       bookingStatus: order.bookingStatus || "searching",
       partnerName: order.partnerName || null,
       partnerDistance: order.partnerDistance || null,
       razorpayOrderId: order.razorpayOrderId || null,
+      advancePayment: finalAdvance,
+      remainingAmount: finalRemaining,
+      platformCharge: 0.00,
+      totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
+      total: finalRemaining,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
       products: resolvedServices,
@@ -5371,28 +5721,42 @@ app.get('/api/orders', async (req, res) => {
     const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
     const placedOrders = userOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
 
-    // Compact summary list (key fields only)
-    const list = placedOrders.map(o => ({
+    const statusQuery = req.query.status || req.body.status;
+    let filteredOrders = placedOrders;
+    if (statusQuery) {
+      filteredOrders = placedOrders.filter(o => 
+        (o.status && o.status.toLowerCase() === statusQuery.toLowerCase()) ||
+        (o.payment && o.payment.paymentMethod && o.payment.paymentMethod.toLowerCase() === statusQuery.toLowerCase())
+      );
+    }
+
+    // Enriched list mapping
+    const list = filteredOrders.map(o => ({
       id: o.id,
       serviceName: o.serviceName,
       price: o.price,
       status: o.status,
       date: o.date,
       timeSlot: o.timeSlot,
-      razorpayOrderId: o.razorpayOrderId || null
+      razorpayOrderId: o.razorpayOrderId || null,
+      advancePayment: o.advancePayment !== undefined ? Number(o.advancePayment) : (o.status === "AMC" ? 0.00 : 199.00),
+      remainingAmount: o.remainingAmount !== undefined ? Number(o.remainingAmount) : 0.00,
+      platformCharge: o.platformCharge !== undefined ? Number(o.platformCharge) : 0.00,
+      totalAmount: o.status === "AMC" ? 0.00 : Number(o.price || 0),
+      total: o.remainingAmount !== undefined ? Number(o.remainingAmount) : 0.00
     }));
 
-    // Enriched orderlist with total count
     const orderlist = {
-      total: placedOrders.length,
-      data: placedOrders
+      total: filteredOrders.length,
+      data: filteredOrders
     };
 
     res.json({
       success: true,
-      orders: placedOrders,
+      orders: filteredOrders,
       list,
       orderlist,
+      status: statusQuery || "ALL",
       message: "Orders retrieved successfully"
     });
   } catch (err) {
@@ -5414,7 +5778,17 @@ app.get('/api/orders/:id', async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    res.json(order);
+    res.json({
+      success: true,
+      ...order,
+      status: order.status || "Pending",
+      advancePayment: order.advancePayment !== undefined ? Number(order.advancePayment) : (order.status === "AMC" ? 0.00 : 199.00),
+      remainingAmount: order.remainingAmount !== undefined ? Number(order.remainingAmount) : 0.00,
+      platformCharge: order.platformCharge !== undefined ? Number(order.platformCharge) : 0.00,
+      totalAmount: order.status === "AMC" ? 0.00 : Number(order.price || 0),
+      total: order.remainingAmount !== undefined ? Number(order.remainingAmount) : 0.00,
+      order: order
+    });
   } catch (err) {
     console.error("Fetch order details failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
