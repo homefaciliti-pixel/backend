@@ -5471,7 +5471,7 @@ const handleGetCheckout = async (req, res) => {
       // If so, restore the original service price!
       const statusParam = req.query.status || req.body.status || req.headers['x-status'];
       let currentMethod = (order.payment && order.payment.paymentMethod) || "Online";
-      let checkAmc = currentMethod.toLowerCase() === "amc" || order.amcId !== null || statusParam === "AMC" || order.status === "AMC";
+      let checkAmc = currentMethod.toLowerCase() === "amc" || (order.amcId !== undefined && order.amcId !== null) || statusParam === "AMC" || order.status === "AMC";
       if (!checkAmc && Number(order.price) === 0) {
         const resolvedProduct = await resolveServiceDetails(order.productId || order.serviceName);
         if (resolvedProduct) {
@@ -5599,7 +5599,7 @@ const handleGetCheckout = async (req, res) => {
 
     // Support query/body status = AMC parameter
     const statusParam = req.query.status || req.body.status || req.headers['x-status'];
-    let isAmc = currentMethod.toLowerCase() === "amc" || order.amcId !== null || statusParam === "AMC" || order.status === "AMC";
+    let isAmc = currentMethod.toLowerCase() === "amc" || (order.amcId !== undefined && order.amcId !== null) || statusParam === "AMC" || order.status === "AMC";
 
     // Resolve the target user profile dynamically for the final response
     const checkoutPhone = order ? order.userPhone : targetPhone;
