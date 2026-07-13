@@ -5457,6 +5457,13 @@ const handleGetCheckout = async (req, res) => {
           order.payment.paymentMethod = queryPaymentMethod;
           updates.payment = order.payment;
           needsUpdate = true;
+
+          // Sync order.status with the payment method override to prevent AMC state persistence
+          const newStatus = queryPaymentMethod.toLowerCase() === "amc" ? "AMC" : "Draft";
+          if (order.status !== newStatus) {
+            order.status = newStatus;
+            updates.status = newStatus;
+          }
         }
       }
 
