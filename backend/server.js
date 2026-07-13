@@ -4606,7 +4606,7 @@ const handlePostCheckout = async (req, res) => {
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
-      const advanceOnlineAmount = Math.min(Number(foundService.price), 199.00);
+      const advanceOnlineAmount = Math.max(0, Number(foundService.price) - allowedWalletDeduction);
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
@@ -4616,7 +4616,7 @@ const handlePostCheckout = async (req, res) => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            amount: Math.round(advanceOnlineAmount * 100), // amount in paisa (₹199 or price)
+            amount: Math.round(advanceOnlineAmount * 100), // amount in paisa (full service price)
             currency: 'INR',
             receipt: `order_${orderId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
           })
@@ -4703,8 +4703,8 @@ const handlePostCheckout = async (req, res) => {
       finalAdvancePayment = allowedWalletDeduction;
       finalRemainingAmount = Math.max(0, finalPrice - allowedWalletDeduction);
     } else if (isOnlinePayment) {
-      finalAdvancePayment = Math.min(finalPrice, 199.00);
-      finalRemainingAmount = Math.max(0, finalPrice - finalAdvancePayment);
+      finalAdvancePayment = Math.max(0, finalPrice - allowedWalletDeduction);
+      finalRemainingAmount = 0.00;
     } else {
       finalAdvancePayment = 0.00;
       finalRemainingAmount = finalPrice;
