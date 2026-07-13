@@ -5240,6 +5240,15 @@ const handleGetCheckout = async (req, res) => {
   // Normalize inputs
   queryDate = normalizeDate(queryDate);
   querySlot = normalizeTimeSlot(querySlot);
+
+  // Resolve query payment method early
+  let queryPaymentMethod = req.query.paymentMethod || req.query.payment_method || req.body.paymentMethod || req.body.payment_method || req.headers['x-payment-method'];
+  if (req.body.payment) {
+    queryPaymentMethod = queryPaymentMethod || req.body.payment.paymentMethod || req.body.payment.payment_method;
+  }
+  if (req.query.payment) {
+    queryPaymentMethod = queryPaymentMethod || req.query.payment.paymentMethod || req.query.payment.payment_method;
+  }
   
   try {
     const user = await getAuthenticatedUser(req);
@@ -5273,7 +5282,7 @@ const handleGetCheckout = async (req, res) => {
           chosenOrder = pendingOrders.find(o => o.serviceName && o.serviceName.toLowerCase() !== 'tap repair');
         }
         // Final fallback: most recent draft (pendingOrders is already DESC by id)
-        order = { ...(chosenOrder || pendingOrders[0]) };
+        order = JSON.parse(JSON.stringify(chosenOrder || pendingOrders[0]));
       }
       
       // Dynamic fallback if no order exists for this user ID
@@ -5331,7 +5340,7 @@ const handleGetCheckout = async (req, res) => {
           timeSlot: querySlot || (await getDynamicDateAndSlot()).timeSlot,
           address: resolvedAddr,
           payment: {
-            paymentMethod: "Wallet",
+            paymentMethod: queryPaymentMethod || "Wallet",
             amountPaid: resolvedProduct.price
           },
           createdAt: Date.now()
@@ -5353,7 +5362,7 @@ const handleGetCheckout = async (req, res) => {
         }
       }
       if (order) {
-        order = { ...order }; // Clone
+        order = JSON.parse(JSON.stringify(order));
       }
       
       // Dynamic fallback if no order exists for this order ID
@@ -5385,7 +5394,7 @@ const handleGetCheckout = async (req, res) => {
           timeSlot: querySlot || (await getDynamicDateAndSlot()).timeSlot,
           address: resolvedAddr,
           payment: {
-            paymentMethod: "Wallet",
+            paymentMethod: queryPaymentMethod || "Wallet",
             amountPaid: resolvedProduct.price
           },
           createdAt: Date.now()
@@ -5441,15 +5450,44 @@ const handleGetCheckout = async (req, res) => {
         needsUpdate = true;
       }
       
+      // Support explicit payment method overrides
+      if (queryPaymentMethod) {
+        order.payment = order.payment || {};
+        if (order.payment.paymentMethod !== queryPaymentMethod) {
+          order.payment.paymentMethod = queryPaymentMethod;
+          updates.payment = order.payment;
+          needsUpdate = true;
+        }
+      }
+
+      // Check if the current state is not AMC, but the draft in memory has price = 0.
+      // If so, restore the original service price!
+      const statusParam = req.query.status || req.body.status || req.headers['x-status'];
+      let currentMethod = (order.payment && order.payment.paymentMethod) || "Online";
+      let checkAmc = currentMethod.toLowerCase() === "amc" || order.amcId !== null || statusParam === "AMC" || order.status === "AMC";
+      if (!checkAmc && Number(order.price) === 0) {
+        const resolvedProduct = await resolveServiceDetails(order.productId || order.serviceName);
+        if (resolvedProduct) {
+          order.price = resolvedProduct.price;
+          if (order.payment) {
+            order.payment.amountPaid = resolvedProduct.price;
+          }
+          updates.price = resolvedProduct.price;
+          updates.payment = order.payment;
+          needsUpdate = true;
+        }
+      }
+
       if (needsUpdate) {
         draftOrders.set(order.userPhone, order);
         console.log(`[GetCheckout] Persisted overrides to in-memory draft order #${order.id}`);
       }
     }
 
-    // Resolve service image dynamically for the checkout response
+    // Resolve service details and image dynamically for the checkout response
+    let resolvedProduct = null;
     if (order) {
-      const resolvedProduct = await resolveServiceDetails(order.productId || order.serviceName);
+      resolvedProduct = await resolveServiceDetails(order.productId || order.serviceName);
       if (resolvedProduct && resolvedProduct.image) {
         const resolvedList = resolveServiceUrls([resolvedProduct], serverBaseUrl);
         order.image = resolvedList[0].image;
@@ -5545,14 +5583,6 @@ const handleGetCheckout = async (req, res) => {
     }
 
     // Support explicit payment method overrides passed via query/body parameters
-    let queryPaymentMethod = req.query.paymentMethod || req.query.payment_method || req.body.paymentMethod || req.body.payment_method || req.headers['x-payment-method'];
-    if (req.body.payment) {
-      queryPaymentMethod = queryPaymentMethod || req.body.payment.paymentMethod || req.body.payment.payment_method;
-    }
-    if (req.query.payment) {
-      queryPaymentMethod = queryPaymentMethod || req.query.payment.paymentMethod || req.query.payment.payment_method;
-    }
-
     if (queryPaymentMethod) {
       order.payment = order.payment || {};
       order.payment.paymentMethod = queryPaymentMethod;
@@ -5582,7 +5612,10 @@ const handleGetCheckout = async (req, res) => {
     }
 
     const userBalance = Number(targetUser.walletBalance || 0);
-    const srvPrice = Number(order.price || 0);
+    
+    // Dynamically calculate srvPrice using the original service price if not AMC
+    const originalPrice = resolvedProduct ? Number(resolvedProduct.price) : Number(order.price || 299);
+    const srvPrice = isAmc ? 0 : originalPrice;
     
     let maxWallet = 0;
     if (srvPrice <= 800) {
@@ -5601,7 +5634,6 @@ const handleGetCheckout = async (req, res) => {
       currentMethod = "AMC";
       order.payment = order.payment || {};
       order.payment.paymentMethod = "AMC";
-      order.price = 0;
     } else {
       const isOnline = currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay";
       const isWallet = currentMethod.toLowerCase() === "wallet";
@@ -5619,7 +5651,9 @@ const handleGetCheckout = async (req, res) => {
     }
 
     let finalAmountPaid = 0.00;
-    if (currentMethod.toLowerCase() === "wallet") {
+    if (isAmc) {
+      finalAmountPaid = 0.00;
+    } else if (currentMethod.toLowerCase() === "wallet") {
       finalAmountPaid = finalAdvance;
     } else if (currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay") {
       finalAmountPaid = finalAdvance;
@@ -5632,7 +5666,10 @@ const handleGetCheckout = async (req, res) => {
       orderId: order.id,
       userId: order.userPhone,
       user: sanitizeUserObj(targetUser),
-      product: sanitizeProductObj(order),
+      product: {
+        ...sanitizeProductObj(order),
+        price: isAmc ? 0 : originalPrice
+      },
       address: sanitizeAddressObj(order.address),
       payment: {
         paymentMethod: currentMethod,
