@@ -5655,8 +5655,8 @@ const handleGetCheckout = async (req, res) => {
         finalRemaining = Math.max(0, srvPrice - allowedWallet);
       } else {
         // COD / Other
-        finalAdvance = Math.min(srvPrice - allowedWallet, 199.00);
-        finalRemaining = Math.max(0, srvPrice - allowedWallet - finalAdvance);
+        finalAdvance = Math.max(0, srvPrice - allowedWallet);
+        finalRemaining = 0.00;
       }
     }
 
