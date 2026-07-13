@@ -5630,10 +5630,7 @@ const handleGetCheckout = async (req, res) => {
     } else {
       maxWallet = srvPrice * 0.20;
     }
-    let allowedWallet = 0;
-    if (currentMethod.toLowerCase() === "wallet") {
-      allowedWallet = Math.min(userBalance, maxWallet);
-    }
+    const allowedWallet = isAmc ? 0 : Math.min(userBalance, maxWallet);
 
     let finalAdvance = 0.00;
     let finalRemaining = 0.00;
@@ -5698,7 +5695,7 @@ const handleGetCheckout = async (req, res) => {
       remainingAmount: finalRemaining,
       platformCharge: 0.00,
       totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
-      total: finalRemaining,
+      total: isAmc ? 0.00 : (srvPrice - allowedWallet),
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
       products: resolvedServices,
