@@ -1942,6 +1942,8 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const { category } = req.params;
   const { search } = req.query;
 
+  const cleanCategory = category.toLowerCase().replace(/[\s\-_]/g, '');
+
   const host = req.get('host');
   const protocol = req.protocol;
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
