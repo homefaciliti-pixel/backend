@@ -5630,7 +5630,10 @@ const handleGetCheckout = async (req, res) => {
     } else {
       maxWallet = srvPrice * 0.20;
     }
-    const allowedWallet = isAmc ? 0 : Math.min(userBalance, maxWallet);
+    let allowedWallet = 0;
+    if (!isAmc && currentMethod.toLowerCase() === "wallet") {
+      allowedWallet = Math.min(userBalance, maxWallet);
+    }
 
     let finalAdvance = 0.00;
     let finalRemaining = 0.00;
@@ -5672,6 +5675,18 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    let finalTotal = 0.00;
+    if (isAmc) {
+      finalTotal = 0.00;
+    } else {
+      const isOnline = currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay";
+      if (isOnline) {
+        finalTotal = srvPrice - allowedWallet;
+      } else {
+        finalTotal = finalRemaining;
+      }
+    }
+
     res.json({
       success: true,
       orderId: order.id,
@@ -5695,7 +5710,7 @@ const handleGetCheckout = async (req, res) => {
       remainingAmount: finalRemaining,
       platformCharge: 0.00,
       totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
-      total: isAmc ? 0.00 : (srvPrice - allowedWallet),
+      total: finalTotal,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
       products: resolvedServices,
