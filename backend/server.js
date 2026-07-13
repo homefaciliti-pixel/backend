@@ -4606,7 +4606,7 @@ const handlePostCheckout = async (req, res) => {
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
-      const advanceOnlineAmount = Math.max(0, Number(foundService.price) - allowedWalletDeduction);
+      const advanceOnlineAmount = Number(foundService.price);
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
