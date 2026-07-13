@@ -4656,7 +4656,12 @@ const handlePostCheckout = async (req, res) => {
         } else {
           maxAllowedFromWallet = servicePrice * 0.20;
         }
-        allowedWalletDeduction = Math.min(userWalletBalance, maxAllowedFromWallet);
+        // Only deduct wallet if user has at least ₹100 balance
+        if (userWalletBalance >= 100) {
+          allowedWalletDeduction = Math.min(userWalletBalance, maxAllowedFromWallet);
+        } else {
+          allowedWalletDeduction = 0;
+        }
         console.log(`[Wallet] Price: Rs.${servicePrice}, Rule: ${servicePrice <= 800 ? 'fixed cap Rs.100' : '20% = Rs.' + maxAllowedFromWallet}, Wallet Balance: Rs.${userWalletBalance}, Deduction: Rs.${allowedWalletDeduction}`);
       }
     }
@@ -5631,7 +5636,8 @@ const handleGetCheckout = async (req, res) => {
       maxWallet = srvPrice * 0.20;
     }
     let allowedWallet = 0;
-    if (!isAmc && currentMethod.toLowerCase() === "wallet") {
+    if (!isAmc && currentMethod.toLowerCase() === "wallet" && userBalance >= 100) {
+      // Only deduct wallet if user has at least ₹100 balance
       allowedWallet = Math.min(userBalance, maxWallet);
     }
 
