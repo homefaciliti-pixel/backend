@@ -5630,7 +5630,10 @@ const handleGetCheckout = async (req, res) => {
     } else {
       maxWallet = srvPrice * 0.20;
     }
-    const allowedWallet = Math.min(userBalance, maxWallet);
+    let allowedWallet = 0;
+    if (currentMethod.toLowerCase() === "wallet") {
+      allowedWallet = Math.min(userBalance, maxWallet);
+    }
 
     let finalAdvance = 0.00;
     let finalRemaining = 0.00;
@@ -5658,14 +5661,18 @@ const handleGetCheckout = async (req, res) => {
     }
 
     let finalAmountPaid = 0.00;
-    if (isAmc) {
+    if (order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") {
       finalAmountPaid = 0.00;
-    } else if (currentMethod.toLowerCase() === "wallet") {
-      finalAmountPaid = finalAdvance;
-    } else if (currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay") {
-      finalAmountPaid = finalAdvance;
     } else {
-      finalAmountPaid = (order.payment && order.payment.amountPaid) || 0.00;
+      if (isAmc) {
+        finalAmountPaid = 0.00;
+      } else if (currentMethod.toLowerCase() === "wallet") {
+        finalAmountPaid = finalAdvance;
+      } else if (currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay") {
+        finalAmountPaid = finalAdvance;
+      } else {
+        finalAmountPaid = (order.payment && order.payment.amountPaid) || 0.00;
+      }
     }
 
     res.json({
