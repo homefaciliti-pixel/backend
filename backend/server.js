@@ -5645,16 +5645,12 @@ const handleGetCheckout = async (req, res) => {
       order.payment = order.payment || {};
       order.payment.paymentMethod = "AMC";
     } else {
-      const isOnline = currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay";
       const isWallet = currentMethod.toLowerCase() === "wallet";
-      if (isOnline) {
-        finalAdvance = Math.max(0, srvPrice - allowedWallet);
-        finalRemaining = 0.00;
-      } else if (isWallet) {
+      if (isWallet) {
         finalAdvance = allowedWallet;
         finalRemaining = Math.max(0, srvPrice - allowedWallet);
       } else {
-        // COD / Other
+        // Online / Razorpay / UPI / COD / Card / etc.
         finalAdvance = Math.max(0, srvPrice - allowedWallet);
         finalRemaining = 0.00;
       }
@@ -5664,11 +5660,11 @@ const handleGetCheckout = async (req, res) => {
     if (isAmc) {
       finalTotal = 0.00;
     } else {
-      const isOnline = currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay";
-      if (isOnline) {
-        finalTotal = srvPrice - allowedWallet;
-      } else {
+      const isWallet = currentMethod.toLowerCase() === "wallet";
+      if (isWallet) {
         finalTotal = finalRemaining;
+      } else {
+        finalTotal = srvPrice - allowedWallet;
       }
     }
 
