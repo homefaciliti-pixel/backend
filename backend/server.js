@@ -5662,7 +5662,7 @@ const handleGetCheckout = async (req, res) => {
 
     let finalAmountPaid = 0.00;
     if (order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") {
-      finalAmountPaid = 0.00;
+      finalAmountPaid = finalTotal;
     } else {
       if (isAmc) {
         finalAmountPaid = 0.00;
