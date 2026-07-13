@@ -5660,6 +5660,18 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    let finalTotal = 0.00;
+    if (isAmc) {
+      finalTotal = 0.00;
+    } else {
+      const isOnline = currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay";
+      if (isOnline) {
+        finalTotal = srvPrice - allowedWallet;
+      } else {
+        finalTotal = finalRemaining;
+      }
+    }
+
     let finalAmountPaid = 0.00;
     if (order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") {
       finalAmountPaid = finalTotal;
@@ -5672,18 +5684,6 @@ const handleGetCheckout = async (req, res) => {
         finalAmountPaid = finalAdvance;
       } else {
         finalAmountPaid = (order.payment && order.payment.amountPaid) || 0.00;
-      }
-    }
-
-    let finalTotal = 0.00;
-    if (isAmc) {
-      finalTotal = 0.00;
-    } else {
-      const isOnline = currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay";
-      if (isOnline) {
-        finalTotal = srvPrice - allowedWallet;
-      } else {
-        finalTotal = finalRemaining;
       }
     }
 
