@@ -1950,18 +1950,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
   const statusParam = req.query.status || req.body.status;
-  let hasActiveAmc = false;
-  try {
-    const user = await getAuthenticatedUser(req).catch(() => null);
-    if (user) {
-      const activeAmc = await DbLayer.getAmcSubscriptionByCategory(user.phone, category);
-      if (activeAmc) {
-        hasActiveAmc = true;
-      }
-    }
-  } catch (e) {}
-
-  const isAmcMode = statusParam === "AMC" || hasActiveAmc;
+  const isAmcMode = statusParam === "AMC";
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
@@ -2345,20 +2334,7 @@ const handleServiceDetail = async (req, res) => {
         const r = srvRows[0];
         const enrichedService = sanitizeServiceDbObj(r, serverBaseUrl);
         
-        detectedCategory = getServiceCategory(enrichedService.title);
-        if (statusParam === "AMC") {
-          hasActiveAmc = true;
-        } else {
-          try {
-            const user = await getAuthenticatedUser(req).catch(() => null);
-            if (user) {
-              const activeAmc = await DbLayer.getAmcSubscriptionByCategory(user.phone, detectedCategory);
-              if (activeAmc) {
-                hasActiveAmc = true;
-              }
-            }
-          } catch (e) {}
-        }
+        hasActiveAmc = statusParam === "AMC";
 
         if (hasActiveAmc) {
           enrichedService.price = 0;
@@ -2399,20 +2375,7 @@ const handleServiceDetail = async (req, res) => {
     resolvedImage = `${serverBaseUrl}${resolvedImage}`;
   }
 
-  detectedCategory = foundCategory || getServiceCategory(foundService.title);
-  if (statusParam === "AMC") {
-    hasActiveAmc = true;
-  } else {
-    try {
-      const user = await getAuthenticatedUser(req).catch(() => null);
-      if (user) {
-        const activeAmc = await DbLayer.getAmcSubscriptionByCategory(user.phone, detectedCategory);
-        if (activeAmc) {
-          hasActiveAmc = true;
-        }
-      }
-    } catch (e) {}
-  }
+  hasActiveAmc = statusParam === "AMC";
 
   // Add rich mock metadata for details
   const enrichedService = {
@@ -5600,17 +5563,6 @@ const handleGetCheckout = async (req, res) => {
     // Support query/body status = AMC parameter
     const statusParam = req.query.status || req.body.status || req.headers['x-status'];
     let isAmc = currentMethod.toLowerCase() === "amc" || order.amcId !== null || statusParam === "AMC" || order.status === "AMC";
-    
-    // Auto-resolve active AMC subscription if not explicitly set to check
-    if (!isAmc) {
-      try {
-        const category = getServiceCategory(order.serviceName);
-        const activeAmc = await DbLayer.getAmcSubscriptionByCategory(order.userPhone, category);
-        if (activeAmc) {
-          isAmc = true;
-        }
-      } catch (e) {}
-    }
 
     // Resolve the target user profile dynamically for the final response
     const checkoutPhone = order ? order.userPhone : targetPhone;
