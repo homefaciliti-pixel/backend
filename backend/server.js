@@ -5,6 +5,29 @@ const jwt = require('jsonwebtoken');
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
+
+// Multer storage config for AMC document uploads
+const amcStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'uploads', 'amc');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
+  }
+});
+const amcUpload = multer({
+  storage: amcStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg','image/jpg','image/png','image/webp','application/pdf'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPG, PNG, WEBP images and PDF files are allowed'));
+  }
+});
 
 function safeJsonParse(str, fallback = null) {
   if (!str) return fallback;
@@ -37,6 +60,7 @@ const JWT_SECRET = 'super_secret_jwt_key_123';
 app.use(cors());
 app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Active OTPs in-memory storage (phone -> { otp, expiresAt })
 const activeOTPs = new Map();
@@ -309,9 +333,18 @@ async function initMySqlDb() {
         price DECIMAL(10,2) NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
         startDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        endDate TIMESTAMP NOT NULL
+        endDate TIMESTAMP NOT NULL,
+        photoUrl VARCHAR(500) DEFAULT NULL,
+        pdfUrl VARCHAR(500) DEFAULT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
+
+    try {
+      await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN photoUrl VARCHAR(500) DEFAULT NULL");
+    } catch (err) { /* Column might already exist */ }
+    try {
+      await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN pdfUrl VARCHAR(500) DEFAULT NULL");
+    } catch (err) { /* Column might already exist */ }
 
     try {
       await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN amcId VARCHAR(50) DEFAULT NULL");
@@ -513,10 +546,10 @@ const MySqlDbLayer = {
   },
 
   async createAmcSubscription(sub) {
-    const { amcId, userPhone, category, areaSqFt, floors, price, endDate } = sub;
+    const { amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl } = sub;
     await mysqlPool.query(
-      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [amcId, userPhone, category, areaSqFt, floors, price, endDate]
+      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl || null, pdfUrl || null]
     );
   },
 
@@ -3691,7 +3724,10 @@ app.get('/api/amc/plans', (req, res) => {
 });
 
 // 12c. AMC: Subscribe to Plan
-app.post('/api/amc/subscribe', async (req, res) => {
+app.post('/api/amc/subscribe', amcUpload.fields([
+  { name: 'photo', maxCount: 1 },
+  { name: 'pdf', maxCount: 1 }
+]), async (req, res) => {
   const { category, areaSqFt, floors } = req.body;
   if (!category || !areaSqFt || !floors || areaSqFt <= 0 || floors <= 0) {
     return res.status(400).json({ error: "category, areaSqFt and floors are required and must be positive numbers" });
@@ -3713,6 +3749,13 @@ app.post('/api/amc/subscribe', async (req, res) => {
       return res.status(400).json({ error: `You already have an active AMC subscription for ${category} (AMC ID: ${existing.amcId})` });
     }
 
+    // Build file URLs if uploaded
+    const serverBase = `${req.protocol}://${req.get('host')}`;
+    const photoFile = req.files && req.files['photo'] && req.files['photo'][0];
+    const pdfFile = req.files && req.files['pdf'] && req.files['pdf'][0];
+    const photoUrl = photoFile ? `${serverBase}/uploads/amc/${photoFile.filename}` : null;
+    const pdfUrl = pdfFile ? `${serverBase}/uploads/amc/${pdfFile.filename}` : null;
+
     // Calculate price: ₹1 per sq ft, plus ₹1 per sq ft for each additional floor
     const ratePerSqFt = Number(floors);
     const totalPrice = Number(areaSqFt) * ratePerSqFt;
@@ -3733,7 +3776,9 @@ app.post('/api/amc/subscribe', async (req, res) => {
       price: totalPrice,
       status: 'active',
       startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      endDate: endDate.toISOString(),
+      photoUrl,
+      pdfUrl
     };
 
     await DbLayer.createAmcSubscription(newSub);
