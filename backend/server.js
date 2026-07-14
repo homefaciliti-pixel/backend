@@ -9883,6 +9883,10 @@ app.post('/api/app-version', async (req, res) => {
   }
 });
 
+app.get('/api/debug/drafts', (req, res) => {
+  res.json(Array.from(draftOrders.entries()));
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening at http://localhost:${PORT}`);
 });
