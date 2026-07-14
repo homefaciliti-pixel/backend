@@ -5713,6 +5713,7 @@ const handleGetCheckout = async (req, res) => {
       platformCharge: 0.00,
       totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
       total: finalTotal,
+      walletBalance: userBalance,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
       products: resolvedServices,
