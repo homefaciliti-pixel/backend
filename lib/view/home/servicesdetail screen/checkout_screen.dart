@@ -171,7 +171,7 @@ class _CheckoutScreenState
                         orderId: data.orderId,
                         productId: data.product.productId,
                         title: data.product.serviceName,
-                        amount: data.product.price.toString(),
+                        amount: data.payment.amountPaid.toString(),
                       ),
                     ),
                   );

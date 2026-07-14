@@ -4642,14 +4642,6 @@ const handlePostCheckout = async (req, res) => {
       amountPaid = Number(existingOrder.payment.amountPaid) || 0;
     }
 
-    // Parse useAmc early to decide if wallet discount can be applied
-    const useAmcEarly = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
-
-    // Fixed ₹100 wallet discount if balance >= ₹100 and NOT using AMC
-    const userWalletBalance = Number(user.walletBalance || 0);
-    let allowedWalletDeduction = (!useAmcEarly && userWalletBalance >= 100) ? 100 : 0;
-    console.log(`[Wallet Early Check] Wallet Balance: Rs.${userWalletBalance}, Deduction: Rs.${allowedWalletDeduction}`);
-
     // Call Razorpay API to create a real Order ID if payment method is "Online"
     let razorpayOrderId = null;
     if (existingOrder && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
@@ -4659,7 +4651,7 @@ const handlePostCheckout = async (req, res) => {
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
-      const advanceOnlineAmount = Math.max(0, Number(foundService.price) - allowedWalletDeduction);
+      const advanceOnlineAmount = Number(foundService.price);
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
@@ -4697,6 +4689,17 @@ const handlePostCheckout = async (req, res) => {
       }
     }
 
+    let allowedWalletDeduction = 0;
+    if (paymentMethod.toLowerCase() === "wallet") {
+      const userObj = await DbLayer.getUserByPhone(phone);
+      if (userObj) {
+        const userWalletBalance = Number(userObj.walletBalance || 0);
+        // Fixed ₹100 deduction: only if balance >= ₹100, else ₹0
+        allowedWalletDeduction = userWalletBalance >= 100 ? 100 : 0;
+        console.log(`[Wallet] Wallet Balance: Rs.${userWalletBalance}, Deduction: Rs.${allowedWalletDeduction}`);
+      }
+    }
+
     // AMC coupon discount logic
     const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
     let activeAmcId = null;
@@ -4730,14 +4733,20 @@ const handlePostCheckout = async (req, res) => {
     const resolvedStatus = "Pending"; 
 
     let finalAdvancePayment = 0.00;
-    let finalRemainingAmount = 0.00;
+    let finalRemainingAmount = finalPrice;
 
     if (useAmc) {
       finalAdvancePayment = 0.00;
       finalRemainingAmount = 0.00;
-    } else {
+    } else if (paymentMethod.toLowerCase() === "wallet") {
+      finalAdvancePayment = allowedWalletDeduction;
+      finalRemainingAmount = Math.max(0, finalPrice - allowedWalletDeduction);
+    } else if (isOnlinePayment) {
       finalAdvancePayment = Math.max(0, finalPrice - allowedWalletDeduction);
       finalRemainingAmount = 0.00;
+    } else {
+      finalAdvancePayment = 0.00;
+      finalRemainingAmount = finalPrice;
     }
 
     const finalOrder = {
@@ -4757,7 +4766,7 @@ const handlePostCheckout = async (req, res) => {
       address: resolvedAddressField,
       payment: { 
         paymentMethod: paymentMethod, 
-        amountPaid: useAmc ? 0 : Math.max(0, finalPrice - allowedWalletDeduction)
+        amountPaid: paymentMethod.toLowerCase() === "wallet" ? allowedWalletDeduction : (paymentMethod.toLowerCase() === "amc" ? 0 : amountPaid)
       },
       razorpayOrderId: razorpayOrderId,
       razorpayPaymentId: (existingOrder ? existingOrder.razorpayPaymentId : null) || null,
@@ -5458,13 +5467,11 @@ const handleGetCheckout = async (req, res) => {
           if (order.payment) {
             order.payment.amountPaid = resolvedProduct.price;
           }
-          order.razorpayOrderId = null;
           
           updates.productId = resolvedProduct.productId;
           updates.serviceName = resolvedProduct.serviceName;
           updates.price = resolvedProduct.price;
           updates.description = resolvedProduct.description;
-          updates.razorpayOrderId = null;
           if (order.payment) {
             updates.payment = order.payment;
           }
@@ -5656,19 +5663,58 @@ const handleGetCheckout = async (req, res) => {
     const originalPrice = resolvedProduct ? Number(resolvedProduct.price) : Number(order.price || 299);
     const srvPrice = isAmc ? 0 : originalPrice;
     
-    // Wallet discount: fixed ₹100 if wallet >= ₹100, else ₹0
-    const walletDiscount = (!isAmc && userBalance >= 100) ? 100 : 0;
+    // Fixed ₹100 wallet deduction: only if balance >= ₹100, else ₹0
+    let allowedWallet = 0;
+    if (!isAmc && currentMethod.toLowerCase() === "wallet") {
+      allowedWallet = userBalance >= 100 ? 100 : 0;
+    }
 
-    // Final total to pay = service price minus wallet discount
-    const finalTotal = isAmc ? 0 : Math.max(0, srvPrice - walletDiscount);
-
-    // Amount paid shown = finalTotal (so Razorpay and display both get same value)
-    const finalAmountPaid = isAmc ? 0 : finalTotal;
+    let finalAdvance = 0.00;
+    let finalRemaining = 0.00;
 
     if (isAmc) {
+      finalAdvance = 0.00;
+      finalRemaining = 0.00;
       currentMethod = "AMC";
       order.payment = order.payment || {};
       order.payment.paymentMethod = "AMC";
+    } else {
+      const isWallet = currentMethod.toLowerCase() === "wallet";
+      if (isWallet) {
+        finalAdvance = allowedWallet;
+        finalRemaining = Math.max(0, srvPrice - allowedWallet);
+      } else {
+        // Online / Razorpay / UPI / COD / Card / etc.
+        finalAdvance = Math.max(0, srvPrice - allowedWallet);
+        finalRemaining = 0.00;
+      }
+    }
+
+    let finalTotal = 0.00;
+    if (isAmc) {
+      finalTotal = 0.00;
+    } else {
+      const isWallet = currentMethod.toLowerCase() === "wallet";
+      if (isWallet) {
+        finalTotal = finalRemaining;
+      } else {
+        finalTotal = srvPrice - allowedWallet;
+      }
+    }
+
+    let finalAmountPaid = 0.00;
+    if (order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") {
+      finalAmountPaid = finalTotal;
+    } else {
+      if (isAmc) {
+        finalAmountPaid = 0.00;
+      } else if (currentMethod.toLowerCase() === "wallet") {
+        finalAmountPaid = finalAdvance;
+      } else if (currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay") {
+        finalAmountPaid = finalAdvance;
+      } else {
+        finalAmountPaid = (order.payment && order.payment.amountPaid) || 0.00;
+      }
     }
 
     res.json({
@@ -5682,7 +5728,7 @@ const handleGetCheckout = async (req, res) => {
       },
       address: sanitizeAddressObj(order.address),
       payment: {
-        paymentMethod: isAmc ? "AMC" : currentMethod,
+        paymentMethod: currentMethod,
         amountPaid: Number(finalAmountPaid)
       },
       status: isAmc ? "AMC" : (order.status || "Pending"),
@@ -5690,11 +5736,11 @@ const handleGetCheckout = async (req, res) => {
       partnerName: order.partnerName || null,
       partnerDistance: order.partnerDistance || null,
       razorpayOrderId: order.razorpayOrderId || null,
-      remainingAmount: 0.00,
+      advancePayment: finalAdvance,
+      remainingAmount: finalRemaining,
       platformCharge: 0.00,
-      totalAmount: finalTotal,
+      totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
       total: finalTotal,
-      walletDiscount: walletDiscount,
       walletBalance: userBalance,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
@@ -9883,10 +9929,6 @@ app.post('/api/app-version', async (req, res) => {
     console.error("Failed to update app version config:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
-});
-
-app.get('/api/debug/drafts', (req, res) => {
-  res.json(Array.from(draftOrders.entries()));
 });
 
 app.listen(PORT, () => {
