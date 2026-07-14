@@ -4352,6 +4352,7 @@ const handlePostBooking = async (req, res) => {
         date: date,
         timeSlot: timeSlot,
         status: useAmc ? "AMC" : "Draft",
+        razorpayOrderId: null, // Reset Razorpay order ID to force recreation with new price!
       };
       if (useAmc) {
         updates.payment = {
