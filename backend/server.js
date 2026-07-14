@@ -4645,7 +4645,11 @@ const handlePostCheckout = async (req, res) => {
     // Call Razorpay API to create a real Order ID if payment method is "Online"
     let razorpayOrderId = null;
     if (existingOrder && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
-      razorpayOrderId = existingOrder.razorpayOrderId;
+      // Only reuse existing Razorpay Order ID if it belongs to the same product and has the same price
+      if (existingOrder.productId === foundService.productId && 
+          Number(existingOrder.price) === Number(foundService.price)) {
+        razorpayOrderId = existingOrder.razorpayOrderId;
+      }
     }
 
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
@@ -5467,11 +5471,13 @@ const handleGetCheckout = async (req, res) => {
           if (order.payment) {
             order.payment.amountPaid = resolvedProduct.price;
           }
+          order.razorpayOrderId = null; // Clear old Razorpay order ID since the product has changed!
           
           updates.productId = resolvedProduct.productId;
           updates.serviceName = resolvedProduct.serviceName;
           updates.price = resolvedProduct.price;
           updates.description = resolvedProduct.description;
+          updates.razorpayOrderId = null;
           if (order.payment) {
             updates.payment = order.payment;
           }
@@ -5495,6 +5501,8 @@ const handleGetCheckout = async (req, res) => {
         if (order.payment.paymentMethod !== queryPaymentMethod) {
           order.payment.paymentMethod = queryPaymentMethod;
           updates.payment = order.payment;
+          order.razorpayOrderId = null; // Clear old Razorpay order ID since the payment method has changed!
+          updates.razorpayOrderId = null;
           needsUpdate = true;
 
           // Sync order.status with the payment method override to prevent AMC state persistence
