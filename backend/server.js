@@ -4694,20 +4694,9 @@ const handlePostCheckout = async (req, res) => {
       const userObj = await DbLayer.getUserByPhone(phone);
       if (userObj) {
         const userWalletBalance = Number(userObj.walletBalance || 0);
-        const servicePrice = Number(foundService.price);
-        let maxAllowedFromWallet;
-        if (servicePrice <= 800) {
-          maxAllowedFromWallet = 100;
-        } else {
-          maxAllowedFromWallet = servicePrice * 0.20;
-        }
-        // Only deduct wallet if user has at least ₹100 balance
-        if (userWalletBalance >= 100) {
-          allowedWalletDeduction = Math.min(userWalletBalance, maxAllowedFromWallet);
-        } else {
-          allowedWalletDeduction = 0;
-        }
-        console.log(`[Wallet] Price: Rs.${servicePrice}, Rule: ${servicePrice <= 800 ? 'fixed cap Rs.100' : '20% = Rs.' + maxAllowedFromWallet}, Wallet Balance: Rs.${userWalletBalance}, Deduction: Rs.${allowedWalletDeduction}`);
+        // Fixed ₹100 deduction: only if balance >= ₹100, else ₹0
+        allowedWalletDeduction = userWalletBalance >= 100 ? 100 : 0;
+        console.log(`[Wallet] Wallet Balance: Rs.${userWalletBalance}, Deduction: Rs.${allowedWalletDeduction}`);
       }
     }
 
@@ -5674,16 +5663,10 @@ const handleGetCheckout = async (req, res) => {
     const originalPrice = resolvedProduct ? Number(resolvedProduct.price) : Number(order.price || 299);
     const srvPrice = isAmc ? 0 : originalPrice;
     
-    let maxWallet = 0;
-    if (srvPrice <= 800) {
-      maxWallet = 100;
-    } else {
-      maxWallet = srvPrice * 0.20;
-    }
+    // Fixed ₹100 wallet deduction: only if balance >= ₹100, else ₹0
     let allowedWallet = 0;
-    if (!isAmc && currentMethod.toLowerCase() === "wallet" && userBalance >= 100) {
-      // Only deduct wallet if user has at least ₹100 balance
-      allowedWallet = Math.min(userBalance, maxWallet);
+    if (!isAmc && currentMethod.toLowerCase() === "wallet") {
+      allowedWallet = userBalance >= 100 ? 100 : 0;
     }
 
     let finalAdvance = 0.00;
