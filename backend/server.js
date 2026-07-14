@@ -5458,11 +5458,13 @@ const handleGetCheckout = async (req, res) => {
           if (order.payment) {
             order.payment.amountPaid = resolvedProduct.price;
           }
+          order.razorpayOrderId = null;
           
           updates.productId = resolvedProduct.productId;
           updates.serviceName = resolvedProduct.serviceName;
           updates.price = resolvedProduct.price;
           updates.description = resolvedProduct.description;
+          updates.razorpayOrderId = null;
           if (order.payment) {
             updates.payment = order.payment;
           }
