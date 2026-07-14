@@ -5663,58 +5663,19 @@ const handleGetCheckout = async (req, res) => {
     const originalPrice = resolvedProduct ? Number(resolvedProduct.price) : Number(order.price || 299);
     const srvPrice = isAmc ? 0 : originalPrice;
     
-    // Fixed ₹100 wallet deduction: only if balance >= ₹100, else ₹0
-    let allowedWallet = 0;
-    if (!isAmc && currentMethod.toLowerCase() === "wallet") {
-      allowedWallet = userBalance >= 100 ? 100 : 0;
-    }
+    // Wallet discount: fixed ₹100 if wallet >= ₹100, else ₹0
+    const walletDiscount = (!isAmc && userBalance >= 100) ? 100 : 0;
 
-    let finalAdvance = 0.00;
-    let finalRemaining = 0.00;
+    // Final total to pay = service price minus wallet discount
+    const finalTotal = isAmc ? 0 : Math.max(0, srvPrice - walletDiscount);
+
+    // Amount paid shown = finalTotal (so Razorpay and display both get same value)
+    const finalAmountPaid = isAmc ? 0 : finalTotal;
 
     if (isAmc) {
-      finalAdvance = 0.00;
-      finalRemaining = 0.00;
       currentMethod = "AMC";
       order.payment = order.payment || {};
       order.payment.paymentMethod = "AMC";
-    } else {
-      const isWallet = currentMethod.toLowerCase() === "wallet";
-      if (isWallet) {
-        finalAdvance = allowedWallet;
-        finalRemaining = Math.max(0, srvPrice - allowedWallet);
-      } else {
-        // Online / Razorpay / UPI / COD / Card / etc.
-        finalAdvance = Math.max(0, srvPrice - allowedWallet);
-        finalRemaining = 0.00;
-      }
-    }
-
-    let finalTotal = 0.00;
-    if (isAmc) {
-      finalTotal = 0.00;
-    } else {
-      const isWallet = currentMethod.toLowerCase() === "wallet";
-      if (isWallet) {
-        finalTotal = finalRemaining;
-      } else {
-        finalTotal = srvPrice - allowedWallet;
-      }
-    }
-
-    let finalAmountPaid = 0.00;
-    if (order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") {
-      finalAmountPaid = finalTotal;
-    } else {
-      if (isAmc) {
-        finalAmountPaid = 0.00;
-      } else if (currentMethod.toLowerCase() === "wallet") {
-        finalAmountPaid = finalAdvance;
-      } else if (currentMethod.toLowerCase() === "online" || currentMethod.toLowerCase() === "razorpay") {
-        finalAmountPaid = finalAdvance;
-      } else {
-        finalAmountPaid = (order.payment && order.payment.amountPaid) || 0.00;
-      }
     }
 
     res.json({
@@ -5728,7 +5689,7 @@ const handleGetCheckout = async (req, res) => {
       },
       address: sanitizeAddressObj(order.address),
       payment: {
-        paymentMethod: currentMethod,
+        paymentMethod: isAmc ? "AMC" : currentMethod,
         amountPaid: Number(finalAmountPaid)
       },
       status: isAmc ? "AMC" : (order.status || "Pending"),
@@ -5736,11 +5697,11 @@ const handleGetCheckout = async (req, res) => {
       partnerName: order.partnerName || null,
       partnerDistance: order.partnerDistance || null,
       razorpayOrderId: order.razorpayOrderId || null,
-      advancePayment: finalAdvance,
-      remainingAmount: finalRemaining,
+      remainingAmount: 0.00,
       platformCharge: 0.00,
-      totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
+      totalAmount: finalTotal,
       total: finalTotal,
+      walletDiscount: walletDiscount,
       walletBalance: userBalance,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
       services: resolvedServices,
