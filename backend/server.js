@@ -5400,6 +5400,23 @@ const resolveServiceDetails = async (productId) => {
       };
     }
   }
+
+  // If no service matches, check if the productId is one of the category names
+  const matchedCategory = CATEGORIES_DATA.find(
+    cat => cat.toLowerCase() === productId.toLowerCase() || 
+           normalizeString(cat) === normProduct
+  );
+  if (matchedCategory) {
+    return {
+      productId: matchedCategory,
+      serviceName: matchedCategory,
+      title: matchedCategory,
+      price: 0.00,
+      description: `${matchedCategory} Service under AMC`,
+      image: ""
+    };
+  }
+
   // Default fallback service - returning null as requested
   return null;
 };
