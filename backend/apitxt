@@ -610,6 +610,8 @@ Request Body:
 Response Payload:
 {
   "success": true,
+  "orderId": 10001,
+  "order_id": 10001,
   "message": "Successfully booked service 'Tap Repair' under AMC subscription AMC123456!",
   "order": {
     "id": 10001,
@@ -633,4 +635,44 @@ Response Payload:
   }
 }
 Note: The service's category must match the AMC subscription's category, and the subscriber must have completed less than 12 bookings.
+
+---------------------------------------------------------
+20. AMC Subscription Purchase Endpoint (NEW)
+---------------------------------------------------------
+
+Endpoint: POST /api/amc/subscribe
+Multipart Form-Data Body:
+- "category": "Plumber" (string, required)
+- "areaSqFt": 1200 (number, required)
+- "floors": 2 (number, required)
+- "price": 2500 (number, optional; overrides default calculations if passed)
+- "note" or "notes": "Special plumbing request" (string, optional)
+- "photo" or "image": [File Upload] (file, optional)
+- "pdf": [File Upload] (file, optional)
+
+Response Payload:
+{
+  "success": true,
+  "orderId": "AMC45678912",
+  "order_id": "AMC45678912",
+  "amcId": "AMC45678912",
+  "message": "Successfully subscribed to AMC for Plumber! Valid for 1 year with 12 free bookings.",
+  "subscription": {
+    "amcId": "AMC45678912",
+    "userPhone": "9876543210",
+    "category": "Plumber",
+    "areaSqFt": 1200,
+    "floors": 2,
+    "price": 2400.00,
+    "status": "active",
+    "startDate": "2026-07-10T11:00:00.000Z",
+    "endDate": "2027-07-10T11:00:00.000Z",
+    "photoUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
+    "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-doc.pdf",
+    "note": "Special plumbing request",
+    "orderId": "AMC45678912",
+    "order_id": "AMC45678912"
+  }
+}
+
 
