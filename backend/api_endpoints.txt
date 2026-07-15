@@ -932,6 +932,61 @@ POST /api/amc/renew
   }
 - Note: Private endpoint to renew an active or expired subscription, extending it by 1 year.
 
+POST /api/amc/book (also POST /api/amc/bookings)
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "amcId": "AMC45678912",
+    "productId": "Tap Repair",
+    "date": "2026-07-20",
+    "timeSlot": "12:00 PM - 02:00 PM",
+    "address": {
+      "type": "Home",
+      "houseNo": "123",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Park",
+      "city": "Jaipur",
+      "locality": "Malviya Nagar",
+      "pincode": "302017",
+      "latitude": 26.85,
+      "longitude": 75.82,
+      "name": "Hira Yadav",
+      "alternateNumber": "9876543211",
+      "countryCode": "+91"
+    }
+  }
+- Response: {
+    "success": true,
+    "message": "Successfully booked service 'Tap Repair' under AMC subscription AMC45678912!",
+    "order": {
+      "id": 10001,
+      "userPhone": "9876543210",
+      "userId": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 0.00,
+      "date": "2026-07-20",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "12:00 PM - 02:00 PM",
+      "address": { ... },
+      "payment": {
+        "paymentMethod": "AMC",
+        "amountPaid": 0.00
+      },
+      "razorpayOrderId": null,
+      "razorpayPaymentId": null,
+      "createdAt": 1784112000000,
+      "amcId": "AMC45678912",
+      "advancePayment": 0.00,
+      "remainingAmount": 0.00
+    }
+  }
+- Note: Private endpoint to book a service under an active AMC subscription. The service's category MUST match the AMC subscription's category, and the subscriber must have completed less than 12 bookings. Price is overridden to 0.00.
+
 
 14. Extended AMC, Saved Cards & Payment APIs
 

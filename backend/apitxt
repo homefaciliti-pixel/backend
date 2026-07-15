@@ -593,3 +593,44 @@ All time slots, dates, and service/product names are automatically normalized be
 
 4. Slot Availability Filtering:
    - Available slots lists returned in GET `/api/booking/available-slots` and GET `/api/checkout` are dynamically filtered to ONLY return slots that can actually be selected by the user (slots where `available === true`). Already booked/overlapping slots are excluded from the payload.
+
+---------------------------------------------------------
+19. AMC Booking Endpoint (NEW)
+---------------------------------------------------------
+
+Endpoint: POST /api/amc/book (also POST /api/amc/bookings)
+Request Body:
+{
+  "amcId": "AMC123456",
+  "productId": "Tap Repair",
+  "date": "2026-07-20",
+  "timeSlot": "12:00 PM - 02:00 PM",
+  "address": { ... } // optional
+}
+Response Payload:
+{
+  "success": true,
+  "message": "Successfully booked service 'Tap Repair' under AMC subscription AMC123456!",
+  "order": {
+    "id": 10001,
+    "userPhone": "9876543210",
+    "userId": "9876543210",
+    "serviceName": "Tap Repair",
+    "price": 0.00,
+    "date": "2026-07-20",
+    "status": "Pending",
+    "bookingStatus": "searching",
+    "productId": "Tap Repair",
+    "description": "Fix leaking taps and water issues",
+    "timeSlot": "12:00 PM - 02:00 PM",
+    "payment": {
+      "paymentMethod": "AMC",
+      "amountPaid": 0.00
+    },
+    "amcId": "AMC123456",
+    "advancePayment": 0.00,
+    "remainingAmount": 0.00
+  }
+}
+Note: The service's category must match the AMC subscription's category, and the subscriber must have completed less than 12 bookings.
+

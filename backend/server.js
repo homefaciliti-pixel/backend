@@ -3935,6 +3935,176 @@ app.post('/api/amc/plan-property-details', (req, res) => {
   });
 });
 
+// Helper to resolve service category from DB or static catalog
+const getServiceCategoryDbOrStatic = async (productId) => {
+  if (!productId) return null;
+  if (dbMode === "mysql" && mysqlPool !== null) {
+    try {
+      const [srvRows] = await mysqlPool.query(
+        "SELECT category_id FROM node_services WHERE LOWER(title) = ? OR id = ?",
+        [productId.toLowerCase(), isNaN(productId) ? -1 : parseInt(productId)]
+      );
+      if (srvRows.length > 0 && srvRows[0].category_id) {
+        const [catRows] = await mysqlPool.query(
+          "SELECT title FROM node_categories WHERE id = ?",
+          [srvRows[0].category_id]
+        );
+        if (catRows.length > 0) {
+          return catRows[0].title || null;
+        }
+      }
+    } catch (err) {
+      console.warn("[getServiceCategoryDbOrStatic] Failed to query DB:", err.message);
+    }
+  }
+  for (const [catName, services] of Object.entries(SERVICES_DATA)) {
+    const match = services.some(s => s.title.toLowerCase() === productId.toLowerCase());
+    if (match) return catName;
+  }
+  const normTitle = productId.toLowerCase();
+  for (const cat of CATEGORIES_DATA) {
+    if (normTitle.includes(cat.toLowerCase()) || cat.toLowerCase().includes(normTitle)) {
+      return cat;
+    }
+  }
+  return null;
+};
+
+// 12h. AMC: Book Service under Subscription
+const handlePostAmcBooking = async (req, res) => {
+  const amcId = req.body.amcId || req.body.amc || req.query.amcId || req.query.amc;
+  const productId = req.body.productId || req.body.product || req.body.product_id || req.body.serviceName || req.query.productId;
+  let date = req.body.date || req.query.date;
+  let timeSlot = req.body.timeSlot || req.body.slot || req.query.timeSlot;
+  const addressObj = req.body.address;
+
+  if (!amcId || !productId || !date || !timeSlot) {
+    return res.status(400).json({ error: "amcId, productId, date, and timeSlot are required" });
+  }
+
+  date = normalizeDate(date);
+  timeSlot = normalizeTimeSlot(timeSlot);
+
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const sub = await DbLayer.getAmcSubscriptionById(amcId);
+    if (!sub || sub.userPhone !== user.phone) {
+      return res.status(404).json({ error: "AMC subscription not found" });
+    }
+
+    if (sub.status !== 'active') {
+      return res.status(400).json({ error: `AMC subscription status is '${sub.status}', not 'active'` });
+    }
+
+    if (new Date(sub.endDate) < new Date()) {
+      return res.status(400).json({ error: "AMC subscription has expired" });
+    }
+
+    const completedCount = await DbLayer.countAmcBookingsCompleted(amcId);
+    if (completedCount >= 12) {
+      return res.status(400).json({ error: "You have already completed all 12 free services for this AMC subscription" });
+    }
+
+    const resolvedProduct = await resolveServiceDetails(productId);
+    if (!resolvedProduct) {
+      return res.status(404).json({ error: `Service/Product '${productId}' not found in catalog` });
+    }
+
+    const serviceCategory = await getServiceCategoryDbOrStatic(resolvedProduct.title);
+    if (!serviceCategory || serviceCategory.toLowerCase() !== sub.category.toLowerCase()) {
+      return res.status(400).json({
+        error: `Category mismatch: This service (${resolvedProduct.title}) belongs to category '${serviceCategory || 'Unknown'}', but your AMC subscription is for '${sub.category}'`
+      });
+    }
+
+    let resolvedAddress = null;
+    if (addressObj) {
+      try {
+        const newAddress = {
+          userPhone: user.phone,
+          type: addressObj.type || "Home",
+          houseNo: addressObj.houseNo || "",
+          society: addressObj.society || "",
+          floor: addressObj.floor || "",
+          landmark: addressObj.landmark || "",
+          city: addressObj.city || "",
+          locality: addressObj.locality || "",
+          pincode: addressObj.pincode || "",
+          latitude: Number(addressObj.latitude) || 0,
+          longitude: Number(addressObj.longitude) || 0,
+          name: addressObj.name || "",
+          alternateNumber: addressObj.alternateNumber || addressObj.alternate_number || "",
+          countryCode: addressObj.countryCode || addressObj.country_code || "+91"
+        };
+        resolvedAddress = await DbLayer.createAddress(newAddress);
+      } catch (addrErr) {
+        console.error("Save address from body failed:", addrErr);
+      }
+    }
+    if (!resolvedAddress) {
+      const addresses = await DbLayer.getAddressesByUserPhone(user.phone).catch(() => []);
+      if (addresses && addresses.length > 0) {
+        resolvedAddress = addresses[addresses.length - 1];
+      }
+    }
+
+    const lastOrderId = await DbLayer.getLastOrderId();
+    let highestId = lastOrderId;
+    for (const draft of draftOrders.values()) {
+      if (draft.id > highestId) {
+        highestId = draft.id;
+      }
+    }
+    const orderId = highestId + 1;
+
+    const newOrder = {
+      id: orderId,
+      userPhone: user.phone,
+      userId: user.phone,
+      serviceName: resolvedProduct.serviceName,
+      price: 0.00,
+      date: date,
+      status: "Pending",
+      bookingStatus: "searching",
+      partnerName: null,
+      partnerDistance: null,
+      productId: resolvedProduct.productId,
+      description: resolvedProduct.description,
+      timeSlot: timeSlot,
+      address: resolvedAddress,
+      payment: {
+        paymentMethod: "AMC",
+        amountPaid: 0.00
+      },
+      razorpayOrderId: null,
+      razorpayPaymentId: null,
+      createdAt: Date.now(),
+      amcId: sub.amcId,
+      advancePayment: 0.00,
+      remainingAmount: 0.00
+    };
+
+    const placedOrder = await DbLayer.createOrder(newOrder);
+    draftOrders.delete(user.phone);
+
+    res.json({
+      success: true,
+      message: `Successfully booked service '${resolvedProduct.title}' under AMC subscription ${sub.amcId}!`,
+      order: placedOrder
+    });
+  } catch (err) {
+    console.error("AMC booking failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+app.post('/api/amc/book', handlePostAmcBooking);
+app.post('/api/amc/bookings', handlePostAmcBooking);
+
 // Cards: Get List
 app.get('/api/cards', async (req, res) => {
   try {
