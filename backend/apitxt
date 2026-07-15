@@ -647,8 +647,7 @@ Multipart Form-Data Body:
 - "floors": 2 (number, required)
 - "price": 2500 (number, optional; overrides default calculations if passed)
 - "note" or "notes": "Special plumbing request" (string, optional)
-- "photo" or "image": [File Upload] (file, optional)
-- "pdf": [File Upload] (file, optional)
+- "photo" or "image" or "pdf" or "file" or "document": [File Upload / URL String] (optional; single parameter to submit a document, PDF, or photo)
 
 Response Payload:
 {
@@ -668,7 +667,8 @@ Response Payload:
     "startDate": "2026-07-10T11:00:00.000Z",
     "endDate": "2027-07-10T11:00:00.000Z",
     "photoUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
-    "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-doc.pdf",
+    "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
+    "fileUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
     "note": "Special plumbing request",
     "orderId": "AMC45678912",
     "order_id": "AMC45678912"
