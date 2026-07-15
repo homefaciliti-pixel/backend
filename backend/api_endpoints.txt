@@ -853,11 +853,13 @@ GET /api/amc/plans
 
 POST /api/amc/subscribe
 - Headers: Authorization: Bearer <jwt_token>
-- Body: {
-    "category": "Plumber",
-    "areaSqFt": 1200,
-    "floors": 2
-  }
+- Multipart Form-Data Body:
+    - "category": "Plumber" (string, required)
+    - "areaSqFt": 1200 (number, required)
+    - "floors": 2 (number, required)
+    - "note" or "notes": "Special plumbing request" (string, optional)
+    - "photo" or "image": [File Upload] (file, optional)
+    - "pdf": [File Upload] (file, optional)
 - Response: {
     "success": true,
     "message": "Successfully subscribed to AMC for Plumber! Valid for 1 year with 12 free bookings.",
@@ -870,10 +872,13 @@ POST /api/amc/subscribe
       "price": 2400.00,
       "status": "active",
       "startDate": "2026-07-10T11:00:00.000Z",
-      "endDate": "2027-07-10T11:00:00.000Z"
+      "endDate": "2027-07-10T11:00:00.000Z",
+      "photoUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
+      "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-doc.pdf",
+      "note": "Special plumbing request"
     }
   }
-- Note: Private endpoint to buy an AMC plan. Dynamic price = areaSqFt * floors.
+- Note: Private multipart endpoint to buy an AMC plan. Accepts file uploads for 'photo' / 'image' and 'pdf', as well as text fields for 'category', 'areaSqFt', 'floors', and 'note'. Dynamic price = areaSqFt * floors.
 
 GET /api/amc/subscriptions
 - Headers: Authorization: Bearer <jwt_token>

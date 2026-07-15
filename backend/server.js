@@ -345,6 +345,9 @@ async function initMySqlDb() {
     try {
       await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN pdfUrl VARCHAR(500) DEFAULT NULL");
     } catch (err) { /* Column might already exist */ }
+    try {
+      await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN note TEXT DEFAULT NULL");
+    } catch (err) { /* Column might already exist */ }
 
     try {
       await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN amcId VARCHAR(50) DEFAULT NULL");
@@ -546,10 +549,10 @@ const MySqlDbLayer = {
   },
 
   async createAmcSubscription(sub) {
-    const { amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl } = sub;
+    const { amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note } = sub;
     await mysqlPool.query(
-      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl || null, pdfUrl || null]
+      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl || null, pdfUrl || null, note || null]
     );
   },
 
@@ -3726,9 +3729,10 @@ app.get('/api/amc/plans', (req, res) => {
 // 12c. AMC: Subscribe to Plan
 app.post('/api/amc/subscribe', amcUpload.fields([
   { name: 'photo', maxCount: 1 },
+  { name: 'image', maxCount: 1 },
   { name: 'pdf', maxCount: 1 }
 ]), async (req, res) => {
-  const { category, areaSqFt, floors } = req.body;
+  const { category, areaSqFt, floors, note, notes } = req.body;
   if (!category || !areaSqFt || !floors || areaSqFt <= 0 || floors <= 0) {
     return res.status(400).json({ error: "category, areaSqFt and floors are required and must be positive numbers" });
   }
@@ -3752,9 +3756,23 @@ app.post('/api/amc/subscribe', amcUpload.fields([
     // Build file URLs if uploaded
     const serverBase = `${req.protocol}://${req.get('host')}`;
     const photoFile = req.files && req.files['photo'] && req.files['photo'][0];
+    const imageFile = req.files && req.files['image'] && req.files['image'][0];
     const pdfFile = req.files && req.files['pdf'] && req.files['pdf'][0];
-    const photoUrl = photoFile ? `${serverBase}/uploads/amc/${photoFile.filename}` : null;
-    const pdfUrl = pdfFile ? `${serverBase}/uploads/amc/${pdfFile.filename}` : null;
+
+    // Resolve photoUrl dynamically from photo file, image file, photo text, or image text
+    let resolvedPhotoUrl = null;
+    if (photoFile) {
+      resolvedPhotoUrl = `${serverBase}/uploads/amc/${photoFile.filename}`;
+    } else if (imageFile) {
+      resolvedPhotoUrl = `${serverBase}/uploads/amc/${imageFile.filename}`;
+    } else if (req.body.photo) {
+      resolvedPhotoUrl = req.body.photo;
+    } else if (req.body.image) {
+      resolvedPhotoUrl = req.body.image;
+    }
+
+    const pdfUrl = pdfFile ? `${serverBase}/uploads/amc/${pdfFile.filename}` : (req.body.pdf || null);
+    const resolvedNote = note || notes || null;
 
     // Calculate price: ₹1 per sq ft, plus ₹1 per sq ft for each additional floor
     const ratePerSqFt = Number(floors);
@@ -3777,8 +3795,9 @@ app.post('/api/amc/subscribe', amcUpload.fields([
       status: 'active',
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      photoUrl,
-      pdfUrl
+      photoUrl: resolvedPhotoUrl,
+      pdfUrl,
+      note: resolvedNote
     };
 
     await DbLayer.createAmcSubscription(newSub);
@@ -3820,6 +3839,9 @@ app.get('/api/amc/subscriptions', async (req, res) => {
         completedCount,
         totalAllowed: 12,
         progressMessage: `${completedCount} complete out of 12`,
+        photoUrl: sub.photoUrl,
+        pdfUrl: sub.pdfUrl,
+        note: sub.note,
         buttons: {
           bookService: `Book Service (at ₹0)`,
           renewService: `Renew Service`
