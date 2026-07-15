@@ -857,6 +857,7 @@ POST /api/amc/subscribe
     - "category": "Plumber" (string, required)
     - "areaSqFt": 1200 (number, required)
     - "floors": 2 (number, required)
+    - "price": 2500 (number, optional; overrides default price calculations if passed)
     - "note" or "notes": "Special plumbing request" (string, optional)
     - "photo" or "image": [File Upload] (file, optional)
     - "pdf": [File Upload] (file, optional)

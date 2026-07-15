@@ -3732,7 +3732,7 @@ app.post('/api/amc/subscribe', amcUpload.fields([
   { name: 'image', maxCount: 1 },
   { name: 'pdf', maxCount: 1 }
 ]), async (req, res) => {
-  const { category, areaSqFt, floors, note, notes } = req.body;
+  const { category, areaSqFt, floors, note, notes, price } = req.body;
   if (!category || !areaSqFt || !floors || areaSqFt <= 0 || floors <= 0) {
     return res.status(400).json({ error: "category, areaSqFt and floors are required and must be positive numbers" });
   }
@@ -3774,9 +3774,9 @@ app.post('/api/amc/subscribe', amcUpload.fields([
     const pdfUrl = pdfFile ? `${serverBase}/uploads/amc/${pdfFile.filename}` : (req.body.pdf || null);
     const resolvedNote = note || notes || null;
 
-    // Calculate price: ₹1 per sq ft, plus ₹1 per sq ft for each additional floor
+    // Calculate price: fallback to formula if not passed in body
     const ratePerSqFt = Number(floors);
-    const totalPrice = Number(areaSqFt) * ratePerSqFt;
+    const totalPrice = price !== undefined && price !== "" ? Number(price) : (Number(areaSqFt) * ratePerSqFt);
 
     // Generate unique AMC ID
     const amcId = `AMC${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
