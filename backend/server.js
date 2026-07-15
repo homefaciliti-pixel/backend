@@ -3804,8 +3804,15 @@ app.post('/api/amc/subscribe', amcUpload.fields([
 
     res.json({
       success: true,
+      orderId: amcId,
+      order_id: amcId,
+      amcId: amcId,
       message: `Successfully subscribed to AMC for ${category}! Valid for 1 year with 12 free bookings.`,
-      subscription: newSub
+      subscription: {
+        ...newSub,
+        orderId: amcId,
+        order_id: amcId
+      }
     });
   } catch (err) {
     console.error("AMC subscription failed:", err);
@@ -4115,6 +4122,8 @@ const handlePostAmcBooking = async (req, res) => {
 
     res.json({
       success: true,
+      orderId: placedOrder.id,
+      order_id: placedOrder.id,
       message: `Successfully booked service '${resolvedProduct.title}' under AMC subscription ${sub.amcId}!`,
       order: placedOrder
     });

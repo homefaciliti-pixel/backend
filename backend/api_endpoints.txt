@@ -863,6 +863,9 @@ POST /api/amc/subscribe
     - "pdf": [File Upload] (file, optional)
 - Response: {
     "success": true,
+    "orderId": "AMC45678912",
+    "order_id": "AMC45678912",
+    "amcId": "AMC45678912",
     "message": "Successfully subscribed to AMC for Plumber! Valid for 1 year with 12 free bookings.",
     "subscription": {
       "amcId": "AMC45678912",
