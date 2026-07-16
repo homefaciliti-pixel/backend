@@ -558,10 +558,10 @@ const MySqlDbLayer = {
   },
 
   async createAmcSubscription(sub) {
-    const { amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note, fileUrl } = sub;
+    const { amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note, fileUrl, status } = sub;
     await mysqlPool.query(
-      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note, fileUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl || null, pdfUrl || null, note || null, fileUrl || null]
+      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note, fileUrl, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl || null, pdfUrl || null, note || null, fileUrl || null, status || 'pending_payment']
     );
   },
 
