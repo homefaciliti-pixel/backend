@@ -3843,13 +3843,10 @@ app.get('/api/wallet/history', async (req, res) => {
 // 12b. AMC: Get Plans
 app.get('/api/amc/plans', (req, res) => {
   const plans = CATEGORIES_DATA.map(categoryName => {
-    const isMechanic = categoryName.toLowerCase() === "mechanic";
     return {
       category: categoryName,
-      baseRatePerSqFt: isMechanic ? 0.0 : 1.0,
-      description: isMechanic 
-        ? `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Fixed price: ₹1.` 
-        : `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor).`
+      baseRatePerSqFt: 1.0,
+      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor).`
     };
   });
   res.json({ success: true, plans });
@@ -3918,16 +3915,9 @@ app.post('/api/amc/subscribe', amcUpload.fields([
 
     const resolvedNote = note || notes || null;
 
-    // Calculate price: default to ₹1 for Mechanic, otherwise fallback to formula if not passed in body
+    // Calculate price: fallback to formula if not passed in body
     const ratePerSqFt = Number(floors);
-    let totalPrice;
-    if (price !== undefined && price !== "") {
-      totalPrice = Number(price);
-    } else if (category.toLowerCase() === "mechanic") {
-      totalPrice = 1.00;
-    } else {
-      totalPrice = Number(areaSqFt) * ratePerSqFt;
-    }
+    const totalPrice = price !== undefined && price !== "" ? Number(price) : (Number(areaSqFt) * ratePerSqFt);
 
     // Generate unique AMC ID
     const amcId = `AMC${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
