@@ -434,7 +434,8 @@ Response Payload:
   },
   "message": "Payment checked successfully from Razorpay. Status: captured"
 }
-Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order. Falls back to simulation if credentials fail authentication.
+Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order/subscription. Falls back to simulation if credentials fail authentication.
+* Supports both normal order IDs (numeric) and AMC subscription IDs (starting with "AMC"). For AMC subscriptions, successful payment verification automatically marks the subscription as active in the database.
 * For Cash / COD orders, verification immediately returns success with `paymentStatus: "cod"`.
 
 ---------------------------------------------------------

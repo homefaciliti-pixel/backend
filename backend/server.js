@@ -348,6 +348,15 @@ async function initMySqlDb() {
     try {
       await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN note TEXT DEFAULT NULL");
     } catch (err) { /* Column might already exist */ }
+    try {
+      await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN fileUrl VARCHAR(500) DEFAULT NULL");
+    } catch (err) { /* Column might already exist */ }
+    try {
+      await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN razorpayOrderId VARCHAR(100) DEFAULT NULL");
+    } catch (err) { /* Column might already exist */ }
+    try {
+      await conn.query("ALTER TABLE node_amc_subscriptions ADD COLUMN razorpayPaymentId VARCHAR(100) DEFAULT NULL");
+    } catch (err) { /* Column might already exist */ }
 
     try {
       await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN amcId VARCHAR(50) DEFAULT NULL");
@@ -549,16 +558,30 @@ const MySqlDbLayer = {
   },
 
   async createAmcSubscription(sub) {
-    const { amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note } = sub;
+    const { amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note, fileUrl } = sub;
     await mysqlPool.query(
-      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl || null, pdfUrl || null, note || null]
+      "INSERT INTO node_amc_subscriptions (amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl, pdfUrl, note, fileUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [amcId, userPhone, category, areaSqFt, floors, price, endDate, photoUrl || null, pdfUrl || null, note || null, fileUrl || null]
     );
   },
 
   async getAmcSubscriptionById(amcId) {
     const row = await this.queryOne("SELECT * FROM node_amc_subscriptions WHERE amcId = ?", [amcId]);
     return row;
+  },
+
+  async updateAmcSubscription(amcId, updates) {
+    const fields = [];
+    const values = [];
+    for (const [k, v] of Object.entries(updates)) {
+      fields.push(`${k} = ?`);
+      values.push(v);
+    }
+    values.push(amcId);
+    await mysqlPool.query(
+      `UPDATE node_amc_subscriptions SET ${fields.join(', ')} WHERE amcId = ?`,
+      values
+    );
   },
 
   async countAmcBookingsCompleted(amcId) {
@@ -2710,6 +2733,109 @@ const handleVerifyPayment = async (req, res) => {
   const rzpOrderId = req.query.razorpay_order_id || req.body.razorpay_order_id || req.query.order_id || req.body.order_id;
   
   try {
+    const isAmcPay = (paramOrderId && String(paramOrderId).toUpperCase().startsWith("AMC")) || 
+                     (rzpOrderId && String(rzpOrderId).toUpperCase().startsWith("AMC"));
+    
+    if (isAmcPay) {
+      let amcSub = null;
+      if (paramOrderId && String(paramOrderId).toUpperCase().startsWith("AMC")) {
+        amcSub = await DbLayer.getAmcSubscriptionById(paramOrderId);
+      }
+      if (!amcSub && rzpOrderId) {
+        const [rows] = await mysqlPool.query("SELECT * FROM node_amc_subscriptions WHERE razorpayOrderId = ?", [rzpOrderId]);
+        if (rows.length > 0) {
+          amcSub = rows[0];
+        }
+      }
+
+      if (!amcSub) {
+        return res.status(404).json({ error: "AMC subscription not found for payment verification" });
+      }
+
+      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
+      const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
+      const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
+      
+      let status = "pending";
+      let paymentDetails = null;
+      let verifiedViaRazorpay = false;
+      let razorpayAuthError = false;
+
+      if (paymentId) {
+        try {
+          const rzpRes = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+            headers: { 'Authorization': authHeader }
+          });
+          const data = await rzpRes.json();
+          if (rzpRes.status === 401 || (data.error && data.error.description && data.error.description.includes('Authentication'))) {
+            razorpayAuthError = true;
+          } else if (data && data.status) {
+            status = data.status;
+            paymentDetails = data;
+            verifiedViaRazorpay = true;
+          }
+        } catch (err) {
+          console.error(`[Razorpay AMC] Error fetching payment ID ${paymentId}:`, err.message);
+        }
+      } else if (amcSub.razorpayOrderId) {
+        try {
+          const rzpRes = await fetch(`https://api.razorpay.com/v1/orders/${amcSub.razorpayOrderId}/payments`, {
+            headers: { 'Authorization': authHeader }
+          });
+          const data = await rzpRes.json();
+          if (rzpRes.status === 401 || (data.error && data.error.description && data.error.description.includes('Authentication'))) {
+            razorpayAuthError = true;
+          } else if (data && data.items && Array.isArray(data.items)) {
+            const capturedPayment = data.items.find(p => p.status === 'captured');
+            if (capturedPayment) {
+              status = "captured";
+              paymentDetails = capturedPayment;
+            } else if (data.items.length > 0) {
+              status = data.items[0].status;
+              paymentDetails = data.items[0];
+            }
+            verifiedViaRazorpay = true;
+          }
+        } catch (err) {
+          console.error(`[Razorpay AMC] Error fetching payments for Razorpay Order ${amcSub.razorpayOrderId}:`, err.message);
+        }
+      }
+
+      if (razorpayAuthError || !verifiedViaRazorpay) {
+        if (!isMockPaymentAllowed()) {
+          status = "failed";
+        } else {
+          paymentDetails = {
+            razorpay_payment_id: paymentId || `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+            razorpay_order_id: amcSub.razorpayOrderId || `order_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+            status: "captured",
+            amount: Number(amcSub.price) * 100,
+            currency: "INR"
+          };
+          status = "captured";
+        }
+      }
+
+      if (status === "captured") {
+        const pId = paymentDetails ? (paymentDetails.id || paymentDetails.razorpay_payment_id) : null;
+        await DbLayer.updateAmcSubscription(amcSub.amcId, {
+          status: "active",
+          razorpayPaymentId: pId
+        });
+        console.log(`[Payment Verify] AMC subscription ${amcSub.amcId} verified and set to active via payment ${pId}`);
+      }
+
+      return res.json({
+        success: status === "captured",
+        orderId: amcSub.amcId,
+        paymentStatus: status,
+        paymentDetails: paymentDetails,
+        message: status === "captured"
+          ? `AMC Subscription payment verified successfully. Status: ${status}`
+          : `Payment verification failed. Status: ${status}`
+      });
+    }
+
     let order = null;
     let isDraft = false;
     let orderId = isNaN(paramOrderId) ? null : parseInt(paramOrderId);
@@ -3730,9 +3856,11 @@ app.get('/api/amc/plans', (req, res) => {
 app.post('/api/amc/subscribe', amcUpload.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'image', maxCount: 1 },
-  { name: 'pdf', maxCount: 1 }
+  { name: 'pdf', maxCount: 1 },
+  { name: 'file', maxCount: 1 },
+  { name: 'document', maxCount: 1 }
 ]), async (req, res) => {
-  const { category, areaSqFt, floors, note, notes, price } = req.body;
+  const { category, areaSqFt, floors, note, notes, price, file, document } = req.body;
   if (!category || !areaSqFt || !floors || areaSqFt <= 0 || floors <= 0) {
     return res.status(400).json({ error: "category, areaSqFt and floors are required and must be positive numbers" });
   }
@@ -3758,20 +3886,33 @@ app.post('/api/amc/subscribe', amcUpload.fields([
     const photoFile = req.files && req.files['photo'] && req.files['photo'][0];
     const imageFile = req.files && req.files['image'] && req.files['image'][0];
     const pdfFile = req.files && req.files['pdf'] && req.files['pdf'][0];
+    const fileFile = req.files && req.files['file'] && req.files['file'][0];
+    const docFile = req.files && req.files['document'] && req.files['document'][0];
 
-    // Resolve photoUrl dynamically from photo file, image file, photo text, or image text
-    let resolvedPhotoUrl = null;
+    // Resolve a single combined fileUrl dynamically from any uploaded file or body text parameter
+    let resolvedFileUrl = null;
     if (photoFile) {
-      resolvedPhotoUrl = `${serverBase}/uploads/amc/${photoFile.filename}`;
+      resolvedFileUrl = `${serverBase}/uploads/amc/${photoFile.filename}`;
     } else if (imageFile) {
-      resolvedPhotoUrl = `${serverBase}/uploads/amc/${imageFile.filename}`;
+      resolvedFileUrl = `${serverBase}/uploads/amc/${imageFile.filename}`;
+    } else if (pdfFile) {
+      resolvedFileUrl = `${serverBase}/uploads/amc/${pdfFile.filename}`;
+    } else if (fileFile) {
+      resolvedFileUrl = `${serverBase}/uploads/amc/${fileFile.filename}`;
+    } else if (docFile) {
+      resolvedFileUrl = `${serverBase}/uploads/amc/${docFile.filename}`;
     } else if (req.body.photo) {
-      resolvedPhotoUrl = req.body.photo;
+      resolvedFileUrl = req.body.photo;
     } else if (req.body.image) {
-      resolvedPhotoUrl = req.body.image;
+      resolvedFileUrl = req.body.image;
+    } else if (req.body.pdf) {
+      resolvedFileUrl = req.body.pdf;
+    } else if (req.body.file) {
+      resolvedFileUrl = req.body.file;
+    } else if (req.body.document) {
+      resolvedFileUrl = req.body.document;
     }
 
-    const pdfUrl = pdfFile ? `${serverBase}/uploads/amc/${pdfFile.filename}` : (req.body.pdf || null);
     const resolvedNote = note || notes || null;
 
     // Calculate price: fallback to formula if not passed in body
@@ -3795,8 +3936,9 @@ app.post('/api/amc/subscribe', amcUpload.fields([
       status: 'active',
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      photoUrl: resolvedPhotoUrl,
-      pdfUrl,
+      photoUrl: resolvedFileUrl,
+      pdfUrl: resolvedFileUrl,
+      fileUrl: resolvedFileUrl,
       note: resolvedNote
     };
 
@@ -3848,6 +3990,7 @@ app.get('/api/amc/subscriptions', async (req, res) => {
         progressMessage: `${completedCount} complete out of 12`,
         photoUrl: sub.photoUrl,
         pdfUrl: sub.pdfUrl,
+        fileUrl: sub.fileUrl || sub.photoUrl || sub.pdfUrl,
         note: sub.note,
         buttons: {
           bookService: `Book Service (at ₹0)`,
@@ -4191,9 +4334,21 @@ app.post('/api/payments', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const order = await DbLayer.getOrderById(parseInt(orderId));
-    if (!order) {
-      return res.status(404).json({ error: "Order not found" });
+
+    const isAmcPay = String(orderId).toUpperCase().startsWith("AMC");
+    let amcSub = null;
+    let order = null;
+
+    if (isAmcPay) {
+      amcSub = await DbLayer.getAmcSubscriptionById(orderId);
+      if (!amcSub) {
+        return res.status(404).json({ error: "AMC subscription not found" });
+      }
+    } else {
+      order = await DbLayer.getOrderById(parseInt(orderId));
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
     }
 
     let razorpayOrderId = null;
@@ -4225,11 +4380,18 @@ app.post('/api/payments', async (req, res) => {
       if (!razorpayOrderId) {
         razorpayOrderId = `order_mock_${Math.random().toString(36).substring(2, 11)}`;
       }
+
+      // Update local storage of razorpayOrderId
+      if (isAmcPay) {
+        await DbLayer.updateAmcSubscription(orderId, { razorpayOrderId });
+      } else if (order) {
+        await DbLayer.updateOrder(order.id, { razorpayOrderId });
+      }
     }
 
     res.json({
       success: true,
-      orderId: order.id,
+      orderId: isAmcPay ? orderId : order.id,
       amount: Number(amount),
       paymentMethod,
       razorpayOrderId,

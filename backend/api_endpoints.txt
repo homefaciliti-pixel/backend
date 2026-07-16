@@ -859,8 +859,7 @@ POST /api/amc/subscribe
     - "floors": 2 (number, required)
     - "price": 2500 (number, optional; overrides default price calculations if passed)
     - "note" or "notes": "Special plumbing request" (string, optional)
-    - "photo" or "image": [File Upload] (file, optional)
-    - "pdf": [File Upload] (file, optional)
+    - "photo" or "image" or "pdf" or "file" or "document": [File Upload / URL String] (optional; single parameter to submit a document, PDF, or photo)
 - Response: {
     "success": true,
     "orderId": "AMC45678912",
@@ -878,11 +877,12 @@ POST /api/amc/subscribe
       "startDate": "2026-07-10T11:00:00.000Z",
       "endDate": "2027-07-10T11:00:00.000Z",
       "photoUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
-      "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-doc.pdf",
+      "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
+      "fileUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
       "note": "Special plumbing request"
     }
   }
-- Note: Private multipart endpoint to buy an AMC plan. Accepts file uploads for 'photo' / 'image' and 'pdf', as well as text fields for 'category', 'areaSqFt', 'floors', and 'note'. Dynamic price = areaSqFt * floors.
+- Note: Private multipart endpoint to buy an AMC plan. Accepts a single document (either image or PDF) via 'photo'/'image'/'pdf'/'file'/'document' upload fields, and returns the URL in 'photoUrl', 'pdfUrl', and 'fileUrl' for maximum client compatibility. Dynamic price = areaSqFt * floors.
 
 GET /api/amc/subscriptions
 - Headers: Authorization: Bearer <jwt_token>
@@ -1067,19 +1067,20 @@ POST /api/cards
 POST /api/payments
 - Headers: Authorization: Bearer <jwt_token>
 - Body: {
-    "orderId": 501,
+    "orderId": 501, // Can also be an AMC subscription string ID like "AMC00482747"
     "amount": 299,
-    "paymentMethod": "Online"
+    "paymentMethod": "Online" // "Online", "Razorpay", etc.
   }
 - Response: {
     "success": true,
-    "orderId": 501,
+    "orderId": 501, // (or string "AMC00482747" if AMC subscription payment)
     "amount": 299,
     "paymentMethod": "Online",
     "razorpayOrderId": "order_K7x9s...",
     "status": "Initiated",
     "message": "Razorpay order generated successfully"
   }
+- Note: Supports both normal numerical order IDs and string AMC subscription IDs starting with "AMC". For AMC subscriptions, the generated razorpayOrderId is persisted in the subscription record for verification.
 
 GET /api/categories/:category/services?status=AMC
 - Note: Adding `status=AMC` query/body parameter overrides service prices to ₹0 and sets `"status": "AMC"`.
