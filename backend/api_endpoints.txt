@@ -1083,7 +1083,7 @@ POST /api/payments
 - Note: Supports both normal numerical order IDs and string AMC subscription IDs starting with "AMC". For AMC subscriptions, the generated razorpayOrderId is persisted in the subscription record for verification.
 
 GET /api/categories/:category/services?status=AMC
-- Note: Adding `status=AMC` query/body parameter overrides service prices to ₹0 and sets `"status": "AMC"`.
+- Note: Adding `status=AMC` OR `amc=true` query/body parameter overrides service prices to ₹0, sets `"status": "AMC"`, and enables AMC service flows.
 
 GET /api/services/detail/:title?status=AMC
 - Note: Adding `status=AMC` query/body parameter overrides details price to ₹0 and sets `"status": "AMC"`.

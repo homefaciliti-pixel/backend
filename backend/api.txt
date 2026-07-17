@@ -676,4 +676,15 @@ Response Payload:
   }
 }
 
+---------------------------------------------------------
+21. Category Services AMC Query Parameter Support (NEW)
+---------------------------------------------------------
+
+Endpoint: GET /api/categories/:category/services
+Optional Query Parameters:
+- `amc=true` (or `status=AMC`)
+
+Note: Passing `amc=true` (or `amc=1`, `status=AMC`) in the query string or body overrides the prices of all returned services in that category to ₹0 and sets their status to "AMC". If not passed, it defaults to normal/regular prices.
+
+
 
