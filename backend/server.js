@@ -2380,7 +2380,8 @@ const handleServiceDetail = async (req, res) => {
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
   const statusParam = req.query.status || req.body.status;
-  let hasActiveAmc = false;
+  const amcParam = req.query.amc || req.body.amc;
+  const hasActiveAmc = statusParam === "AMC" || amcParam === "true" || amcParam === true || amcParam === "1" || amcParam === 1 || amcParam === "AMC";
   let detectedCategory = null;
 
   if (dbMode === "mysql" && mysqlPool !== null) {
@@ -2393,8 +2394,6 @@ const handleServiceDetail = async (req, res) => {
       if (srvRows.length > 0) {
         const r = srvRows[0];
         const enrichedService = sanitizeServiceDbObj(r, serverBaseUrl);
-        
-        hasActiveAmc = statusParam === "AMC";
 
         if (hasActiveAmc) {
           enrichedService.price = 0;
@@ -2434,8 +2433,6 @@ const handleServiceDetail = async (req, res) => {
   if (resolvedImage && resolvedImage.startsWith('/assets/')) {
     resolvedImage = `${serverBaseUrl}${resolvedImage}`;
   }
-
-  hasActiveAmc = statusParam === "AMC";
 
   // Add rich mock metadata for details
   const enrichedService = {
