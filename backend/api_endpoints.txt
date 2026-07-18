@@ -1086,7 +1086,7 @@ GET /api/categories/:category/services?status=AMC
 - Note: Adding `status=AMC` OR `amc=true` query/body parameter overrides service prices to ₹0, sets `"status": "AMC"`, and enables AMC service flows.
 
 GET /api/services/detail/:title?status=AMC
-- Note: Adding `status=AMC` OR `amc=true` query/body parameter overrides detail price to ₹0 and sets `"status": "AMC"`.
+- Note: Adding `status=AMC` query/body parameter overrides details price to ₹0 and sets `"status": "AMC"`.
 
 POST /api/bookings (Add body status = AMC)
 - Body: {
