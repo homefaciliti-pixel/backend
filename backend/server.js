@@ -1253,6 +1253,10 @@ const CATEGORIES_DATA = [
   "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halwai"
 ];
 
+const AMC_SUPPORTED_CATEGORIES = [
+  "AcRepair", "Plumber", "Cleaning", "Electrician", "Painter", "Carpenter", "Architecture", "Contractor"
+];
+
 // Helper to map category names to canonical camelCase/spaced names in CATEGORIES_DATA
 function getCanonicalCategoryName(categoryName) {
   if (!categoryName) return "Plumber";
@@ -3855,7 +3859,7 @@ app.get('/api/wallet/history', async (req, res) => {
 
 // 12b. AMC: Get Plans
 app.get('/api/amc/plans', (req, res) => {
-  const plans = CATEGORIES_DATA.map(categoryName => {
+  const plans = AMC_SUPPORTED_CATEGORIES.map(categoryName => {
     return {
       category: categoryName,
       baseRatePerSqFt: 1.0,
@@ -3878,8 +3882,8 @@ app.post('/api/amc/subscribe', amcUpload.fields([
     return res.status(400).json({ error: "category, areaSqFt and floors are required and must be positive numbers" });
   }
 
-  if (!CATEGORIES_DATA.includes(category)) {
-    return res.status(400).json({ error: "Invalid category" });
+  if (!AMC_SUPPORTED_CATEGORIES.includes(category)) {
+    return res.status(400).json({ error: "This category does not support AMC subscriptions" });
   }
 
   try {
@@ -4019,7 +4023,7 @@ app.get('/api/amc/subscriptions', async (req, res) => {
       .filter(s => s.status === 'active' && new Date(s.endDate) > now)
       .map(s => s.category);
 
-    const availablePlans = CATEGORIES_DATA
+    const availablePlans = AMC_SUPPORTED_CATEGORIES
       .filter(cat => !subscribedCategories.includes(cat))
       .map(cat => {
         return {
