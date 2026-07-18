@@ -2009,8 +2009,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
   const statusParam = req.query.status || req.body.status;
-  const amcParam = req.query.amc || req.body.amc;
-  const isAmcMode = statusParam === "AMC" || amcParam === "true" || amcParam === true || amcParam === "1" || amcParam === 1 || amcParam === "AMC";
+  const isAmcMode = statusParam === "AMC";
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
