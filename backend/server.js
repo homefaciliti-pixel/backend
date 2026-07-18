@@ -1253,6 +1253,19 @@ const CATEGORIES_DATA = [
   "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halwai"
 ];
 
+// Helper to map category names to canonical camelCase/spaced names in CATEGORIES_DATA
+function getCanonicalCategoryName(categoryName) {
+  if (!categoryName) return "Plumber";
+  const cleanName = categoryName.toLowerCase().replace(/[\s\-_]/g, '');
+  for (const cat of CATEGORIES_DATA) {
+    const cleanCat = cat.toLowerCase().replace(/[\s\-_]/g, '');
+    if (cleanName === cleanCat || cleanName.includes(cleanCat) || cleanCat.includes(cleanName)) {
+      return cat;
+    }
+  }
+  return categoryName;
+}
+
 const SERVICES_DATA = {
   "Plumber": [
     { title: "Tap Repair", price: 299, description: "Fix leaking taps and water issues", image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=400&auto=format&fit=crop", discount: 25, rating: 4.7, reviewsCount: 142, cutPrice: 399 },
@@ -4123,7 +4136,7 @@ const getServiceCategoryDbOrStatic = async (productId) => {
           [srvRows[0].category_id]
         );
         if (catRows.length > 0) {
-          return catRows[0].title || null;
+          return getCanonicalCategoryName(catRows[0].title) || null;
         }
       }
     } catch (err) {
@@ -4132,12 +4145,12 @@ const getServiceCategoryDbOrStatic = async (productId) => {
   }
   for (const [catName, services] of Object.entries(SERVICES_DATA)) {
     const match = services.some(s => s.title.toLowerCase() === productId.toLowerCase());
-    if (match) return catName;
+    if (match) return getCanonicalCategoryName(catName);
   }
   const normTitle = productId.toLowerCase();
   for (const cat of CATEGORIES_DATA) {
     if (normTitle.includes(cat.toLowerCase()) || cat.toLowerCase().includes(normTitle)) {
-      return cat;
+      return getCanonicalCategoryName(cat);
     }
   }
   return null;
@@ -4188,9 +4201,11 @@ const handlePostAmcBooking = async (req, res) => {
     }
 
     const serviceCategory = await getServiceCategoryDbOrStatic(resolvedProduct.title);
-    if (!serviceCategory || serviceCategory.toLowerCase() !== sub.category.toLowerCase()) {
+    const canonicalServiceCategory = getCanonicalCategoryName(serviceCategory);
+    const canonicalSubCategory = getCanonicalCategoryName(sub.category);
+    if (canonicalServiceCategory !== canonicalSubCategory) {
       return res.status(400).json({
-        error: `Category mismatch: This service (${resolvedProduct.title}) belongs to category '${serviceCategory || 'Unknown'}', but your AMC subscription is for '${sub.category}'`
+        error: `Category mismatch: This service (${resolvedProduct.title}) belongs to category '${canonicalServiceCategory}', but your AMC subscription is for '${canonicalSubCategory}'`
       });
     }
 
@@ -5075,7 +5090,7 @@ const handlePostCheckout = async (req, res) => {
     let finalPrice = Number(foundService.price);
 
     if (useAmc) {
-      const category = getServiceCategory(foundService.title);
+      const category = getCanonicalCategoryName(foundService.category || getServiceCategory(foundService.title));
       const activeAmc = await DbLayer.getAmcSubscriptionByCategory(phone, category);
       if (!activeAmc) {
         return res.status(400).json({ error: `No active AMC subscription found for category ${category}` });
@@ -5567,13 +5582,25 @@ const resolveServiceDetails = async (productId) => {
         if (discountVal > 0) {
           finalPrice = Math.max(0, dbPrice - discountVal);
         }
+
+        let dbCategoryName = null;
+        try {
+          const [catRows] = await mysqlPool.query("SELECT title FROM node_categories WHERE id = ?", [r.category_id]);
+          if (catRows.length > 0) {
+            dbCategoryName = catRows[0].title;
+          }
+        } catch (catErr) {
+          console.warn("[resolveServiceDetails] Failed to fetch category from DB:", catErr.message);
+        }
+
         return {
           productId: r.title,
           serviceName: r.title,
           title: r.title,
           price: finalPrice,
           description: r.description,
-          image: r.image
+          image: r.image,
+          category: dbCategoryName
         };
       }
     } catch (err) {
@@ -5618,17 +5645,25 @@ const resolveServiceDetails = async (productId) => {
 // Helper to determine category for a given service title
 function getServiceCategory(serviceTitle) {
   if (!serviceTitle) return "Plumber";
+  
+  const cleanTitle = serviceTitle.toLowerCase().replace(/[\s\-_]/g, '');
+
   for (const cat of Object.keys(SERVICES_DATA)) {
-    const found = SERVICES_DATA[cat].some(s => s.title.toLowerCase() === serviceTitle.toLowerCase());
+    const found = SERVICES_DATA[cat].some(s => s.title.toLowerCase().replace(/[\s\-_]/g, '') === cleanTitle);
     if (found) return cat;
   }
   
-  const normTitle = serviceTitle.toLowerCase();
   for (const cat of CATEGORIES_DATA) {
-    if (normTitle.includes(cat.toLowerCase()) || cat.toLowerCase().includes(normTitle)) {
+    const cleanCat = cat.toLowerCase().replace(/[\s\-_]/g, '');
+    if (cleanTitle.includes(cleanCat) || cleanCat.includes(cleanTitle)) {
       return cat;
     }
   }
+
+  if (cleanTitle.includes("ac") || cleanTitle.includes("aircondition")) {
+    return "AcRepair";
+  }
+
   return "Plumber";
 }
 
