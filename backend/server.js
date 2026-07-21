@@ -3932,9 +3932,9 @@ app.post('/api/amc/subscribe', amcUpload.fields([
 
     const resolvedNote = note || notes || null;
 
-    // Calculate price: fallback to formula if not passed in body
-    const ratePerSqFt = Number(floors);
-    const totalPrice = price !== undefined && price !== "" ? Number(price) : (Number(areaSqFt) * ratePerSqFt);
+    // Calculate price: fallback to formula (areaSqFt * ₹2/sq ft * floors) if not passed in body
+    const ratePerSqFt = 2.0;
+    const totalPrice = price !== undefined && price !== "" ? Number(price) : (Number(areaSqFt) * 2 * Number(floors));
 
     // Generate unique AMC ID
     const amcId = `AMC${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
@@ -4112,8 +4112,8 @@ app.post('/api/amc/plan-property-details', (req, res) => {
     return res.status(400).json({ error: "Invalid category" });
   }
   const matchedCategory = CATEGORIES_DATA.find(cat => cat.toLowerCase() === category.toLowerCase());
-  const ratePerSqFt = Number(floors);
-  const totalPrice = Number(areaSqFt) * ratePerSqFt;
+  const ratePerSqFt = 2.0;
+  const totalPrice = Number(areaSqFt) * 2 * Number(floors);
   res.json({
     success: true,
     category: matchedCategory,

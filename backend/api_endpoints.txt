@@ -882,7 +882,7 @@ POST /api/amc/subscribe
       "note": "Special plumbing request"
     }
   }
-- Note: Private multipart endpoint to buy an AMC plan. Accepts a single document (either image or PDF) via 'photo'/'image'/'pdf'/'file'/'document' upload fields, and returns the URL in 'photoUrl', 'pdfUrl', and 'fileUrl' for maximum client compatibility. Dynamic price = areaSqFt * floors.
+- Note: Private multipart endpoint to buy an AMC plan. Accepts a single document (either image or PDF) via 'photo'/'image'/'pdf'/'file'/'document' upload fields, and returns the URL in 'photoUrl', 'pdfUrl', and 'fileUrl' for maximum client compatibility. Dynamic price = areaSqFt * 2 * floors.
 
 GET /api/amc/subscriptions
 - Headers: Authorization: Bearer <jwt_token>
