@@ -1277,11 +1277,11 @@ const CATEGORIES_DATA = [
   "AcRepair", "Car Washing", "Plumber", "Cleaning",
   "Electrician", "Salon And Spa", "Painter", "Carpenter",
   "Bike Services", "Architecture", "Contractor", "Mechanic",
-  "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halwai", "Pest Control"
+  "Pandit ji", "Driver", "Photographer", "Doctors", "Compounder", "Halwai", "Pest Control", "Repairing"
 ];
 
 const AMC_SUPPORTED_CATEGORIES = [
-  "AcRepair", "Plumber", "Electrician", "Painter", "Carpenter", "Architecture", "Contractor", "Pest Control"
+  "Repairing", "Plumber", "Electrician", "Painter", "Carpenter", "Architecture", "Contractor", "Pest Control"
 ];
 
 // Helper to map category names to canonical camelCase/spaced names in CATEGORIES_DATA
