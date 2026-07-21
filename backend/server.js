@@ -3862,8 +3862,8 @@ app.get('/api/amc/plans', (req, res) => {
   const plans = AMC_SUPPORTED_CATEGORIES.map(categoryName => {
     return {
       category: categoryName,
-      baseRatePerSqFt: 1.0,
-      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor).`
+      baseRatePerSqFt: 2.0,
+      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹2 per sq feet (increases by ₹1 per sq ft for each additional floor).`
     };
   });
   res.json({ success: true, plans });
@@ -4028,8 +4028,8 @@ app.get('/api/amc/subscriptions', async (req, res) => {
       .map(cat => {
         return {
           category: cat,
-          baseRatePerSqFt: 1.0,
-          description: `Subscribe to Annual Maintenance Contract for ${cat} (12 free services per year at ₹1/sq ft base rate).`
+          baseRatePerSqFt: 2.0,
+          description: `Subscribe to Annual Maintenance Contract for ${cat} (12 free services per year at ₹2/sq ft base rate).`
         };
       });
 
@@ -4096,8 +4096,8 @@ app.get('/api/amc/plans/:category', (req, res) => {
     success: true,
     plan: {
       category: matchedCategory,
-      baseRatePerSqFt: 1.0,
-      description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor).`
+      baseRatePerSqFt: 2.0,
+      description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹2 per sq feet (increases by ₹1 per sq ft for each additional floor).`
     }
   });
 });

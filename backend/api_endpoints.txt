@@ -844,8 +844,8 @@ GET /api/amc/plans
     "plans": [
       {
         "category": "Plumber",
-        "baseRatePerSqFt": 1.0,
-        "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹1 per sq feet (increases by ₹1 per sq ft for each additional floor)."
+        "baseRatePerSqFt": 2.0,
+        "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹2 per sq feet (increases by ₹1 per sq ft for each additional floor)."
       }
     ]
   }
@@ -911,8 +911,8 @@ GET /api/amc/subscriptions
     "availablePlans": [
       {
         "category": "AcRepair",
-        "baseRatePerSqFt": 1.0,
-        "description": "Subscribe to Annual Maintenance Contract for AcRepair (12 free services per year at ₹1/sq ft base rate)."
+        "baseRatePerSqFt": 2.0,
+        "description": "Subscribe to Annual Maintenance Contract for AcRepair (12 free services per year at ₹2/sq ft base rate)."
       }
     ],
     "message": "AMC subscriptions and plans retrieved successfully"
@@ -1005,8 +1005,8 @@ GET /api/amc/plans/:category
     "success": true,
     "plan": {
       "category": "Plumber",
-      "baseRatePerSqFt": 1.0,
-      "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹1 per sq feet..."
+      "baseRatePerSqFt": 2.0,
+      "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹2 per sq feet..."
     }
   }
 
