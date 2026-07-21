@@ -845,7 +845,7 @@ GET /api/amc/plans
       {
         "category": "Plumber",
         "baseRatePerSqFt": 2.0,
-        "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹2 per sq feet (increases by ₹1 per sq ft for each additional floor)."
+        "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹2 per sq feet."
       }
     ]
   }

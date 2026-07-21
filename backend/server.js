@@ -3863,7 +3863,7 @@ app.get('/api/amc/plans', (req, res) => {
     return {
       category: categoryName,
       baseRatePerSqFt: 2.0,
-      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹2 per sq feet (increases by ₹1 per sq ft for each additional floor).`
+      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹2 per sq feet.`
     };
   });
   res.json({ success: true, plans });
@@ -4097,7 +4097,7 @@ app.get('/api/amc/plans/:category', (req, res) => {
     plan: {
       category: matchedCategory,
       baseRatePerSqFt: 2.0,
-      description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹2 per sq feet (increases by ₹1 per sq ft for each additional floor).`
+      description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹2 per sq feet.`
     }
   });
 });
