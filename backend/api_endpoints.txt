@@ -923,8 +923,11 @@ GET /api/amc/subscriptions
         "startDate": "2026-07-10T11:00:00.000Z",
         "endDate": "2027-07-10T11:00:00.000Z",
         "completedCount": 1,
+        "currentMonthCount": 1,
+        "monthlyLimit": 1,
+        "canBookThisMonth": false,
         "totalAllowed": 12,
-        "progressMessage": "1 complete out of 12",
+        "progressMessage": "1 complete out of 12 (Limit: 1 service per month)",
         "buttons": {
           "bookService": "Book Service (at ₹0)",
           "renewService": "Renew Service"

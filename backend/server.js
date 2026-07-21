@@ -595,6 +595,20 @@ const MySqlDbLayer = {
     return row ? row.count : 0;
   },
 
+  async countAmcBookingsInCurrentMonth(amcId) {
+    const row = await this.queryOne(
+      `SELECT COUNT(*) as count FROM node_orders_v2 
+       WHERE amcId = ? AND (status IS NULL OR LOWER(status) != 'cancelled') 
+       AND (
+         DATE_FORMAT(date, '%Y-%m') = DATE_FORMAT(CURRENT_DATE(), '%Y-%m') 
+         OR 
+         DATE_FORMAT(FROM_UNIXTIME(createdAt / 1000), '%Y-%m') = DATE_FORMAT(CURRENT_DATE(), '%Y-%m')
+       )`,
+      [amcId]
+    );
+    return row ? row.count : 0;
+  },
+
   async getAmcSubscriptionByCategory(phone, category) {
     const row = await this.queryOne(
       "SELECT * FROM node_amc_subscriptions WHERE userPhone = ? AND category = ? AND status = 'active' AND endDate > NOW() LIMIT 1",
@@ -1156,6 +1170,12 @@ const JsonDbLayer = {
     return data.orders.filter(o => o.amcId === amcId && o.status === 'Completed').length;
   },
 
+  async countAmcBookingsInCurrentMonth(amcId) {
+    const data = this.readData();
+    const currentMonthStr = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+    return data.orders.filter(o => o.amcId === amcId && o.status !== 'Cancelled' && (String(o.date).substring(0, 7) === currentMonthStr)).length;
+  },
+
   async getAmcSubscriptionByCategory(phone, category) {
     const data = this.readData();
     data.amc_subscriptions = data.amc_subscriptions || [];
@@ -1233,6 +1253,7 @@ const DbLayer = {
   async createAmcSubscription(sub) { return this.getLayer().createAmcSubscription(sub); },
   async getAmcSubscriptionById(amcId) { return this.getLayer().getAmcSubscriptionById(amcId); },
   async countAmcBookingsCompleted(amcId) { return this.getLayer().countAmcBookingsCompleted(amcId); },
+  async countAmcBookingsInCurrentMonth(amcId) { return this.getLayer().countAmcBookingsInCurrentMonth(amcId); },
   async getAmcSubscriptionByCategory(phone, category) { return this.getLayer().getAmcSubscriptionByCategory(phone, category); },
   async updateAmcSubscription(amcId, updates) { return this.getLayer().updateAmcSubscription(amcId, updates); },
   async getSavedCards(phone) { return this.getLayer().getSavedCards(phone); },
@@ -3996,9 +4017,10 @@ app.get('/api/amc/subscriptions', async (req, res) => {
     const subscriptions = (await DbLayer.getAmcSubscriptions(user.phone))
       .filter(s => s.status === 'active');
 
-    // Map each subscription to include completed bookings progress count
+    // Map each subscription to include completed bookings progress count and monthly limit checks
     const activeSubscriptions = await Promise.all(subscriptions.map(async (sub) => {
       const completedCount = await DbLayer.countAmcBookingsCompleted(sub.amcId);
+      const currentMonthCount = await DbLayer.countAmcBookingsInCurrentMonth(sub.amcId);
       return {
         amcId: sub.amcId,
         userPhone: sub.userPhone,
@@ -4010,8 +4032,11 @@ app.get('/api/amc/subscriptions', async (req, res) => {
         startDate: sub.startDate,
         endDate: sub.endDate,
         completedCount,
+        currentMonthCount,
+        monthlyLimit: 1,
+        canBookThisMonth: currentMonthCount < 1,
         totalAllowed: 12,
-        progressMessage: `${completedCount} complete out of 12`,
+        progressMessage: `${completedCount} complete out of 12 (Limit: 1 service per month)`,
         photoUrl: sub.photoUrl,
         pdfUrl: sub.pdfUrl,
         fileUrl: sub.fileUrl || sub.photoUrl || sub.pdfUrl,
@@ -4203,6 +4228,11 @@ const handlePostAmcBooking = async (req, res) => {
     const completedCount = await DbLayer.countAmcBookingsCompleted(amcId);
     if (completedCount >= 12) {
       return res.status(400).json({ error: "You have already completed all 12 free services for this AMC subscription" });
+    }
+
+    const currentMonthCount = await DbLayer.countAmcBookingsInCurrentMonth(amcId);
+    if (currentMonthCount >= 1) {
+      return res.status(400).json({ error: "You have already booked your 1 free AMC service for this month. You can book your next free AMC service next month." });
     }
 
     const resolvedProduct = await resolveServiceDetails(productId);
@@ -5109,6 +5139,11 @@ const handlePostCheckout = async (req, res) => {
       const completedCount = await DbLayer.countAmcBookingsCompleted(activeAmc.amcId);
       if (completedCount >= 12) {
         return res.status(400).json({ error: "You have already completed all 12 free services for this AMC subscription" });
+      }
+
+      const currentMonthCount = await DbLayer.countAmcBookingsInCurrentMonth(activeAmc.amcId);
+      if (currentMonthCount >= 1) {
+        return res.status(400).json({ error: "You have already booked your 1 free AMC service for this month. You can book your next free AMC service next month." });
       }
 
       activeAmcId = activeAmc.amcId;
