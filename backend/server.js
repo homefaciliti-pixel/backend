@@ -1281,7 +1281,7 @@ const CATEGORIES_DATA = [
 ];
 
 const AMC_SUPPORTED_CATEGORIES = [
-  "AcRepair", "Plumber", "Cleaning", "Electrician", "Painter", "Carpenter", "Architecture", "Contractor", "Pest Control"
+  "AcRepair", "Plumber", "Electrician", "Painter", "Carpenter", "Architecture", "Contractor", "Pest Control"
 ];
 
 // Helper to map category names to canonical camelCase/spaced names in CATEGORIES_DATA
