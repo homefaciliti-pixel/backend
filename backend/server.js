@@ -376,6 +376,12 @@ async function initMySqlDb() {
       // Column might already exist
     }
 
+    try {
+      await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN cancelReason VARCHAR(500) DEFAULT NULL");
+    } catch (err) {
+      // Column might already exist
+    }
+
     // Sync database slots table with 11 hourly slots
     const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
     try {
@@ -6316,6 +6322,69 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // 16. Orders: Cancel Order
+const handleCancelOrder = async (req, res) => {
+  const orderId = req.body.orderId || req.body.order_id || req.body.id || req.query.orderId || req.query.id;
+  const cancelResponse = req.body.response || req.body.reason || req.body.cancelReason || req.body.cancellationReason || req.query.response || req.query.reason;
+
+  if (!orderId) {
+    return res.status(400).json({
+      success: false,
+      error: "orderId is required in request body"
+    });
+  }
+
+  if (!cancelResponse || String(cancelResponse).trim() === "") {
+    return res.status(400).json({
+      success: false,
+      error: "response (cancellation reason) is required in request body"
+    });
+  }
+
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Unauthorized: Missing or invalid authentication token" });
+    }
+
+    const numericOrderId = parseInt(orderId);
+    const order = await DbLayer.getOrderById(numericOrderId);
+    if (!order || order.userPhone !== user.phone) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    const updates = {
+      status: "Cancelled",
+      bookingStatus: "idle",
+      cancelReason: String(cancelResponse).trim()
+    };
+
+    let updatedOrder;
+    try {
+      updatedOrder = await DbLayer.updateOrder(numericOrderId, updates);
+    } catch (dbErr) {
+      delete updates.cancelReason;
+      updatedOrder = await DbLayer.updateOrder(numericOrderId, updates);
+    }
+
+    return res.json({
+      success: true,
+      orderId: numericOrderId,
+      status: "Cancelled",
+      reason: String(cancelResponse).trim(),
+      response: String(cancelResponse).trim(),
+      order: updatedOrder,
+      message: "Order cancelled successfully"
+    });
+  } catch (err) {
+    console.error("Cancel order failed:", err);
+    return res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+};
+
+app.post('/api/orders/cancel', handleCancelOrder);
+app.post('/api/cancel-order', handleCancelOrder);
+app.post('/api/order/cancel', handleCancelOrder);
+
 app.put('/api/orders/:id/cancel', async (req, res) => {
   const orderId = parseInt(req.params.id);
   try {

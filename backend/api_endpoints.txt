@@ -237,6 +237,29 @@ POST /api/orders
 - Response: { "success": true, "order": { "id": 1, ... }, "message": "Order placed successfully" }
 - Note: Creates the order and initializes the booking flow status to "searching".
 
+POST /api/orders/cancel (or POST /api/cancel-order)
+- Headers: Authorization: Bearer <jwt_token>
+- Body (JSON): {
+    "orderId": 501,         // (Required) Number or String order ID
+    "response": "Customer changed mind" // (Required) String cancellation reason/response
+  }
+- Response: {
+    "success": true,
+    "orderId": 501,
+    "status": "Cancelled",
+    "reason": "Customer changed mind",
+    "response": "Customer changed mind",
+    "order": {
+      "id": 501,
+      "userPhone": "9876543210",
+      "status": "Cancelled",
+      "bookingStatus": "idle",
+      "cancelReason": "Customer changed mind"
+    },
+    "message": "Order cancelled successfully"
+  }
+- Note: Cancels an order. Requires both `orderId` and `response` (or `reason`) mandatory in request body.
+
 PUT /api/orders/:id/cancel
 - Headers: Authorization: Bearer <jwt_token>
 - Response: { "success": true, "order": { ... }, "message": "Order cancelled successfully" }

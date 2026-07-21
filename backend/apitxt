@@ -676,4 +676,35 @@ Response Payload:
   }
 }
 
+---------------------------------------------------------
+22. Cancel Order API (NEW)
+---------------------------------------------------------
+
+Endpoint: POST /api/orders/cancel (or POST /api/cancel-order)
+Headers: Authorization: Bearer <jwt_token>
+JSON Body:
+{
+  "orderId": 501,
+  "response": "Customer requested cancellation"
+}
+
+Response Payload:
+{
+  "success": true,
+  "orderId": 501,
+  "status": "Cancelled",
+  "reason": "Customer requested cancellation",
+  "response": "Customer requested cancellation",
+  "order": {
+    "id": 501,
+    "userPhone": "9876543210",
+    "status": "Cancelled",
+    "bookingStatus": "idle",
+    "cancelReason": "Customer requested cancellation"
+  },
+  "message": "Order cancelled successfully"
+}
+Note: Both `orderId` and `response` (or `reason`) are mandatory in the request body. If either is missing, a 400 error is returned.
+
+
 
