@@ -706,5 +706,49 @@ Response Payload:
 }
 Note: Both `orderId` and `response` (or `reason`) are mandatory in the request body. If either is missing, a 400 error is returned.
 
+---------------------------------------------------------
+23. Language Support & Localization APIs (NEW)
+---------------------------------------------------------
+
+1. Fetch List of World Languages
+Endpoint: GET /api/languages
+Headers: None
+Response Payload:
+{
+  "success": true,
+  "languages": [
+    { "code": "en", "name": "English", "nativeName": "English" },
+    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" },
+    { "code": "es", "name": "Spanish", "nativeName": "Español" },
+    { "code": "fr", "name": "French", "nativeName": "Français" },
+    { "code": "de", "name": "German", "nativeName": "Deutsch" },
+    { "code": "zh", "name": "Chinese", "nativeName": "中文" },
+    { "code": "ar", "name": "Arabic", "nativeName": "العربية" }
+  ],
+  "message": "Languages list retrieved successfully"
+}
+
+2. Update Selected App Language
+Endpoint: POST /api/auth/language
+Headers: Authorization: Bearer <jwt_token>
+JSON Body:
+{
+  "language": "hi"
+}
+Response Payload:
+{
+  "success": true,
+  "user": {
+    "phone": "9876543210",
+    "name": "Hira",
+    "email": "hira@hmail.com",
+    "language": "hi",
+    "walletBalance": 0
+  },
+  "message": "Language preference updated successfully"
+}
+Note: You can also update language dynamically via PUT /api/auth/profile by passing "language" in the JSON body.
+
+
 
 

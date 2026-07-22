@@ -158,7 +158,8 @@ async function initMySqlDb() {
         gender VARCHAR(20) DEFAULT 'Male',
         referralCode VARCHAR(50) NOT NULL,
         walletBalance DECIMAL(10,2) DEFAULT 0.00,
-        countryCode VARCHAR(10) DEFAULT '+91'
+        countryCode VARCHAR(10) DEFAULT '+91',
+        language VARCHAR(10) DEFAULT 'en'
       )
     `);
 
@@ -378,6 +379,12 @@ async function initMySqlDb() {
 
     try {
       await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN cancelReason VARCHAR(500) DEFAULT NULL");
+    } catch (err) {
+      // Column might already exist
+    }
+
+    try {
+      await conn.query("ALTER TABLE node_users_v2 ADD COLUMN language VARCHAR(10) DEFAULT 'en'");
     } catch (err) {
       // Column might already exist
     }
@@ -1825,7 +1832,7 @@ app.get('/api/auth/profile', async (req, res) => {
 
 // 4. Auth: Update Profile
 app.put('/api/auth/profile', async (req, res) => {
-  const { name, email, location, locality, gender, countryCode } = req.body;
+  const { name, email, location, locality, gender, countryCode, language } = req.body;
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
@@ -1839,6 +1846,7 @@ app.put('/api/auth/profile', async (req, res) => {
     if (locality !== undefined) updates.locality = locality;
     if (gender !== undefined) updates.gender = gender;
     if (countryCode !== undefined) updates.countryCode = countryCode;
+    if (language !== undefined) updates.language = language;
 
     const updatedUser = await DbLayer.updateUser(user.phone, updates);
 
@@ -1869,6 +1877,69 @@ app.put('/api/auth/profile', async (req, res) => {
     res.json({ success: true, user: updatedUser, message: "Profile updated successfully" });
   } catch (err) {
     console.error("Update profile failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 4b. Global: Get Languages (Public list of world languages)
+app.get('/api/languages', (req, res) => {
+  const languagesList = [
+    { "code": "en", "name": "English", "nativeName": "English" },
+    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" },
+    { "code": "es", "name": "Spanish", "nativeName": "Español" },
+    { "code": "fr", "name": "French", "nativeName": "Français" },
+    { "code": "de", "name": "German", "nativeName": "Deutsch" },
+    { "code": "zh", "name": "Chinese", "nativeName": "中文" },
+    { "code": "ar", "name": "Arabic", "nativeName": "العربية" },
+    { "code": "bn", "name": "Bengali", "nativeName": "বাংলা" },
+    { "code": "pt", "name": "Portuguese", "nativeName": "Português" },
+    { "code": "ru", "name": "Russian", "nativeName": "Русский" },
+    { "code": "ja", "name": "Japanese", "nativeName": "日本語" },
+    { "code": "pa", "name": "Punjabi", "nativeName": "ਪੰਜਾਬੀ" },
+    { "code": "te", "name": "Telugu", "nativeName": "తెలుగు" },
+    { "code": "mr", "name": "Marathi", "nativeName": "मराठी" },
+    { "code": "ta", "name": "Tamil", "nativeName": "தமிழ்" },
+    { "code": "ur", "name": "Urdu", "nativeName": "اردو" },
+    { "code": "gu", "name": "Gujarati", "nativeName": "ગુજરાતી" },
+    { "code": "kn", "name": "Kannada", "nativeName": "ಕన్నడ" },
+    { "code": "ml", "name": "Malayalam", "nativeName": "മലയാളം" },
+    { "code": "or", "name": "Odia", "nativeName": "ଓଡ଼ିଆ" },
+    { "code": "as", "name": "Assamese", "nativeName": "অসমীয়া" },
+    { "code": "ko", "name": "Korean", "nativeName": "한국어" },
+    { "code": "it", "name": "Italian", "nativeName": "Italiano" },
+    { "code": "tr", "name": "Turkish", "nativeName": "Türkçe" },
+    { "code": "vi", "name": "Vietnamese", "nativeName": "Tiếng Việt" },
+    { "code": "pl", "name": "Polish", "nativeName": "Polski" },
+    { "code": "nl", "name": "Dutch", "nativeName": "Nederlands" }
+  ];
+  res.json({
+    success: true,
+    languages: languagesList,
+    message: "Languages list retrieved successfully"
+  });
+});
+
+// 4c. Auth: Update User Language Preference
+app.post('/api/auth/language', async (req, res) => {
+  const { language } = req.body;
+  if (!language) {
+    return res.status(400).json({ error: "language is required in request body" });
+  }
+
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const updatedUser = await DbLayer.updateUser(user.phone, { language: String(language).trim() });
+    res.json({
+      success: true,
+      user: updatedUser,
+      message: "Language preference updated successfully"
+    });
+  } catch (err) {
+    console.error("Update language failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

@@ -56,13 +56,35 @@ GET /api/auth/profile
 
 PUT /api/auth/profile
 - Headers: Authorization: Bearer <jwt_token>
-- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string", "countryCode": "string" }
+- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string", "countryCode": "string", "language": "string" }
 - Response: { "success": true, "user": { ... }, "message": "Profile updated successfully" }
 
 DELETE /api/auth/account
 - Headers: Authorization: Bearer <jwt_token>
 - Response: { "success": true, "message": "Account deleted successfully" }
 - Note: Permanently deletes the user profile and all saved addresses associated with the authenticated user from the database.
+
+GET /api/languages
+- Response: {
+    "success": true,
+    "languages": [
+      { "code": "en", "name": "English", "nativeName": "English" },
+      { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" },
+      ...
+    ],
+    "message": "Languages list retrieved successfully"
+  }
+- Note: Returns a list of global and regional languages with their ISO codes, English names, and native scripts to populate the language selection dropdown.
+
+POST /api/auth/language
+- Headers: Authorization: Bearer <jwt_token>
+- Body (JSON): { "language": "hi" }  // Language ISO code
+- Response: {
+    "success": true,
+    "user": { ... },
+    "message": "Language preference updated successfully"
+  }
+- Note: Updates the authenticated user's selected language preference.
 
 ---------------------------------------------------------
 2. Services & Categories APIs
