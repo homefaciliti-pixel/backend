@@ -5691,18 +5691,32 @@ const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
     return {
       productId: defaultTitle,
       serviceName: defaultTitle,
+      title: defaultTitle,
+      name: defaultTitle,
+      productName: defaultTitle,
+      product_name: defaultTitle,
       price: 299,
-      description: "Fix issues and repair",
+      description: "Fix leaking taps and water issues",
+      productDescription: "Fix leaking taps and water issues",
+      product_description: "Fix leaking taps and water issues",
       image: "",
       date: "",
       timeSlot: ""
     };
   }
+  const titleVal = String(prod.title || prod.serviceName || prod.productName || prod.product_name || prod.productId || defaultTitle);
+  const descVal = String(prod.description || prod.productDescription || prod.product_description || "");
   return {
-    productId: String(prod.productId || prod.serviceName || defaultTitle),
-    serviceName: String(prod.serviceName || prod.productId || defaultTitle),
+    productId: titleVal,
+    serviceName: titleVal,
+    title: titleVal,
+    name: titleVal,
+    productName: titleVal,
+    product_name: titleVal,
     price: Number(prod.price !== undefined && prod.price !== null ? prod.price : 299),
-    description: String(prod.description || ""),
+    description: descVal,
+    productDescription: descVal,
+    product_description: descVal,
     image: String(prod.image || ""),
     date: String(prod.date || ""),
     timeSlot: String(prod.timeSlot || "")
@@ -6298,15 +6312,19 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    const rawProductObj = {
+      ...sanitizeProductObj(order),
+      price: isAmc ? 0 : originalPrice
+    };
+    const localizedProduct = localizeService(rawProductObj, req.lang);
+    const localizedServicesList = (resolvedServices || []).map(s => localizeService(s, req.lang));
+
     res.json({
       success: true,
       orderId: order.id,
       userId: order.userPhone,
       user: sanitizeUserObj(targetUser),
-      product: {
-        ...sanitizeProductObj(order),
-        price: isAmc ? 0 : originalPrice
-      },
+      product: localizedProduct,
       address: sanitizeAddressObj(order.address),
       payment: {
         paymentMethod: currentMethod,
@@ -6324,8 +6342,8 @@ const handleGetCheckout = async (req, res) => {
       total: finalTotal,
       walletBalance: userBalance,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
-      services: resolvedServices,
-      products: resolvedServices,
+      services: localizedServicesList,
+      products: localizedServicesList,
       slots: availableSlots,
       dates: dates
     });
