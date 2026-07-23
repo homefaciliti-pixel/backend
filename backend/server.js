@@ -2314,11 +2314,17 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
   ];
   const finalHighlights = dbHighlights.length > 0 ? dbHighlights : defaultHighlights;
 
-  return {
+  const serviceObj = {
     productId: r.title,
     title: r.title,
+    name: r.title,
+    productName: r.title,
+    product_name: r.title,
+    serviceName: r.title,
     price: finalPrice,
     description: r.description || "",
+    productDescription: r.description || "",
+    product_description: r.description || "",
     image: resolvedImage,
     discount: displayDiscount,
     rating: finalRating,
@@ -2329,6 +2335,11 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
     category: r.category_id ? r.category_id.toString() : "",
     duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
   };
+  for (const lang of ['hi', 'mr', 'gu', 'bn', 'ta', 'te']) {
+    if (r[`title_${lang}`]) serviceObj[`title_${lang}`] = r[`title_${lang}`];
+    if (r[`description_${lang}`]) serviceObj[`description_${lang}`] = r[`description_${lang}`];
+  }
+  return serviceObj;
 };
 
 // Helper: Resolve relative service image URLs dynamically
@@ -2444,7 +2455,7 @@ app.get('/api/services', async (req, res) => {
     list = list.filter(s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query));
   }
 
-  res.json({ success: true, services: resolveServiceUrls(list, serverBaseUrl) });
+  res.json({ success: true, services: resolveServiceUrls(list, serverBaseUrl).map(s => localizeService(s, req.lang)) });
 });
 
 
@@ -2497,7 +2508,7 @@ app.get('/api/services/trending', async (req, res) => {
         }
       }
 
-      return res.json({ success: true, services: resolveServiceUrls([acFreeService, ...dbServices], serverBaseUrl) });
+      return res.json({ success: true, services: resolveServiceUrls([acFreeService, ...dbServices], serverBaseUrl).map(s => localizeService(s, req.lang)) });
     } catch (err) {
       console.warn("[DynamicServices] DB trending failed, falling back static:", err.message);
     }
@@ -2505,7 +2516,7 @@ app.get('/api/services/trending', async (req, res) => {
 
   const allServices = Object.values(SERVICES_DATA).flat();
   const trending = [acFreeService, ...shuffleArray(allServices).slice(0, 4)];
-  res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl) });
+  res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl).map(s => localizeService(s, req.lang)) });
 });
 
 
@@ -2545,7 +2556,7 @@ const handleServiceDetail = async (req, res) => {
 
         return res.json({
           success: true,
-          service: enrichedService,
+          service: localizeService(enrichedService, req.lang),
           status: hasActiveAmc ? "AMC" : "Regular",
           message: translate("service_details_retrieved", req.lang)
         });
@@ -2603,7 +2614,7 @@ const handleServiceDetail = async (req, res) => {
 
   res.json({
     success: true,
-    service: enrichedService,
+    service: localizeService(enrichedService, req.lang),
     status: hasActiveAmc ? "AMC" : "Regular",
     message: translate("service_details_retrieved", req.lang)
   });
@@ -4960,14 +4971,14 @@ app.get('/api/bookings', async (req, res) => {
     if (user) {
       const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
       const placedOrders = userOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
-      const limitedUserOrders = placedOrders.slice(0, 5);
+      const limitedUserOrders = placedOrders.slice(0, 5).map(o => localizeService(o, req.lang));
       return res.json({ success: true, bookings: limitedUserOrders, message: translate("bookings_retrieved", req.lang) });
     }
     
     // Fallback: public view of all bookings in the system for testing without authorization header
     const allOrders = await DbLayer.getAllOrders();
     const placedAllOrders = allOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
-    const limitedAllOrders = placedAllOrders.slice(0, 5);
+    const limitedAllOrders = placedAllOrders.slice(0, 5).map(o => localizeService(o, req.lang));
     res.json({ success: true, bookings: limitedAllOrders, message: translate("bookings_retrieved", req.lang) });
   } catch (err) {
     console.error("Fetch bookings failed:", err);
@@ -5333,11 +5344,12 @@ const handlePostCheckout = async (req, res) => {
     }
     
     console.log(`[Checkout] Refactored Order #${orderId} for phone ${phone}`);
+    const localizedOrder = localizeService({ ...finalOrder, userId: phone }, req.lang);
     res.json({
       success: true,
       orderId: orderId,
       userId: phone,
-      order: { ...finalOrder, userId: phone },
+      order: localizedOrder,
       razorpayOrderId: razorpayOrderId,
       message: translate("checkout_success", req.lang)
     });
@@ -6412,18 +6424,7 @@ app.get('/api/orders/:id', async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    let localizedOrder = { ...order };
-    if (req.lang && req.lang !== 'en' && order.serviceName && mysqlPool) {
-      try {
-        const [svcRows] = await mysqlPool.query(
-          `SELECT title_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
-          [String(order.serviceName).toLowerCase()]
-        );
-        if (svcRows && svcRows[0] && svcRows[0][`title_${req.lang}`]) {
-          localizedOrder.serviceName = svcRows[0][`title_${req.lang}`];
-        }
-      } catch (e) { /* use English */ }
-    }
+    const localizedOrder = localizeService(order, req.lang);
 
     res.json({
       success: true,
