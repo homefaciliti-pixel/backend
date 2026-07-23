@@ -6180,14 +6180,24 @@ const handleGetCheckout = async (req, res) => {
 
     // Generate available booking dates (next 7 days)
     const dates = [];
-    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const daysOfWeekEn = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const daysOfWeekHi = ["रविवार", "सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार"];
+    const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthsHi = ["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"];
+
+    const isHi = req.lang === 'hi';
+    const daysOfWeek = isHi ? daysOfWeekHi : daysOfWeekEn;
+    const months = isHi ? monthsHi : monthsEn;
+
     for (let i = 0; i < 7; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
+      let dayName = daysOfWeek[d.getDay()];
+      if (i === 0) dayName = isHi ? "आज" : "Today";
+      else if (i === 1) dayName = isHi ? "कल" : "Tomorrow";
       dates.push({
         formattedDate: d.toISOString().split('T')[0],
-        dayName: i === 0 ? "Today" : (i === 1 ? "Tomorrow" : daysOfWeek[d.getDay()]),
+        dayName: dayName,
         displayDate: `${d.getDate()} ${months[d.getMonth()]}`
       });
     }
@@ -6202,8 +6212,8 @@ const handleGetCheckout = async (req, res) => {
           const day = parseInt(parts[2]);
           dates.unshift({
             formattedDate: order.date,
-            dayName: "Selected Date",
-            displayDate: `${day} ${months[monthIndex]}`
+            dayName: isHi ? "चयनित तिथि" : "Selected Date",
+            displayDate: `${day} ${months[monthIndex] || parts[1]}`
           });
         }
       } catch (e) {
@@ -6333,7 +6343,8 @@ const handleGetCheckout = async (req, res) => {
       services: localizedServicesList,
       products: localizedServicesList,
       slots: availableSlots,
-      dates: dates
+      dates: dates,
+      message: translate("checkout_success", req.lang)
     });
   } catch (err) {
     console.error("Fetch checkout details failed:", err);
