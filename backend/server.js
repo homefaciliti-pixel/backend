@@ -3982,8 +3982,9 @@ app.get('/api/amc/plans', (req, res) => {
   const plans = AMC_SUPPORTED_CATEGORIES.map(categoryName => {
     return {
       category: categoryName,
-      baseRatePerSqFt: 2.0,
-      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹2 per sq feet.`
+      baseRatePerSqFt: 1.0,
+      price: 1.0,
+      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹1 per sq feet.`
     };
   });
   res.json({ success: true, plans });
@@ -4052,9 +4053,9 @@ app.post('/api/amc/subscribe', amcUpload.fields([
 
     const resolvedNote = note || notes || null;
 
-    // Calculate price: fallback to formula (areaSqFt * ₹2/sq ft * floors) if not passed in body
-    const ratePerSqFt = 2.0;
-    const totalPrice = price !== undefined && price !== "" ? Number(price) : (Number(areaSqFt) * 2 * Number(floors));
+    // Calculate price: fallback to formula (areaSqFt * ₹1/sq ft * floors) if not passed in body
+    const ratePerSqFt = 1.0;
+    const totalPrice = price !== undefined && price !== "" ? Number(price) : (Number(areaSqFt) * 1 * Number(floors));
 
     // Generate unique AMC ID
     const amcId = `AMC${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
@@ -4152,8 +4153,9 @@ app.get('/api/amc/subscriptions', async (req, res) => {
       .map(cat => {
         return {
           category: cat,
-          baseRatePerSqFt: 2.0,
-          description: `Subscribe to Annual Maintenance Contract for ${cat} (12 free services per year at ₹2/sq ft base rate).`
+          baseRatePerSqFt: 1.0,
+          price: 1.0,
+          description: `Subscribe to Annual Maintenance Contract for ${cat} (12 free services per year at ₹1/sq ft base rate).`
         };
       });
 
@@ -4220,8 +4222,9 @@ app.get('/api/amc/plans/:category', (req, res) => {
     success: true,
     plan: {
       category: matchedCategory,
-      baseRatePerSqFt: 2.0,
-      description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹2 per sq feet.`
+      baseRatePerSqFt: 1.0,
+      price: 1.0,
+      description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹1 per sq feet.`
     }
   });
 });
@@ -4236,8 +4239,8 @@ app.post('/api/amc/plan-property-details', (req, res) => {
     return res.status(400).json({ error: "Invalid category" });
   }
   const matchedCategory = CATEGORIES_DATA.find(cat => cat.toLowerCase() === category.toLowerCase());
-  const ratePerSqFt = 2.0;
-  const totalPrice = Number(areaSqFt) * 2 * Number(floors);
+  const ratePerSqFt = 1.0;
+  const totalPrice = Number(areaSqFt) * 1 * Number(floors);
   res.json({
     success: true,
     category: matchedCategory,
