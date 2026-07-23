@@ -1736,14 +1736,14 @@ app.post('/api/auth/send-otp', async (req, res) => {
     console.log(`[SMS] Dynamic OTP ${otp} sent successfully via SMSGatewayHub to phone: ${prefix}${phone}`);
     res.json({ 
       success: true, 
-      message: `OTP sent successfully to ${prefix}${phone}`,
+      message: translate("otp_sent", req.lang),
       otp: otp 
     });
   } else {
     console.warn(`[SMS] Failed to send SMS: ${smsError}. Payload details (excl. Key) -> senderid: "${senderId}", number: "${formattedPhone}", route: "${smsRoute}", text: "${messageText}", EntityId: "${entityId}", dlttemplateid: "${dltTemplateId}"`);
     res.json({ 
       success: true, 
-      message: `OTP generated (SMS delivery failed: ${smsError || 'unknown error'})`,
+      message: translate("otp_sent", req.lang),
       otp: otp 
     });
   }
@@ -1762,7 +1762,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
   // Check the dynamic OTP
   if (!isValidDynamic) {
-    return res.status(400).json({ error: "Invalid OTP or OTP expired" });
+    return res.status(400).json({ error: translate("invalid_otp", req.lang) });
   }
 
   try {
@@ -1956,7 +1956,7 @@ app.post('/api/auth/language', async (req, res) => {
     res.json({
       success: true,
       user: updatedUser,
-      message: "Language preference updated successfully"
+      message: translate("language_updated", req.lang)
     });
   } catch (err) {
     console.error("Update language failed:", err);
@@ -1989,7 +1989,7 @@ app.post('/api/contact', async (req, res) => {
   try {
     const contact = await DbLayer.createContact({ name, email, phone, message });
     console.log(`[Contact] Inquiry created from ${name} (${email})`);
-    res.json({ success: true, message: "Contact message sent successfully", contact });
+    res.json({ success: true, message: translate("contact_sent", req.lang), contact });
   } catch (err) {
     console.error("Contact API failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -2539,7 +2539,7 @@ const handleServiceDetail = async (req, res) => {
           success: true,
           service: enrichedService,
           status: hasActiveAmc ? "AMC" : "Regular",
-          message: "Service details retrieved successfully"
+          message: translate("service_details_retrieved", req.lang)
         });
       }
     } catch (err) {
@@ -2597,7 +2597,7 @@ const handleServiceDetail = async (req, res) => {
     success: true,
     service: enrichedService,
     status: hasActiveAmc ? "AMC" : "Regular",
-    message: "Service details retrieved successfully"
+    message: translate("service_details_retrieved", req.lang)
   });
 };
 
@@ -4953,17 +4953,17 @@ app.get('/api/bookings', async (req, res) => {
       const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
       const placedOrders = userOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
       const limitedUserOrders = placedOrders.slice(0, 5);
-      return res.json({ success: true, bookings: limitedUserOrders, message: "User bookings retrieved successfully" });
+      return res.json({ success: true, bookings: limitedUserOrders, message: translate("bookings_retrieved", req.lang) });
     }
     
     // Fallback: public view of all bookings in the system for testing without authorization header
     const allOrders = await DbLayer.getAllOrders();
     const placedAllOrders = allOrders.filter(o => !o.bookingStatus || o.bookingStatus.toLowerCase() !== "draft");
     const limitedAllOrders = placedAllOrders.slice(0, 5);
-    res.json({ success: true, bookings: limitedAllOrders, message: "Public bookings retrieved successfully" });
+    res.json({ success: true, bookings: limitedAllOrders, message: translate("bookings_retrieved", req.lang) });
   } catch (err) {
     console.error("Fetch bookings failed:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: translate("internal_error", req.lang) });
   }
 });
 
@@ -5021,7 +5021,7 @@ const handleAddAddress = async (req, res) => {
     
     const savedAddress = await DbLayer.createAddress(newAddress);
     console.log(`Saved address for phone ${phone}: ${savedAddress.houseNo}, ${savedAddress.city}`);
-    res.json({ success: true, address: savedAddress, status: req.body.status || "Regular", message: "Address saved successfully" });
+    res.json({ success: true, address: savedAddress, status: req.body.status || "Regular", message: translate("address_saved", req.lang) });
   } catch (err) {
     console.error("Save address failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -5039,7 +5039,7 @@ app.get('/api/addresses', async (req, res) => {
     }
     
     const list = await DbLayer.getAddressesByUserPhone(user.phone);
-    res.json({ success: true, addresses: list, message: "Addresses retrieved successfully" });
+    res.json({ success: true, addresses: list, message: translate("addresses_retrieved", req.lang) });
   } catch (err) {
     console.error("Get addresses failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -5331,7 +5331,7 @@ const handlePostCheckout = async (req, res) => {
       userId: phone,
       order: { ...finalOrder, userId: phone },
       razorpayOrderId: razorpayOrderId,
-      message: "Checkout completed successfully and order placed"
+      message: translate("checkout_success", req.lang)
     });
   } catch (err) {
     console.error("Checkout failed:", err);
@@ -6499,7 +6499,7 @@ const handleCancelOrder = async (req, res) => {
       reason: String(cancelResponse).trim(),
       response: String(cancelResponse).trim(),
       order: updatedOrder,
-      message: "Order cancelled successfully"
+      message: translate("order_cancelled", req.lang)
     });
   } catch (err) {
     console.error("Cancel order failed:", err);
@@ -6529,7 +6529,7 @@ app.put('/api/orders/:id/cancel', async (req, res) => {
       bookingStatus: "idle"
     });
 
-    res.json({ success: true, order: updatedOrder, message: "Order cancelled successfully" });
+    res.json({ success: true, order: updatedOrder, message: translate("order_cancelled", req.lang) });
   } catch (err) {
     console.error("Cancel order failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -6557,7 +6557,7 @@ app.get('/api/orders/:id/booking-flow', async (req, res) => {
       status: order.bookingStatus,
       partnerName: order.partnerName,
       partnerDistance: order.partnerDistance,
-      message: "Booking flow status retrieved successfully"
+      message: translate("booking_flow_retrieved", req.lang)
     });
   } catch (err) {
     console.error("Get booking flow failed:", err);
@@ -6599,7 +6599,7 @@ app.put('/api/orders/:id/booking-flow', async (req, res) => {
       status: updatedOrder.bookingStatus,
       partnerName: updatedOrder.partnerName,
       partnerDistance: updatedOrder.partnerDistance,
-      message: "Booking flow status updated successfully"
+      message: translate("booking_flow_updated", req.lang)
     });
   } catch (err) {
     console.error("Update booking flow failed:", err);
@@ -6626,7 +6626,7 @@ app.get('/api/booking/available-dates', (req, res) => {
   res.json({
     success: true,
     dates: dates,
-    message: "Available booking dates retrieved successfully"
+    message: translate("dates_retrieved", req.lang)
   });
 });
 
@@ -6709,7 +6709,7 @@ const handleGetAvailableSlots = async (req, res) => {
     res.json({
       success: true,
       slots: slots,
-      message: "Available booking time slots retrieved successfully"
+      message: translate("slots_retrieved", req.lang)
     });
   } catch (err) {
     console.error("Fetch available slots failed:", err);
