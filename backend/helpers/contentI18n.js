@@ -1,6 +1,5 @@
 /**
- * Content Localizer — adds multilingual columns to node_categories & node_services,
- * provides dictionary fallback for static data, and localizes category, service, and order items.
+ * Content Localizer — provides full multilingual translation for categories, services, checkout, orders, and products.
  *
  * Supported languages: en, hi
  */
@@ -39,33 +38,192 @@ const CATEGORY_MAP = [
 ];
 
 const SERVICE_TRANSLATIONS = {
-  'tap repair':               { hi: 'नल मरम्मत', mr: 'नळ दुरुस्ती', gu: 'નળ સમારકામ', bn: 'কল মেরামত', ta: 'குழாய் பழுது', te: 'నల్లా మరమ్మత్తు', dhi: 'लीक टैप और पानी की समस्याओं को ठीक करना' },
-  'pipe fix':                 { hi: 'पाइप मरम्मत', mr: 'पाईप दुरुस्ती', gu: 'પાઇપ સમારકામ', bn: 'পাইপ মেরামত', ta: 'குழாய் பழுது', te: 'పైపు మరమ్మత్తు', dhi: 'टूटे पाइप की मरम्मत' },
-  'fan repair':               { hi: 'पंखा मरम्मत', mr: 'पंखा दुरुस्ती', gu: 'પંખો સમારકામ', bn: 'ফ্যান মেরামত', ta: 'மின்விசிறி பழுது', te: 'ఫ్యాన్ మరమ్మత్తు', dhi: 'पंखे की समस्याएं ठीक करें' },
-  'switch repair':            { hi: 'स्विच मरम्मत', mr: 'स्विच दुरुस्ती', gu: 'સ્વિચ સમારકામ', bn: 'સুইચ মেরামত', ta: 'சுவிட்ச் பழுது', te: 'స్విచ్ మరమ్మత్తు', dhi: 'स्विच और बोर्ड की मरम्मत' },
-  'wiring work':              { hi: 'वायरिंग कार्य', mr: 'वायरिंग काम', gu: 'વાયરિંગ કામ', bn: 'তারের काम', ta: 'கம்பி வேலை', te: 'వైరింగ్ పని', dhi: 'पूरी वायरिंग सेटअप' },
-  'home cleaning':            { hi: 'घर की सफाई', mr: 'घर साफसफाई', gu: 'ઘરની સફાઈ', bn: 'বাড়ি পরিষ্কার', ta: 'வீட்டு சுத்தம்', te: 'ఇంటి శుభ్రత', dhi: 'पूरे घर की सफाई सेवा' },
-  'bathroom cleaning':        { hi: 'बाथरूम सफाई', mr: 'बाथरूम साफसफाई', gu: 'બાથરૂમ સફાઈ', bn: 'বাথরুম পরিষ্কার', ta: 'குளியலறை சுத்தம்', te: 'బాత్రూమ్ శుభ્રత', dhi: 'बाथरूम की गहरी सफाई' },
-  'sofa & carpet cleaning':   { hi: 'सोफा और कार्पेट सफाई', mr: 'सोफा आणि कार्पेट साफसफाई', gu: 'સોફા અને કાર્પેટ સફાઈ', bn: 'সোফা ও কার্পেট পরিষ্কার', ta: 'சோஃபா மற்றும் கம்பளம் சுத்தம்', te: 'సోఫా మరియు కార్పెట్ శుభ్రత', dhi: 'सोफा और कालीन की भाप से सफाई' },
-  'window cleaning':          { hi: 'खिड़की सफाई', mr: 'खिडकी साफसफाई', gu: 'બારી સફાઈ', bn: 'জানালা পরিষ্কার', ta: 'ஜன்னல் சுத்தம்', te: 'కిటికీ శుభ્રత', dhi: 'शीशे की अंदर-बाहर धुलाई' },
-  'ac service':               { hi: 'एसी सर्विस', mr: 'एसी सर्व्हिस', gu: 'એ.સી. સર્વિસ', bn: 'এসি সার্ভিস', ta: 'ஏசி சேவை', te: 'ఏసీ సర్వీస్', dhi: 'एसी की पूरी सर्विसिंग' },
-  'ac repair':                { hi: 'एसी मरम्मत', mr: 'एसी दुरुस्ती', gu: 'એ.સી. રિપેર', bn: 'এসি মেরামত', ta: 'ஏசி பழுது', te: 'ఏసీ మరమ్మత్తు', dhi: 'एसी की खराबी ठीक करें' },
-  'ac installation':          { hi: 'एसी इंस्टॉलेशन', mr: 'एसी इन्स्टॉलेशन', gu: 'AC ઇન્સ્ટોલેશન', bn: 'এসি ইনস্টলেশন', ta: 'ஏசி நிறுவுதல்', te: 'ఏసీ ఇన్‌స్టాలేషన్', dhi: 'नया एसी लगाएं' },
-  'ac gas refill':            { hi: 'एसी गैस रिफिल', mr: 'एसी गॅस रिफिल', gu: 'AC ગેસ રિફિલ', bn: 'এসি গ্যাস রিফিল', ta: 'ஏசி வாயு நிரப்புதல்', te: 'ఏసీ గ్యాస్ రీఫિલ', dhi: 'एसी में गैस भरवाएं' },
-  'wall painting':            { hi: 'दीवार पेंटिंग', mr: 'भिंत रंगकाम', gu: 'દીવાલ પેઈન્ટ', bn: 'দেওয়াল রং', ta: 'சுவர் வர்ணம்', te: 'గోడ పెయింటింగ్', dhi: 'घर की दीवारें पेंट करें' },
-  'waterproofing':            { hi: 'वॉटरप्रूफिंग', mr: 'वॉटरप्रूफिंग', gu: 'વોટરપ્રૂફિંગ', bn: 'ওয়াটারপ্রুফিং', ta: 'நீர்ஊடுருவா பூச்சு', te: 'వాటర్‌પ્રૂફિંગ', dhi: 'पानी से दीवारों की सुरक्षा' },
-  'furniture repair':         { hi: 'फर्नीचर मरम्मत', mr: 'फर्निचर दुरुस्ती', gu: 'ફર્નિચર સમારકામ', bn: 'આসবাবপত্র মেরামত', ta: 'தளவாட பழுது', te: 'ફર્નિચર మరమ్మత్తు', dhi: 'टूटे फर्नीचर की मरम्मत' },
-  'cockroach control':        { hi: 'तिलचट्टा नियंत्रण', mr: 'झुरळ नियंत्रण', gu: 'વંદો નિયંત્રણ', bn: 'তেলাপোકા নিয়ন্ত্রণ', ta: 'கரப்பான் பூச்சி கட்டுப்பாடு', te: 'బొద్దింక నియంత్రణ', dhi: 'घर में तिलचट्टों से छुटकारा' },
-  'bed bug control':          { hi: 'खटमल नियंत्रण', mr: 'बेड बग नियंत्रण', gu: 'ખાટમલ નિયંત્રણ', bn: 'ছারপোকা নিয়ন্ত্রণ', ta: 'படுக்கை பூச்சி கட்டுப்பாடு', te: 'మంచం పురుగుల నియంత్రణ', dhi: 'खटमल का पूरा सफाया' },
-  'termite control':          { hi: 'दीमक नियंत्रण', mr: 'वाळवी नियंत्रण', gu: 'ઉધઈ નિયંત્રણ', bn: 'উইপোকা নিয়ন্ত্রণ', ta: 'கரையான் கட்டுப்பாடு', te: 'చెదలు నియంత్రణ', dhi: 'दीमक का पूरा उपचार' },
-  'haircut':                  { hi: 'बाल कटाई', mr: 'केस कापणे', gu: 'વાળ કાપવા', bn: 'চুল কাটা', ta: 'முடி வெட்டல்', te: 'హేర్‌కట్', dhi: 'पेशेवर बाल कटाई' },
-  'facial':                   { hi: 'फेशियल', mr: 'फेशियल', gu: 'ફેશિયલ', bn: 'ফেসিয়াল', ta: 'முக சுத்தம்', te: 'ఫేషియల్', dhi: 'चेहरे की देखभाल और सफाई' },
-  'massage':                  { hi: 'मालिश', mr: 'मालिश', gu: 'માલિશ', bn: 'মালিশ', ta: 'மசாஜ்', te: 'மசாஜ்', dhi: 'पूरे शरीर की मालिश' },
-  'bike repair':              { hi: 'बाइक मरम्मत', mr: 'बाइक दुरुस्ती', gu: 'બાઇક સમારકામ', bn: 'বাইক মেরামত', ta: 'இருசக்கர வாகன பழுது', te: 'బైక్ మరమ్మత్తు', dhi: 'बाइक की सभी समस्याएं ठीक' },
-  'oil change':               { hi: 'ऑयल बदलाव', mr: 'ऑइल बदलणे', gu: 'ઓઇલ બદલવું', bn: 'તેલ পরিবর্তন', ta: 'எண்ணெய் மாற்றம்', te: 'ఆయిల్ మార్పు', dhi: 'गाड़ी का ऑयल बदलवाएं' },
-  'car wash':                 { hi: 'कार धुलाई', mr: 'कार धुणे', gu: 'કાર ધોવા', bn: 'গাড়ি ধোয়া', ta: 'கார் கழுவுதல்', te: 'કાર્ వాష్', dhi: 'कार की पूरी धुलाई' },
-  'interior cleaning':        { hi: 'इंटीरियर सफाई', mr: 'आतील भाग साफसफाई', gu: 'ઇન્ટીરિયર સફાઈ', bn: 'অভ্যন্তরীণ পরিষ্কার', ta: 'உட்புற சுத்தம்', te: 'ఇంటీరిયર ક્લીનિંગ', dhi: 'गाड़ी के अंदर की सफाई' },
+  'professional plumber': { hi: 'प्रोफेशनल प्लंबर', dhi: 'अनुभवी प्लंबर द्वारा घर पर प्लंबिंग सेवाएं' },
+  'plumber': { hi: 'प्लंबर सर्विस', dhi: 'घर पर प्लंबिंग की सेवाएं' },
+  'tap / faucet repair & replacement': { hi: 'नल मरम्मत और बदलाव', dhi: 'नल के रिसाव और खराबी को ठीक करें' },
+  'sink / wash-basin installation': { hi: 'सिंक / वॉश-बेसिन इंस्टॉलेशन', dhi: 'किचन और बाथरूम सिंक की फिटिंग' },
+  'sink / wash-basin  installation': { hi: 'सिंक / वॉश-बेसिन इंस्टॉलेशन', dhi: 'किचन और बाथरूम सिंक की फिटिंग' },
+  'pipe leakage repair / small pipe replacement': { hi: 'पाइप रिसाव मरम्मत और बदलाव', dhi: 'पाइप लीकेज ठीक करना और नए पाइप लगाना' },
+  'blocked drain / floor trap cleaning': { hi: 'ड्रेन और नाली सफाई', dhi: 'जाम नाली और ड्रेन की सफाई' },
+  'bathroom plumbing / full bathroom setup': { hi: 'बाथरूम प्लंबिंग और सेटअप', dhi: 'पूरे बाथरूम की प्लंबिंग और फिटिंग' },
+  'water tank/motor/geyser plumbing': { hi: 'वाटर टैंक / मोटर / गीजर', dhi: 'पानी की टंकी, मोटर और गीजर की मरम्मत व सर्विस' },
+  'water tank/motor/geyser': { hi: 'वाटर टैंक / मोटर / गीजर', dhi: 'पानी की टंकी, मोटर और गीजर की मरम्मत व सर्विस' },
+  'basic repair': { hi: 'बेसिक मरम्मत', dhi: 'सामान्य खराबी और लीकेज की मरम्मत' },
+  'flush repair': { hi: 'फ्लश मरम्मत', dhi: 'टॉयलेट फ्लश टैंक की मरम्मत' },
+  'basin repair': { hi: 'बेसिन मरम्मत', dhi: 'वॉश बेसिन की लीकेज और मरम्मत' },
+  'pipe fix': { hi: 'पाइप मरम्मत', dhi: 'टूटे पाइप की मरम्मत' },
+  'tap repair': { hi: 'नल मरम्मत', dhi: 'लीक टैप और पानी की समस्याओं को ठीक करना' },
+  'fan repair': { hi: 'पंखा मरम्मत', dhi: 'पंखे की समस्याएं ठीक करें' },
+  'switch repair': { hi: 'स्विच मरम्मत', dhi: 'स्विच और बोर्ड की मरम्मत' },
+  'wiring work': { hi: 'वायरिंग कार्य', dhi: 'पूरी वायरिंग सेटअप' },
+  'full house wiring': { hi: 'पूरे घर की वायरिंग', dhi: 'नए घर की वायरिंग और इलेक्ट्रिकल वर्क' },
+  'home cleaning': { hi: 'घर की सफाई', dhi: 'पूरे घर की गहरी सफाई' },
+  'bathroom cleaning': { hi: 'बाथरूम सफाई', dhi: 'बाथरूम की गहरी सफाई और कीटाणुशोधन' },
+  'bathroom cleaning (deep cleaning)': { hi: 'बाथरूम गहरी सफाई', dhi: 'दाग-धब्बे हटाना और बाथरूम की गहरी सफाई' },
+  'sofa & carpet cleaning': { hi: 'सोफा और कार्पेट सफाई', dhi: 'सोफा और कालीन की वैक्यूम व स्टीम सफाई' },
+  'window cleaning': { hi: 'खिड़की सफाई', dhi: 'कांच और खिड़कियों की सफाई' },
+  'ac service': { hi: 'एसी सर्विस', dhi: 'एसी की पूरी सर्विसिंग और सफाई' },
+  'ac foam jet service': { hi: 'एसी फोम जेट सर्विस', dhi: 'फोम जेट तकनीक से एसी की गहरी सफाई' },
+  'standard jet wash service': { hi: 'स्टैंडर्ड जेट वाश सर्विस', dhi: 'हाई प्रेशर जेट वाश एसी सर्विस' },
+  'anti-rust / monsoon special service (ac)': { hi: 'एंटी-रस्ट एसी सर्विस', dhi: 'जंग रोधी और मानसून विशेष एसी सर्विस' },
+  'deep ac repair': { hi: 'डीप एसी मरम्मत', dhi: 'एसी की गंभीर खराबी और गैस चार्जिंग' },
+  'ac repair': { hi: 'एसी मरम्मत', dhi: 'एसी की खराबी ठीक करें' },
+  'ac installation(split ac)': { hi: 'स्प्लिट एसी इंस्टॉलेशन', dhi: 'नया स्प्लिट एसी लगाएं' },
+  'ac installation(window ac)': { hi: 'विंडो एसी इंस्टॉलेशन', dhi: 'नया विंडो एसी लगाएं' },
+  'ac uninstallation(split/window)': { hi: 'एसी अनइंस्टॉलेशन', dhi: 'एसी को सुरक्षित रूप से निकालें' },
+  'ac gas refill': { hi: 'एसी गैस रिफिल', dhi: 'एसी में ठंडक के लिए गैस भरवाएं' },
+  'ac condenser replacement': { hi: 'एसी कंडेनसर बदलाव', dhi: 'नया कॉपर कंडेनसर लगाएं' },
+  'ac condenser repair': { hi: 'एसी कंडेनसर मरम्मत', dhi: 'कंडेनसर की खराबी ठीक करें' },
+  'wall paint': { hi: 'दीवार पेंटिंग', dhi: 'कमरे की दीवारों की पेंटिंग' },
+  'wall painting': { hi: 'दीवार पेंटिंग', dhi: 'घर की दीवारें पेंट करें' },
+  'furniture repair': { hi: 'फर्नीचर मरम्मत', dhi: 'टूटे फर्नीचर की मरम्मत' },
+  'general pest control': { hi: 'सामान्य कीट नियंत्रण', dhi: 'कीड़े-मकोड़ों से घर का बचाव' },
+  'termite treatment': { hi: 'दीमक उपचार', dhi: 'दीमक का स्थायी इलाज' },
+  'facial & grooming': { hi: 'फेशियल और ग्रूमिंग', dhi: 'चेहरे की सफाई और देखभाल' },
+  'massage therapy': { hi: 'मसाज थेरेपी', dhi: 'शरीर की आरामदायी मालिश' },
+  'pedicure & manicure': { hi: 'पेडीक्योर और मेनीक्योर', dhi: 'हाथ और पैरों की सफाई व ब्यूटी केयर' },
+  'children hair cut': { hi: 'बच्चों की बाल कटाई', dhi: 'बच्चों के लिए सुरक्षित हेयरकट' },
+  'haircut': { hi: 'बाल कटाई', dhi: 'पेशेवर बाल कटाई' },
+  'mehndi(shahnaz)': { hi: 'शहनाज़ मेहंदी', dhi: 'सुंदर और आकर्षक मेहंदी डिजाइन' },
+  'bike repair': { hi: 'बाइक मरम्मत', dhi: 'बाइक की पूरी सर्विस और मरम्मत' },
+  'car wash deep': { hi: 'कार डीप वाश', dhi: 'कार के अंदर व बाहर की सफाई' },
+  'exterior shine': { hi: 'कार एक्सटीरियर शाइन', dhi: 'कार की बाहरी धुलाई और पॉलिश' },
+  'pooja service': { hi: 'पूजा सेवा', dhi: 'पंडित जी द्वारा विधि-विधान से पूजा' },
+  'one-way trip': { hi: 'ड्राइवर सर्विस', dhi: 'शहर में सुरक्षित यात्रा के लिए ड्राइवर' },
+  'general consultation': { hi: 'डॉक्टर परामर्श', dhi: 'स्वास्थ्य संबंधी परामर्श और दवाइयां' },
+  'dressing & injection': { hi: 'ड्रेसिंग और इंजेक्शन', dhi: 'पट्टी और इंजेक्शन सेवा' },
+  'catering service': { hi: 'कैटरिंग सेवा', dhi: 'स्वादिष्ट भोजन और कैटरिंग व्यवस्था' },
+  'ro installation': { hi: 'आरओ इंस्टॉलेशन', dhi: 'नया वाटर प्यूरीफायर लगाएं' },
+  'ro service': { hi: 'आरओ सर्विस', dhi: 'वाटर प्यूरीफायर फिल्टर सफाई' },
+  'ro repair': { hi: 'आरओ मरम्मत', dhi: 'आरओ वाटर प्यूरीफायर की मरम्मत' },
+  'filter replacement': { hi: 'फिल्टर बदलाव', dhi: 'आरओ के पुराने फिल्टर बदलें' },
+  'legal consultation (general)': { hi: 'कानूनी सलाह', dhi: 'अनुभवी वकील से कानूनी परामर्श' },
+  'solar pannel new installation 3kw to 20kw': { hi: 'सोलर पैनल इंस्टॉलेशन (3KW-20KW)', dhi: 'घर और व्यावसायिक उपयोग के लिए सोलर सिस्टम' },
+  'solar inverter maintenance 3kw to 8kw': { hi: 'सोलर इनवर्टर रखरखाव (3KW-8KW)', dhi: 'सोलर इनवर्टर की देखभाल व सर्विस' },
+  'solar inverter maintenance 10kw to 20kw': { hi: 'सोलर इनवर्टर रखरखाव (10KW-20KW)', dhi: 'बड़े सोलर इनवर्टर की मेंटेनेंस' },
+  'solar services 3kw to 8kw': { hi: 'सोलर सर्विस (3KW-8KW)', dhi: 'सोलर सिस्टम की पूरी देखभाल' },
+  'solar services 10kw to 20kw': { hi: 'सोलर सर्विस (10KW-20KW)', dhi: 'व्यावसायिक सोलर सिस्टम सर्विस' },
+  'tax consultancy services': { hi: 'टैक्स कंसल्टेंसी सर्विस', dhi: 'इनकम टैक्स और जीएसटी संबंधी सलाह' },
+  '1bhk deep cleaning': { hi: '1BHK डीप क्लीनिंग', dhi: '1BHK घर की पूरी गहरी सफाई' },
+  '4bhk deep cleaning': { hi: '4BHK डीप क्लीनिंग', dhi: '4BHK घर की पूरी गहरी सफाई' },
+  '1bhk essential cleaning': { hi: '1BHK बेसिक सफाई', dhi: '1BHK घर की सामान्य सफाई' },
+  '4bhk essential cleaning': { hi: '4BHK बेसिक सफाई', dhi: '4BHK घर की सामान्य सफाई' },
+  'space planning': { hi: 'स्पेस प्लानिंग परामर्श', dhi: 'घर के इंटीरियर स्पेस की योजना' },
+  'modular kitchen': { hi: 'मॉड्यूलर किचन परामर्श', dhi: 'आधुनिक मॉड्यूलर किचन डिजाइन' },
+  'residential interiors': { hi: 'रेजिडेंशियल इंटीरियर', dhi: 'घर की अंदरूनी सजावट और डिजाइन' },
+  'commercial interiors': { hi: 'कमर्शियल इंटीरियर', dhi: 'दुकान और ऑफिस की सजावट' },
+  'helper': { hi: 'हेल्पर / सहायक', dhi: 'काम में सहायता के लिए सहायक' }
 };
+
+const WORD_MAP = {
+  'professional': 'प्रोफेशनल',
+  'plumber': 'प्लंबर',
+  'plumbing': 'प्लंबिंग',
+  'electrician': 'इलेक्ट्रीशियन',
+  'carpenter': 'बढ़ई',
+  'cleaning': 'सफाई',
+  'clean': 'सफाई',
+  'repair': 'मरम्मत',
+  'fix': 'मरम्मत',
+  'installation': 'इंस्टॉलेशन',
+  'uninstallation': 'अनइंस्टॉलेशन',
+  'replacement': 'बदलाव',
+  'replace': 'बदलाव',
+  'service': 'सर्विस',
+  'services': 'सेवाएं',
+  'setup': 'सेटअप',
+  'leakage': 'रिसाव',
+  'leak': 'लीकेज',
+  'tap': 'नल',
+  'faucet': 'नल',
+  'pipe': 'पाइप',
+  'sink': 'सिंक',
+  'wash-basin': 'वॉश बेसिन',
+  'basin': 'बेसिन',
+  'drain': 'नाली/ड्रेन',
+  'trap': 'ट्रैप',
+  'bathroom': 'बाथरूम',
+  'home': 'घर',
+  'house': 'घर',
+  'water': 'पानी',
+  'tank': 'टंकी',
+  'motor': 'मोटर',
+  'geyser': 'गीजर',
+  'basic': 'बेसिक',
+  'flush': 'फ्लश',
+  'fan': 'पंखा',
+  'switch': 'स्विच',
+  'wiring': 'वायरिंग',
+  'painter': 'पेंटर',
+  'paint': 'पेंटिंग',
+  'wall': 'दीवार',
+  'sofa': 'सोफा',
+  'carpet': 'कार्पेट',
+  'window': 'खिड़की',
+  'foam': 'फोम',
+  'jet': 'जेट',
+  'wash': 'धुलाई',
+  'anti-rust': 'एंटी-रस्ट',
+  'deep': 'डीप',
+  'split': 'स्प्लिट',
+  'condenser': 'कंडेनसर',
+  'grooming': 'ग्रूमिंग',
+  'massage': 'मसाज',
+  'therapy': 'थेरेपी',
+  'pedicure': 'पेडीक्योर',
+  'manicure': 'मेनीक्योर',
+  'children': 'बच्चों का',
+  'haircut': 'बाल कटाई',
+  'hair': 'बाल',
+  'cut': 'कटाई',
+  'bike': 'बाइक',
+  'car': 'कार',
+  'exterior': 'एक्सटीरियर',
+  'shine': 'शाइन',
+  'pooja': 'पूजा',
+  'one-way': 'वन-वे',
+  'trip': 'ट्रिप',
+  'general': 'सामान्य',
+  'consultation': 'परामर्श',
+  'dressing': 'ड्रेसिंग',
+  'injection': 'इंजेक्शन',
+  'catering': 'कैटरिंग',
+  'filter': 'फिल्टर',
+  'legal': 'कानूनी',
+  'solar': 'सोलर',
+  'panel': 'पैनल',
+  'inverter': 'इनवर्टर',
+  'maintenance': 'रखरखाव',
+  'tax': 'टैक्स',
+  'consultancy': 'कंसल्टेंसी',
+  'essential': 'आवश्यक',
+  'space': 'स्पेस',
+  'planning': 'प्लानिंग',
+  'modular': 'मॉड्यूलर',
+  'kitchen': 'किचन',
+  'residential': 'आवासीय',
+  'interiors': 'इंटीरियर',
+  'commercial': 'व्यावसायिक',
+  'helper': 'हेल्पर',
+  'ro': 'आरओ',
+  'inspection': 'जांच/निरीक्षण',
+  'diagnosis': 'निदान',
+  'fitting': 'फिटिंग',
+  'toilet': 'टॉयलेट',
+  'garbage': 'कचरा',
+  'disposal': 'निपटान'
+};
+
+function autoTranslateTitleToHindi(text) {
+  if (!text) return '';
+  let words = text.split(/(\s+|\/|&|-|\(|\))/);
+  let res = words.map(w => {
+    let lower = w.toLowerCase().trim();
+    if (WORD_MAP[lower]) return WORD_MAP[lower];
+    return w;
+  }).join('');
+  return res;
+}
 
 function localizeField(row, field, lang) {
   if (!row || !field) return '';
@@ -124,26 +282,27 @@ function localizeService(row, lang) {
   let localizedTitle = '';
   let localizedDesc = '';
 
-  if (normalizedLang !== 'en' && SUPPORTED_LANGS.includes(normalizedLang)) {
-    // 1. Check direct properties on object
-    localizedTitle = row[`title_${normalizedLang}`] || row[`name_${normalizedLang}`] || '';
-    localizedDesc = row[`description_${normalizedLang}`] || '';
+  if (normalizedLang === 'hi') {
+    // 1. Check direct properties
+    localizedTitle = row.title_hi || row.name_hi || '';
+    localizedDesc = row.description_hi || '';
 
-    // 2. Fallback dictionary search by title
-    if (!localizedTitle && baseTitle) {
-      const cleanKey = baseTitle.toLowerCase().trim();
-      const trans = SERVICE_TRANSLATIONS[cleanKey];
-      if (trans && trans[normalizedLang]) {
-        localizedTitle = trans[normalizedLang];
+    // 2. Search in SERVICE_TRANSLATIONS dictionary (fuzzy clean key)
+    if (baseTitle) {
+      const cleanKey = baseTitle.toLowerCase().trim().replace(/\s+/g, ' ');
+      const match = SERVICE_TRANSLATIONS[cleanKey];
+      if (match) {
+        if (!localizedTitle && match.hi) localizedTitle = match.hi;
+        if (!localizedDesc && match.dhi) localizedDesc = match.dhi;
       }
     }
 
-    if (!localizedDesc && baseTitle) {
-      const cleanKey = baseTitle.toLowerCase().trim();
-      const trans = SERVICE_TRANSLATIONS[cleanKey];
-      if (trans && trans[`d${normalizedLang}`]) {
-        localizedDesc = trans[`d${normalizedLang}`];
-      }
+    // 3. Fallback automatic Hindi translator for titles and descriptions if still missing or English
+    if (!localizedTitle || /[a-zA-Z]/.test(localizedTitle)) {
+      localizedTitle = autoTranslateTitleToHindi(baseTitle);
+    }
+    if (!localizedDesc || /[a-zA-Z]{5,}/.test(localizedDesc)) {
+      localizedDesc = `${localizedTitle} की पेशेवर और गुणवत्तापूर्ण सेवा`;
     }
   }
 
@@ -157,7 +316,7 @@ function localizeService(row, lang) {
     productName: finalTitle,
     product_name: finalTitle,
     serviceName: finalTitle,
-    productId: row.productId ? (localizedTitle ? localizedTitle : row.productId) : finalTitle,
+    productId: finalTitle,
     description: finalDesc,
     productDescription: finalDesc,
     product_description: finalDesc
