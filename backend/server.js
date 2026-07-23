@@ -491,7 +491,7 @@ const MySqlDbLayer = {
   },
 
   async createUser(user) {
-    const { phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode } = user;
+    const { phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode, language } = user;
     const finalName = name || "";
     const finalEmail = email || "";
     const finalLocation = location || "";
@@ -499,10 +499,11 @@ const MySqlDbLayer = {
     const finalGender = gender || "Male";
     const finalWalletBalance = walletBalance !== undefined ? walletBalance : 0.00;
     const finalCountryCode = countryCode || "+91";
+    const finalLanguage = language || "en";
 
     await mysqlPool.query(
-      "INSERT INTO node_users_v2 (phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), location=VALUES(location), locality=VALUES(locality), gender=VALUES(gender), referralCode=VALUES(referralCode), walletBalance=VALUES(walletBalance), countryCode=VALUES(countryCode)",
-      [phone, finalName, finalEmail, finalLocation, finalLocality, finalGender, referralCode, finalWalletBalance, finalCountryCode]
+      "INSERT INTO node_users_v2 (phone, name, email, location, locality, gender, referralCode, walletBalance, countryCode, language) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), location=VALUES(location), locality=VALUES(locality), gender=VALUES(gender), referralCode=VALUES(referralCode), walletBalance=VALUES(walletBalance), countryCode=VALUES(countryCode), language=VALUES(language)",
+      [phone, finalName, finalEmail, finalLocation, finalLocality, finalGender, referralCode, finalWalletBalance, finalCountryCode, finalLanguage]
     );
 
     return this.getUserByPhone(phone);
@@ -944,7 +945,8 @@ const JsonDbLayer = {
       gender: user.gender || "Male",
       referralCode: user.referralCode,
       walletBalance: user.walletBalance || 0.0,
-      countryCode: user.countryCode || "+91"
+      countryCode: user.countryCode || "+91",
+      language: user.language || "en"
     };
     this.writeData(data);
     return data.users[user.phone];
@@ -1772,6 +1774,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       const finalName = name || "";
       const finalEmail = email || "";
       const refCode = generateReferralCode(finalName);
+      const reqLanguage = req.body.language || req.body.lang || "en";
       user = {
         name: finalName,
         phone: phone,
@@ -1781,16 +1784,19 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         gender: "Male",
         referralCode: refCode,
         walletBalance: 0.0,
-        countryCode: countryCode || "+91"
+        countryCode: countryCode || "+91",
+        language: reqLanguage
       };
       await DbLayer.createUser(user);
       console.log(`Created new profile for user: ${countryCode || "+91"}${phone} with referral: ${refCode}`);
     } else {
-      // Dynamic profile update if user already exists but custom name/email is passed in the OTP verify body
-      if (name || email) {
+      // Dynamic profile update if user already exists but custom name/email/language is passed in the OTP verify body
+      const reqLanguage = req.body.language || req.body.lang;
+      if (name || email || reqLanguage) {
         const updates = {};
         if (name) updates.name = name;
         if (email) updates.email = email;
+        if (reqLanguage) updates.language = reqLanguage;
         user = await DbLayer.updateUser(phone, updates);
         console.log(`Dynamically updated existing user ${phone} profile on verify-otp:`, updates);
       }

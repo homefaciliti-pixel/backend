@@ -73,6 +73,17 @@ const Translation = {
       VALUES (?, ${columns.map(() => '?').join(', ')})
       ON DUPLICATE KEY UPDATE ${updateClause}
     `, [key, ...values]);
+  },
+
+  async getUserLanguage(phone) {
+    const p = getPool();
+    try {
+      const [rows] = await p.query("SELECT language FROM node_users_v2 WHERE phone = ?", [phone]);
+      return rows[0] ? rows[0].language : null;
+    } catch (err) {
+      console.warn("Failed to get user language from DB:", err.message);
+      return null;
+    }
   }
 };
 
