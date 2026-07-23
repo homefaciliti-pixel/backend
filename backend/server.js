@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { translate } = require('./helpers/translate');
+const { localizeCategory, localizeService, runContentI18nMigration } = require('./helpers/contentI18n');
 
 // Multer storage config for AMC document uploads
 const amcStorage = multer.diskStorage({
@@ -1293,6 +1294,11 @@ const DbLayer = {
   } catch (err) {
     console.error("Failed to initialize translation engine in startup IIFE:", err);
   }
+  try {
+    await runContentI18nMigration(mysqlPool);
+  } catch (err) {
+    console.error("Failed to run content i18n migration:", err);
+  }
 })();
 
 // Global Static Data for Services
@@ -2033,10 +2039,11 @@ app.get('/api/categories', async (req, res) => {
         img = `${serverBaseUrl}${img}`;
       }
 
+      const localizedName = localizeCategory({ ...c, name: name }, req.lang).name;
       return {
         ...c,
         id: id,
-        name: name,
+        name: localizedName,
         image: img
       };
     });
@@ -2192,12 +2199,13 @@ app.get('/api/categories/:category/services', async (req, res) => {
           return s;
         });
 
+        const localizedFinalServices = finalServices.map(s => localizeService(s, req.lang));
         return res.json({
           success: true,
-          category: cat.title,
+          category: localizeCategory({ name: cat.title, title: cat.title }, req.lang).name,
           status: isAmcMode ? "AMC" : "Regular",
-          total: finalServices.length,
-          services: finalServices
+          total: localizedFinalServices.length,
+          services: localizedFinalServices
         });
       }
     } catch (err) {
@@ -2413,7 +2421,7 @@ app.get('/api/services', async (req, res) => {
 
       return res.json({
         success: true,
-        services: resolveServiceUrls(mergedServices, serverBaseUrl)
+        services: resolveServiceUrls(mergedServices, serverBaseUrl).map(s => localizeService(s, req.lang))
       });
     } catch (err) {
       console.warn("[DynamicServices] DB query all failed, falling back to static:", err.message);
@@ -6339,8 +6347,25 @@ app.get('/api/orders', async (req, res) => {
       );
     }
 
+    // Localize serviceName for each order
+    const localizedFilteredOrders = await Promise.all(filteredOrders.map(async o => {
+      let localizedServiceName = o.serviceName;
+      if (req.lang && req.lang !== 'en' && o.serviceName && mysqlPool) {
+        try {
+          const [svcRows] = await mysqlPool.query(
+            `SELECT title, title_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
+            [String(o.serviceName).toLowerCase()]
+          );
+          if (svcRows && svcRows[0] && svcRows[0][`title_${req.lang}`]) {
+            localizedServiceName = svcRows[0][`title_${req.lang}`];
+          }
+        } catch (e) { /* ignore, use English name */ }
+      }
+      return { ...o, serviceName: localizedServiceName };
+    }));
+
     // Enriched list mapping
-    const list = filteredOrders.map(o => ({
+    const list = localizedFilteredOrders.map(o => ({
       id: o.id,
       serviceName: o.serviceName,
       price: o.price,
@@ -6356,21 +6381,21 @@ app.get('/api/orders', async (req, res) => {
     }));
 
     const orderlist = {
-      total: filteredOrders.length,
-      data: filteredOrders
+      total: localizedFilteredOrders.length,
+      data: localizedFilteredOrders
     };
 
     res.json({
       success: true,
-      orders: filteredOrders,
+      orders: localizedFilteredOrders,
       list,
       orderlist,
       status: statusQuery || "ALL",
-      message: "Orders retrieved successfully"
+      message: translate("bookings_retrieved", req.lang)
     });
   } catch (err) {
     console.error("Fetch orders failed:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: translate("internal_error", req.lang) });
   }
 });
 
@@ -6387,16 +6412,29 @@ app.get('/api/orders/:id', async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
+    let localizedOrder = { ...order };
+    if (req.lang && req.lang !== 'en' && order.serviceName && mysqlPool) {
+      try {
+        const [svcRows] = await mysqlPool.query(
+          `SELECT title_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
+          [String(order.serviceName).toLowerCase()]
+        );
+        if (svcRows && svcRows[0] && svcRows[0][`title_${req.lang}`]) {
+          localizedOrder.serviceName = svcRows[0][`title_${req.lang}`];
+        }
+      } catch (e) { /* use English */ }
+    }
+
     res.json({
       success: true,
-      ...order,
-      status: order.status || "Pending",
-      advancePayment: order.advancePayment !== undefined ? Number(order.advancePayment) : (order.status === "AMC" ? 0.00 : 199.00),
-      remainingAmount: order.remainingAmount !== undefined ? Number(order.remainingAmount) : 0.00,
-      platformCharge: order.platformCharge !== undefined ? Number(order.platformCharge) : 0.00,
-      totalAmount: order.status === "AMC" ? 0.00 : Number(order.price || 0),
-      total: order.remainingAmount !== undefined ? Number(order.remainingAmount) : 0.00,
-      order: order
+      ...localizedOrder,
+      status: localizedOrder.status || "Pending",
+      advancePayment: localizedOrder.advancePayment !== undefined ? Number(localizedOrder.advancePayment) : (localizedOrder.status === "AMC" ? 0.00 : 199.00),
+      remainingAmount: localizedOrder.remainingAmount !== undefined ? Number(localizedOrder.remainingAmount) : 0.00,
+      platformCharge: localizedOrder.platformCharge !== undefined ? Number(localizedOrder.platformCharge) : 0.00,
+      totalAmount: localizedOrder.status === "AMC" ? 0.00 : Number(localizedOrder.price || 0),
+      total: localizedOrder.remainingAmount !== undefined ? Number(localizedOrder.remainingAmount) : 0.00,
+      order: localizedOrder
     });
   } catch (err) {
     console.error("Fetch order details failed:", err);
