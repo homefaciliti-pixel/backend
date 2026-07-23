@@ -1988,37 +1988,19 @@ app.get('/api/categories', async (req, res) => {
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
     const categories = dbCategories.map(c => {
-      const cleanDbName = c.name.toLowerCase().replace(/[\s\-_]/g, '');
-      const defaultMatch = DEFAULT_CATEGORIES.find(
-        dc => dc.id === c.id || 
-              dc.name.toLowerCase() === c.name.toLowerCase() ||
-              dc.id.toLowerCase().replace(/[\s\-_]/g, '') === cleanDbName ||
-              dc.name.toLowerCase().replace(/[\s\-_]/g, '') === cleanDbName
-      );
       let img = c.image;
-      let name = c.name;
-      let id = c.id;
-
-      if (defaultMatch) {
-        id = defaultMatch.id;
-        name = defaultMatch.name;
-        if (!img || img.trim() === '') {
-          img = defaultMatch.image;
-        }
-      }
-
-      // If the image path is relative, prepend the server's base URL dynamically
       if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
         img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
       } else if (img && img.startsWith('/assets/')) {
         img = `${serverBaseUrl}${img}`;
       }
 
-      const localizedName = localizeCategory({ ...c, name: name }, req.lang).name;
+      const localizedObj = localizeCategory(c, req.lang);
+
       return {
         ...c,
-        id: id,
-        name: localizedName,
+        id: localizedObj.id,
+        name: localizedObj.name,
         image: img
       };
     });
