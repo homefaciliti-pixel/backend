@@ -2104,10 +2104,36 @@ app.get('/api/banners', async (req, res) => {
     }
   }
 
+  if (dbBanners.length === 0) {
+    dbBanners = BANNERS_DATA;
+  }
+
+  const localizedBanners = dbBanners.map(b => {
+    let t = b.title || "";
+    let s = b.subtitle || "";
+    let bt = b.buttonText || "";
+    if (req.lang === 'hi') {
+      if (t.toLowerCase().includes("ac foam jet")) {
+        t = "एसी फोम जेट सर्विस";
+        s = "आपके एसी की पेशेवर फोम जेट सफाई - बिल्कुल मुफ्त!";
+        bt = "अभी बुक करें";
+      } else if (t.toLowerCase().includes("refer")) {
+        t = "दोस्तों को रेफर करें, नकद कमाएं";
+        s = "अपने दोस्तों को आमंत्रित करें और तुरंत पुरस्कार पाएं";
+        bt = "अभी रेफर करें";
+      } else if (t.toLowerCase().includes("annual")) {
+        t = "वार्षिक रखरखाव कवर (AMC)";
+        s = "आपके घर के लिए पूर्ण शांति, जल्द आ रहा है";
+        bt = "अधिक जानें";
+      }
+    }
+    return { ...b, title: t, subtitle: s, buttonText: bt };
+  });
+
   res.json({
     success: true,
-    banners: dbBanners,
-    message: "Banners retrieved successfully"
+    banners: localizedBanners,
+    message: translate("banners_retrieved", req.lang)
   });
 });
 
