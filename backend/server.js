@@ -2063,58 +2063,50 @@ const BANNERS_DATA = [
 app.get('/api/banners', async (req, res) => {
   let dbBanners = [];
 
-  if (dbMode === "mysql" && mysqlPool !== null) {
-    try {
-      const [rows] = await mysqlPool.query("SELECT * FROM node_banners WHERE status = 1 ORDER BY id ASC");
-      dbBanners = rows.map(r => {
-        let img = r.image || "";
-        if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-          img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
-        }
-        return {
-          id: String(r.id),
-          image: img,
-          title: r.title || "",
-          category: r.category || "",
-          badge: r.badge || "",
-          subtitle: r.subtitle || "",
-          buttonText: r.buttonText || ""
-        };
-      });
-    } catch (err) {
-      console.warn("[DynamicBanners] DB query failed:", err.message);
+  try {
+    if (mysqlPool !== null) {
+      const [rows] = await mysqlPool.query("SELECT * FROM node_banners ORDER BY id ASC");
+      if (rows && rows.length > 0) {
+        dbBanners = rows.map(r => {
+          let img = r.image || "";
+          if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+            img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+          }
+          return {
+            id: String(r.id),
+            image: img,
+            bannerImage: img,
+            imageUrl: img,
+            photo: img,
+            url: img,
+            rawImage: r.image || "",
+            title: r.title || "",
+            category: r.category || "",
+            badge: r.badge || "",
+            subtitle: r.subtitle || "",
+            buttonText: r.buttonText || "Book Now"
+          };
+        });
+      }
     }
+  } catch (err) {
+    console.warn("[DynamicBanners] DB query failed:", err.message);
   }
 
   if (dbBanners.length === 0) {
-    dbBanners = BANNERS_DATA;
+    dbBanners = BANNERS_DATA.map(b => ({
+      ...b,
+      bannerImage: b.image,
+      imageUrl: b.image,
+      photo: b.image,
+      url: b.image
+    }));
   }
-
-  const localizedBanners = dbBanners.map(b => {
-    let t = b.title || "";
-    let s = b.subtitle || "";
-    let bt = b.buttonText || "";
-    if (req.lang === 'hi') {
-      if (t.toLowerCase().includes("ac foam jet")) {
-        t = "एसी फोम जेट सर्विस";
-        s = "आपके एसी की पेशेवर फोम जेट सफाई - बिल्कुल मुफ्त!";
-        bt = "अभी बुक करें";
-      } else if (t.toLowerCase().includes("refer")) {
-        t = "दोस्तों को रेफर करें, नकद कमाएं";
-        s = "अपने दोस्तों को आमंत्रित करें और तुरंत पुरस्कार पाएं";
-        bt = "अभी रेफर करें";
-      } else if (t.toLowerCase().includes("annual")) {
-        t = "वार्षिक रखरखाव कवर (AMC)";
-        s = "आपके घर के लिए पूर्ण शांति, जल्द आ रहा है";
-        bt = "अधिक जानें";
-      }
-    }
-    return { ...b, title: t, subtitle: s, buttonText: bt };
-  });
 
   res.json({
     success: true,
-    banners: localizedBanners,
+    banners: dbBanners,
+    data: dbBanners,
     message: translate("banners_retrieved", req.lang)
   });
 });
