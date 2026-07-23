@@ -749,6 +749,36 @@ Response Payload:
 }
 Note: You can also update language dynamically via PUT /api/auth/profile by passing "language" in the JSON body.
 
+3. Get Translation Strings
+Endpoint: GET /api/language/:lang
+Headers: None
+Response Payload:
+{
+  "login_success": "লগইন সফল",
+  "profile_updated": "...",
+  "booking_success": "...",
+  "unauthorized": "...",
+  "service_request": "..."
+}
+Note: Returns a dictionary of active translation strings for the requested language code. Falls back to English (en) if missing.
+
+4. Add/Update Translation Key
+Endpoint: POST /api/language/upsert
+Headers: None
+JSON Body:
+{
+  "translation_key": "some_key",
+  "en": "English text",
+  "hi": "हिंदी टेक्स्ट",
+  "mr": "मराठी मजकूर"
+}
+Response Payload:
+{
+  "success": true,
+  "message": "Translation saved and cache reloaded successfully"
+}
+Note: Persists/updates translation strings in the MySQL translations database table and dynamically refreshes the server's cache.
+
 
 
 

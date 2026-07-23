@@ -86,6 +86,24 @@ POST /api/auth/language
   }
 - Note: Updates the authenticated user's selected language preference.
 
+GET /api/language/:lang
+- Path Parameter: lang (e.g., "en", "hi", "mr", "gu", "bn", "ta", "te")
+- Response (JSON): {
+    "login_success": "লগইন সফল",
+    "profile_updated": "...",
+    "booking_success": "...",
+    ...
+  }
+- Note: Returns translation key-value maps. Falls back to English (en) if localized translation is missing.
+
+POST /api/language/upsert
+- Body (JSON): { "translation_key": "some_key", "en": "English text", "hi": "हिंदी टेक्स्ट", "mr": "मराठी मजकूर" }
+- Response: {
+    "success": true,
+    "message": "Translation saved and cache reloaded successfully"
+  }
+- Note: Adds or updates a translation mapping in the MySQL database and dynamically reloads the server's cache.
+
 ---------------------------------------------------------
 2. Services & Categories APIs
 ---------------------------------------------------------

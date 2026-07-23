@@ -6,6 +6,7 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { translate } = require('./helpers/translate');
 
 // Multer storage config for AMC document uploads
 const amcStorage = multer.diskStorage({
@@ -59,6 +60,13 @@ const JWT_SECRET = 'super_secret_jwt_key_123';
 
 app.use(cors());
 app.use(express.json());
+
+// Multilingual System Middleware & Routes
+const languageMiddleware = require('./middleware/language');
+const languageRouter = require('./routes/language');
+app.use(languageMiddleware);
+app.use('/api', languageRouter);
+
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -1277,6 +1285,12 @@ const DbLayer = {
     dbMode = "json";
     initJsonDb();
   }
+  try {
+    const { initTranslationEngine } = require('./helpers/translate');
+    await initTranslationEngine(mysqlPool);
+  } catch (err) {
+    console.error("Failed to initialize translation engine in startup IIFE:", err);
+  }
 })();
 
 // Global Static Data for Services
@@ -1788,7 +1802,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
     res.json({
       success: true,
-      message: "OTP verified successfully",
+      message: translate("login_success", req.lang),
       user: { ...user, userId: user.phone },
       userId: user.phone,
       isNewUser: isNewUser,
@@ -1809,7 +1823,7 @@ app.post('/api/auth/logout', async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
     console.log(`User ${user.phone} logged out successfully`);
-    res.json({ success: true, message: "Logged out successfully" });
+    res.json({ success: true, message: translate("logout_success", req.lang) });
   } catch (err) {
     console.error("Logout failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -1874,7 +1888,7 @@ app.put('/api/auth/profile', async (req, res) => {
       }
     }
 
-    res.json({ success: true, user: updatedUser, message: "Profile updated successfully" });
+    res.json({ success: true, user: updatedUser, message: translate("profile_updated", req.lang) });
   } catch (err) {
     console.error("Update profile failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -1953,7 +1967,7 @@ app.delete('/api/auth/account', async (req, res) => {
     }
     await DbLayer.deleteUser(user.phone);
     console.log(`[Auth] User account ${user.phone} deleted successfully.`);
-    res.json({ success: true, message: "Account deleted successfully" });
+    res.json({ success: true, message: translate("account_deleted", req.lang) });
   } catch (err) {
     console.error("Delete account failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -3815,7 +3829,7 @@ app.post('/api/payments/cod/:orderId', async (req, res) => {
       success: true,
       orderId: orderId,
       order: updatedOrder,
-      message: "COD order placed successfully"
+      message: translate("booking_success", req.lang)
     });
   } catch (err) {
     console.error("COD confirmation API failed:", err);
@@ -6420,7 +6434,7 @@ app.post('/api/orders', async (req, res) => {
     await DbLayer.createOrder(newOrder);
 
     console.log(`Placed new order #${orderId} - ${serviceName} for phone ${user.phone}`);
-    res.json({ success: true, order: newOrder, message: "Order placed successfully" });
+    res.json({ success: true, order: newOrder, message: translate("booking_success", req.lang) });
   } catch (err) {
     console.error("Place order failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
