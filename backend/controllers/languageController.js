@@ -6,7 +6,7 @@ const languageController = {
   // Returns key-value pairs for translations in requested language
   async getTranslations(req, res) {
     const reqLang = String(req.params.lang || req.lang || 'en').toLowerCase().trim();
-    const supportedLanguages = ['en', 'hi', 'mr', 'gu', 'bn', 'ta', 'te'];
+    const supportedLanguages = ['en', 'hi'];
     const activeLang = supportedLanguages.includes(reqLang) ? reqLang : 'en';
 
     try {

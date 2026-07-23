@@ -1907,36 +1907,11 @@ app.put('/api/auth/profile', async (req, res) => {
   }
 });
 
-// 4b. Global: Get Languages (Public list of world languages)
+// 4b. Global: Get Languages (Public list of supported languages: English & Hindi)
 app.get('/api/languages', (req, res) => {
   const languagesList = [
     { "code": "en", "name": "English", "nativeName": "English" },
-    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" },
-    { "code": "es", "name": "Spanish", "nativeName": "Español" },
-    { "code": "fr", "name": "French", "nativeName": "Français" },
-    { "code": "de", "name": "German", "nativeName": "Deutsch" },
-    { "code": "zh", "name": "Chinese", "nativeName": "中文" },
-    { "code": "ar", "name": "Arabic", "nativeName": "العربية" },
-    { "code": "bn", "name": "Bengali", "nativeName": "বাংলা" },
-    { "code": "pt", "name": "Portuguese", "nativeName": "Português" },
-    { "code": "ru", "name": "Russian", "nativeName": "Русский" },
-    { "code": "ja", "name": "Japanese", "nativeName": "日本語" },
-    { "code": "pa", "name": "Punjabi", "nativeName": "ਪੰਜਾਬੀ" },
-    { "code": "te", "name": "Telugu", "nativeName": "తెలుగు" },
-    { "code": "mr", "name": "Marathi", "nativeName": "मराठी" },
-    { "code": "ta", "name": "Tamil", "nativeName": "தமிழ்" },
-    { "code": "ur", "name": "Urdu", "nativeName": "اردو" },
-    { "code": "gu", "name": "Gujarati", "nativeName": "ગુજરાતી" },
-    { "code": "kn", "name": "Kannada", "nativeName": "ಕన్నడ" },
-    { "code": "ml", "name": "Malayalam", "nativeName": "മലയാളം" },
-    { "code": "or", "name": "Odia", "nativeName": "ଓଡ଼ିଆ" },
-    { "code": "as", "name": "Assamese", "nativeName": "অসমীয়া" },
-    { "code": "ko", "name": "Korean", "nativeName": "한국어" },
-    { "code": "it", "name": "Italian", "nativeName": "Italiano" },
-    { "code": "tr", "name": "Turkish", "nativeName": "Türkçe" },
-    { "code": "vi", "name": "Vietnamese", "nativeName": "Tiếng Việt" },
-    { "code": "pl", "name": "Polish", "nativeName": "Polski" },
-    { "code": "nl", "name": "Dutch", "nativeName": "Nederlands" }
+    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" }
   ];
   res.json({
     success: true,

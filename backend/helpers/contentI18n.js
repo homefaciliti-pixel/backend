@@ -5,7 +5,7 @@
  * Supported languages: en, hi, mr, gu, bn, ta, te
  */
 
-const SUPPORTED_LANGS = ['hi', 'mr', 'gu', 'bn', 'ta', 'te'];
+const SUPPORTED_LANGS = ['hi'];
 
 const CATEGORY_TRANSLATIONS = {
   'acrepair':      { hi: 'एसी सर्विस',       mr: 'एसी दुरुस्ती',       gu: 'એ.સી. રિપેર',         bn: 'এসি মেরামত',               ta: 'ஏசி பழுது',              te: 'ఏసీ మరమ్మత్తు' },

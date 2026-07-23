@@ -48,7 +48,7 @@ module.exports = async (req, res, next) => {
     // Extract first language code if comma-separated or containing locale
     lang = String(lang).split(',')[0].split('-')[0].trim().toLowerCase();
 
-    const supportedLanguages = ['en', 'hi', 'mr', 'gu', 'bn', 'ta', 'te'];
+    const supportedLanguages = ['en', 'hi'];
     if (!supportedLanguages.includes(lang)) {
       lang = 'en';
     }
