@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { translate } = require('./helpers/translate');
-const { localizeCategory, localizeService, runContentI18nMigration } = require('./helpers/contentI18n');
+const { localizeCategory, localizeService, localizeAddress, runContentI18nMigration } = require('./helpers/contentI18n');
 
 // Multer storage config for AMC document uploads
 const amcStorage = multer.diskStorage({
@@ -2072,6 +2072,11 @@ app.get('/api/banners', async (req, res) => {
           if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
             img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
           }
+          const isHi = req.lang === 'hi';
+          const titleVal = isHi ? (r.title_hi || r.title || "") : (r.title || "");
+          const subtitleVal = isHi ? (r.subtitle_hi || r.subtitle || "") : (r.subtitle || "");
+          const btnVal = isHi ? (r.buttonText_hi || r.buttonText || "अभी बुक करें") : (r.buttonText || "Book Now");
+
           return {
             id: String(r.id),
             image: img,
@@ -2080,11 +2085,11 @@ app.get('/api/banners', async (req, res) => {
             photo: img,
             url: img,
             rawImage: r.image || "",
-            title: r.title || "",
+            title: titleVal,
             category: r.category || "",
             badge: r.badge || "",
-            subtitle: r.subtitle || "",
-            buttonText: r.buttonText || "Book Now"
+            subtitle: subtitleVal,
+            buttonText: btnVal
           };
         });
       }
@@ -5036,7 +5041,8 @@ app.get('/api/addresses', async (req, res) => {
     }
     
     const list = await DbLayer.getAddressesByUserPhone(user.phone);
-    res.json({ success: true, addresses: list, message: translate("addresses_retrieved", req.lang) });
+    const sanitizedList = (list || []).map(a => sanitizeAddressObj(a, req.lang));
+    res.json({ success: true, addresses: sanitizedList, message: translate("addresses_retrieved", req.lang) });
   } catch (err) {
     console.error("Get addresses failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -5616,13 +5622,13 @@ const normalizeTimeSlot = (slotStr) => {
 };
 
 // Sanitizers to prevent Dart Type Null Errors on the client
-const sanitizeAddressObj = (addr) => {
+const sanitizeAddressObj = (addr, lang = 'en') => {
   if (!addr) {
     return {
       name: "",
       alternateNumber: "",
       countryCode: "+91",
-      type: "Home",
+      type: lang === 'hi' ? "घर" : "Home",
       houseNo: "",
       society: "",
       floor: "",
@@ -5632,18 +5638,19 @@ const sanitizeAddressObj = (addr) => {
       pincode: ""
     };
   }
+  const localized = localizeAddress(addr, lang);
   return {
-    name: String(addr.name || addr.userPhone || ""),
-    alternateNumber: String(addr.alternateNumber || addr.alternate_number || addr.altPhoneNumber || ""),
-    countryCode: String(addr.countryCode || addr.country_code || "+91"),
-    type: String(addr.type || "Home"),
-    houseNo: String(addr.houseNo || addr.house_no || ""),
-    society: String(addr.society || ""),
-    floor: String(addr.floor || ""),
-    landmark: String(addr.landmark || ""),
-    city: String(addr.city || ""),
-    locality: String(addr.locality || ""),
-    pincode: String(addr.pincode || "")
+    name: String(localized.name || localized.userPhone || ""),
+    alternateNumber: String(localized.alternateNumber || localized.alternate_number || localized.altPhoneNumber || ""),
+    countryCode: String(localized.countryCode || localized.country_code || "+91"),
+    type: String(localized.type || "Home"),
+    houseNo: String(localized.houseNo || localized.house_no || ""),
+    society: String(localized.society || ""),
+    floor: String(localized.floor || ""),
+    landmark: String(localized.landmark || ""),
+    city: String(localized.city || ""),
+    locality: String(localized.locality || ""),
+    pincode: String(localized.pincode || "")
   };
 };
 
@@ -6318,7 +6325,7 @@ const handleGetCheckout = async (req, res) => {
       userId: order.userPhone,
       user: sanitizeUserObj(targetUser),
       product: localizedProduct,
-      address: sanitizeAddressObj(order.address),
+      address: sanitizeAddressObj(order.address, req.lang),
       payment: {
         paymentMethod: currentMethod,
         amountPaid: Number(finalAmountPaid)
@@ -6334,7 +6341,7 @@ const handleGetCheckout = async (req, res) => {
       totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
       total: finalTotal,
       walletBalance: userBalance,
-      addresses: (addresses || []).map(addr => sanitizeAddressObj(addr)),
+      addresses: (addresses || []).map(addr => sanitizeAddressObj(addr, req.lang)),
       services: localizedServicesList,
       products: localizedServicesList,
       slots: availableSlots,

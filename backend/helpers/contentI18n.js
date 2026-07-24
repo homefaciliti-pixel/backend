@@ -1,5 +1,5 @@
 /**
- * Content Localizer — provides full multilingual translation for categories, services, checkout, orders, and products.
+ * Content Localizer — provides full multilingual translation for categories, services, checkout, orders, addresses, banners, and products.
  *
  * Supported languages: en, hi
  */
@@ -84,6 +84,7 @@ const SERVICE_TRANSLATIONS = {
   'pedicure & manicure': { hi: 'पेडीक्योर और मेनीक्योर', dhi: 'हाथ और पैरों की सफाई व ब्यूटी केयर' },
   'children hair cut': { hi: 'बच्चों की बाल कटाई', dhi: 'बच्चों के लिए सुरक्षित हेयरकट' },
   'haircut': { hi: 'बाल कटाई', dhi: 'पेशेवर बाल कटाई' },
+  'women haircut': { hi: 'महिलाओं की बाल कटाई', dhi: 'महिलाओं के लिए स्टाइल हेयरकट' },
   'mehndi(shahnaz)': { hi: 'शहनाज़ मेहंदी', dhi: 'सुंदर और आकर्षक मेहंदी डिजाइन' },
   'bike repair': { hi: 'बाइक मरम्मत', dhi: 'बाइक की पूरी सर्विस और मरम्मत' },
   'car wash deep': { hi: 'कार डीप वाश', dhi: 'कार के अंदर व बाहर की सफाई' },
@@ -211,7 +212,15 @@ const WORD_MAP = {
   'fitting': 'फिटिंग',
   'toilet': 'टॉयलेट',
   'garbage': 'कचरा',
-  'disposal': 'निपटान'
+  'disposal': 'निपटान',
+  'laptop': 'लैपटॉप',
+  'fridge': 'फ्रिज',
+  'washing machine': 'वाशिंग मशीन',
+  'doctor': 'डॉक्टर',
+  'pandit': 'पंडित',
+  'photographer': 'फोटोग्राफर',
+  'chef': 'शेफ',
+  'compounder': 'कम्पाउंडर'
 };
 
 function autoTranslateTitleToHindi(text) {
@@ -254,12 +263,10 @@ function localizeCategory(row, lang) {
 
   let finalName = baseName;
 
-  if (match) {
-    finalName = match[normalizedLang] || match['en'] || baseName;
+  if (normalizedLang === 'hi') {
+    finalName = row.title_hi || row.name_hi || (match ? match.hi : autoTranslateTitleToHindi(baseName));
   } else {
-    if (normalizedLang !== 'en') {
-      finalName = row[`name_${normalizedLang}`] || row[`title_${normalizedLang}`] || baseName;
-    }
+    finalName = (match ? match.en : baseName);
   }
 
   return {
@@ -283,7 +290,7 @@ function localizeService(row, lang) {
   let localizedDesc = '';
 
   if (normalizedLang === 'hi') {
-    // 1. Check direct properties
+    // 1. Check direct DB properties
     localizedTitle = row.title_hi || row.name_hi || '';
     localizedDesc = row.description_hi || '';
 
@@ -323,11 +330,32 @@ function localizeService(row, lang) {
   };
 }
 
+function localizeAddress(addr, lang) {
+  if (!addr) return addr;
+  const normalizedLang = (lang || 'en').toLowerCase().trim();
+  if (normalizedLang === 'hi') {
+    const typeHi = addr.type_hi || (addr.type === 'Home' ? 'घर' : (addr.type === 'Work' || addr.type === 'Office' ? 'कार्यालय' : 'अन्य'));
+    const localityHi = addr.locality_hi || autoTranslateTitleToHindi(addr.locality);
+    const cityHi = addr.city_hi || autoTranslateTitleToHindi(addr.city);
+    const landmarkHi = addr.landmark_hi || autoTranslateTitleToHindi(addr.landmark);
+    return {
+      ...addr,
+      type: typeHi || addr.type,
+      locality: localityHi || addr.locality,
+      city: cityHi || addr.city,
+      landmark: landmarkHi || addr.landmark
+    };
+  }
+  return addr;
+}
+
 async function runContentI18nMigration(pool) {
   if (!pool) return;
   const tables = [
     { table: 'node_categories', fields: ['title', 'name'] },
-    { table: 'node_services',   fields: ['title', 'description'] }
+    { table: 'node_services',   fields: ['title', 'description'] },
+    { table: 'node_banners',    fields: ['title', 'subtitle', 'buttonText'] },
+    { table: 'node_addresses_v2', fields: ['type', 'locality', 'city', 'landmark'] }
   ];
 
   for (const { table, fields } of tables) {
@@ -366,6 +394,7 @@ module.exports = {
   localizeField,
   localizeCategory,
   localizeService,
+  localizeAddress,
   runContentI18nMigration,
   SUPPORTED_LANGS,
   CATEGORY_MAP,
