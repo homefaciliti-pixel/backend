@@ -2072,10 +2072,6 @@ app.get('/api/banners', async (req, res) => {
           if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
             img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
           }
-          const isHi = req.lang === 'hi';
-          const titleVal = isHi ? (r.title_hi || r.title || "") : (r.title || "");
-          const subtitleVal = isHi ? (r.subtitle_hi || r.subtitle || "") : (r.subtitle || "");
-          const btnVal = isHi ? (r.buttonText_hi || r.buttonText || "अभी बुक करें") : (r.buttonText || "Book Now");
 
           return {
             id: String(r.id),
@@ -2085,11 +2081,11 @@ app.get('/api/banners', async (req, res) => {
             photo: img,
             url: img,
             rawImage: r.image || "",
-            title: titleVal,
+            title: r.title || "",
             category: r.category || "",
             badge: r.badge || "",
-            subtitle: subtitleVal,
-            buttonText: btnVal
+            subtitle: r.subtitle || "",
+            buttonText: r.buttonText || "Book Now"
           };
         });
       }
