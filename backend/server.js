@@ -3970,11 +3970,23 @@ app.get('/api/wallet/history', async (req, res) => {
   }
 });
 
+// Helper to resolve clean numeric string Category ID by category name
+const getCategoryIdByName = (catName) => {
+  if (!catName) return "1";
+  const loc = localizeCategory({ name: catName }, 'en');
+  return String(loc.id || "1");
+};
+
 // 12b. AMC: Get Plans
 app.get('/api/amc/plans', (req, res) => {
   const plans = AMC_SUPPORTED_CATEGORIES.map(categoryName => {
+    const catId = getCategoryIdByName(categoryName);
     return {
       category: categoryName,
+      categoryId: catId,
+      category_id: catId,
+      catId: catId,
+      id: catId,
       baseRatePerSqFt: 1.0,
       price: 1.0,
       description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹1 per sq feet.`
@@ -4052,6 +4064,7 @@ app.post('/api/amc/subscribe', amcUpload.fields([
 
     // Generate unique AMC ID
     const amcId = `AMC${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
+    const catId = getCategoryIdByName(category);
 
     const startDate = new Date();
     const endDate = new Date();
@@ -4061,6 +4074,10 @@ app.post('/api/amc/subscribe', amcUpload.fields([
       amcId,
       userPhone: user.phone,
       category,
+      categoryId: catId,
+      category_id: catId,
+      catId: catId,
+      id: catId,
       areaSqFt: Number(areaSqFt),
       floors: Number(floors),
       price: totalPrice,
@@ -4104,14 +4121,19 @@ app.get('/api/amc/subscriptions', async (req, res) => {
     const subscriptions = (await DbLayer.getAmcSubscriptions(user.phone))
       .filter(s => s.status === 'active');
 
-    // Map each subscription to include completed bookings progress count and monthly limit checks
+    // Map each subscription to include completed bookings progress count, categoryId, and monthly limit checks
     const activeSubscriptions = await Promise.all(subscriptions.map(async (sub) => {
       const completedCount = await DbLayer.countAmcBookingsCompleted(sub.amcId);
       const currentMonthCount = await DbLayer.countAmcBookingsInCurrentMonth(sub.amcId);
+      const catId = getCategoryIdByName(sub.category);
       return {
         amcId: sub.amcId,
         userPhone: sub.userPhone,
         category: sub.category,
+        categoryId: catId,
+        category_id: catId,
+        catId: catId,
+        id: catId,
         areaSqFt: sub.areaSqFt,
         floors: sub.floors,
         price: parseFloat(sub.price),
@@ -4144,8 +4166,13 @@ app.get('/api/amc/subscriptions', async (req, res) => {
     const availablePlans = AMC_SUPPORTED_CATEGORIES
       .filter(cat => !subscribedCategories.includes(cat))
       .map(cat => {
+        const catId = getCategoryIdByName(cat);
         return {
           category: cat,
+          categoryId: catId,
+          category_id: catId,
+          catId: catId,
+          id: catId,
           baseRatePerSqFt: 1.0,
           price: 1.0,
           description: `Subscribe to Annual Maintenance Contract for ${cat} (12 free services per year at ₹1/sq ft base rate).`
@@ -4211,10 +4238,15 @@ app.get('/api/amc/plans/:category', (req, res) => {
     return res.status(404).json({ error: `AMC plan for category ${category} not found` });
   }
   const matchedCategory = CATEGORIES_DATA.find(cat => cat.toLowerCase() === category.toLowerCase());
+  const catId = getCategoryIdByName(matchedCategory);
   res.json({
     success: true,
     plan: {
       category: matchedCategory,
+      categoryId: catId,
+      category_id: catId,
+      catId: catId,
+      id: catId,
       baseRatePerSqFt: 1.0,
       price: 1.0,
       description: `Annual Maintenance Contract for ${matchedCategory}. Free 12 services per year. Base price: ₹1 per sq feet.`
@@ -4234,9 +4266,14 @@ app.post('/api/amc/plan-property-details', (req, res) => {
   const matchedCategory = CATEGORIES_DATA.find(cat => cat.toLowerCase() === category.toLowerCase());
   const ratePerSqFt = 1.0;
   const totalPrice = Number(areaSqFt) * 1 * Number(floors);
+  const catId = getCategoryIdByName(matchedCategory);
   res.json({
     success: true,
     category: matchedCategory,
+    categoryId: catId,
+    category_id: catId,
+    catId: catId,
+    id: catId,
     areaSqFt: Number(areaSqFt),
     floors: Number(floors),
     ratePerSqFt,
