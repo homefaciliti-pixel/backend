@@ -2295,6 +2295,9 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
   const finalHighlights = dbHighlights.length > 0 ? dbHighlights : defaultHighlights;
 
   const serviceObj = {
+    id: r.id ? parseInt(r.id) : null,
+    serviceId: r.id ? parseInt(r.id) : null,
+    productDbId: r.id ? parseInt(r.id) : null,
     productId: r.title,
     title: r.title,
     name: r.title,
@@ -2313,6 +2316,7 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
     isHighlighted: r.isHighlighted !== null && r.isHighlighted !== undefined ? String(r.isHighlighted) : "false",
     highlights: finalHighlights,
     category: r.category_id ? r.category_id.toString() : "",
+    categoryId: r.category_id ? r.category_id.toString() : "",
     duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
   };
   for (const lang of ['hi', 'mr', 'gu', 'bn', 'ta', 'te']) {
