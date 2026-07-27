@@ -5582,7 +5582,7 @@ const resolveAddressForPhone = async (phone) => {
 
 const normalizeString = (str) => {
   if (!str) return '';
-  return str.toLowerCase()
+  return String(str).toLowerCase()
     .replace(/\blekage\b/g, 'leakage')
     .replace(/\blekege\b/g, 'leakage')
     .replace(/[-_\s]/g, '')
@@ -5777,7 +5777,7 @@ const resolveServiceDetails = async (productId) => {
     try {
       const [srvRows] = await mysqlPool.query(
         "SELECT * FROM node_services WHERE LOWER(title) = ? OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(title), '-', ''), '_', ''), ' ', ''), 'lekage', 'leakage'), 'lekege', 'leakage') = ? OR id = ?", 
-        [productId.toLowerCase(), normProduct, isNaN(productId) ? -1 : parseInt(productId)]
+        [String(productId).toLowerCase(), normProduct, isNaN(productId) ? -1 : parseInt(productId)]
       );
       if (srvRows.length > 0) {
         const r = srvRows[0];
