@@ -2129,7 +2129,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const statusParam = req.query.status || req.body.status;
   const isAmcMode = statusParam === "AMC";
 
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (mysqlPool !== null) {
     try {
       const [catRows] = await mysqlPool.query(
         "SELECT * FROM node_categories WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
@@ -2176,9 +2176,10 @@ app.get('/api/categories/:category/services', async (req, res) => {
         });
 
         const localizedFinalServices = finalServices.map(s => localizeService(s, req.lang));
+        const catLocalized = localizeCategory({ id: cat.id, name: cat.title, title: cat.title }, req.lang);
         return res.json({
           success: true,
-          category: localizeCategory({ name: cat.title, title: cat.title }, req.lang).name,
+          category: catLocalized.name || catLocalized.title,
           status: isAmcMode ? "AMC" : "Regular",
           total: localizedFinalServices.length,
           services: localizedFinalServices
@@ -2218,12 +2219,15 @@ app.get('/api/categories/:category/services', async (req, res) => {
     return s;
   });
 
+  const localizedFinalServices = finalServices.map(s => localizeService(s, req.lang));
+  const catLocalized = localizeCategory({ name: matchedCategory, title: matchedCategory }, req.lang);
+
   res.json({
     success: true,
-    category: matchedCategory,
+    category: catLocalized.name || catLocalized.title,
     status: isAmcMode ? "AMC" : "Regular",
-    total: finalServices.length,
-    services: finalServices
+    total: localizedFinalServices.length,
+    services: localizedFinalServices
   });
 });
 
