@@ -5715,6 +5715,9 @@ const sanitizeUserObj = (user) => {
 const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
   if (!prod) {
     return {
+      id: null,
+      serviceId: null,
+      productDbId: null,
       productId: defaultTitle,
       serviceName: defaultTitle,
       title: defaultTitle,
@@ -5732,7 +5735,13 @@ const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
   }
   const titleVal = String(prod.title || prod.serviceName || prod.productName || prod.product_name || prod.productId || defaultTitle);
   const descVal = String(prod.description || prod.productDescription || prod.product_description || "");
+  // Resolve numeric DB id from multiple possible sources
+  const numericId = prod.id || prod.serviceId || prod.productDbId || null;
+  const parsedId = numericId ? parseInt(numericId) : null;
   return {
+    id: parsedId,
+    serviceId: parsedId,
+    productDbId: parsedId,
     productId: titleVal,
     serviceName: titleVal,
     title: titleVal,
@@ -5790,13 +5799,17 @@ const resolveServiceDetails = async (productId) => {
         }
 
         return {
+          id: r.id ? parseInt(r.id) : null,
+          serviceId: r.id ? parseInt(r.id) : null,
+          productDbId: r.id ? parseInt(r.id) : null,
           productId: r.title,
           serviceName: r.title,
           title: r.title,
           price: finalPrice,
           description: r.description,
           image: r.image,
-          category: dbCategoryName
+          category: dbCategoryName,
+          categoryId: r.category_id ? r.category_id.toString() : ""
         };
       }
     } catch (err) {
