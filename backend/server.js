@@ -4134,10 +4134,13 @@ app.get('/api/amc/subscriptions', async (req, res) => {
       const completedCount = await DbLayer.countAmcBookingsCompleted(sub.amcId);
       const currentMonthCount = await DbLayer.countAmcBookingsInCurrentMonth(sub.amcId);
       const catId = getCategoryIdByName(sub.category);
+      const locCat = localizeCategory({ name: sub.category, id: catId }, req.lang);
+      const isHi = (req.lang === 'hi');
+      
       return {
         amcId: sub.amcId,
         userPhone: sub.userPhone,
-        category: sub.category,
+        category: locCat.name,
         categoryId: catId,
         category_id: catId,
         catId: catId,
@@ -4153,14 +4156,16 @@ app.get('/api/amc/subscriptions', async (req, res) => {
         monthlyLimit: 1,
         canBookThisMonth: currentMonthCount < 1,
         totalAllowed: 12,
-        progressMessage: `${completedCount} complete out of 12 (Limit: 1 service per month)`,
+        progressMessage: isHi 
+          ? `12 में से ${completedCount} सेवाएँ पूर्ण (प्रति माह 1 सेवा की सीमा)` 
+          : `${completedCount} complete out of 12 (Limit: 1 service per month)`,
         photoUrl: sub.photoUrl,
         pdfUrl: sub.pdfUrl,
         fileUrl: sub.fileUrl || sub.photoUrl || sub.pdfUrl,
         note: sub.note,
         buttons: {
-          bookService: `Book Service (at ₹0)`,
-          renewService: `Renew Service`
+          bookService: isHi ? `सेवा बुक करें (₹0 पर)` : `Book Service (at ₹0)`,
+          renewService: isHi ? `सेवा रिन्यू करें` : `Renew Service`
         }
       };
     }));
@@ -4175,15 +4180,20 @@ app.get('/api/amc/subscriptions', async (req, res) => {
       .filter(cat => !subscribedCategories.includes(cat))
       .map(cat => {
         const catId = getCategoryIdByName(cat);
+        const locCat = localizeCategory({ name: cat, id: catId }, req.lang);
+        const isHi = (req.lang === 'hi');
+        
         return {
-          category: cat,
+          category: locCat.name,
           categoryId: catId,
           category_id: catId,
           catId: catId,
           id: catId,
           baseRatePerSqFt: 1.0,
           price: 1.0,
-          description: `Subscribe to Annual Maintenance Contract for ${cat} (12 free services per year at ₹1/sq ft base rate).`
+          description: isHi 
+            ? `${locCat.name} के लिए वार्षिक रखरखाव अनुबंध (AMC) लें (₹1/वर्ग फुट बेस रेट पर प्रति वर्ष 12 मुफ्त सेवाएँ)।` 
+            : `Subscribe to Annual Maintenance Contract for ${locCat.name} (12 free services per year at ₹1/sq ft base rate).`
         };
       });
 
@@ -4191,7 +4201,7 @@ app.get('/api/amc/subscriptions', async (req, res) => {
       success: true,
       activeSubscriptions,
       availablePlans,
-      message: "AMC subscriptions and plans retrieved successfully"
+      message: (req.lang === 'hi') ? "AMC सब्सक्रिप्शन सफलतापूर्ण प्राप्त हुए" : "AMC subscriptions and plans retrieved successfully"
     });
   } catch (err) {
     console.error("Fetch AMC subscriptions failed:", err);
