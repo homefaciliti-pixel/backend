@@ -6447,18 +6447,24 @@ app.get('/api/orders', async (req, res) => {
     // Localize serviceName for each order
     const localizedFilteredOrders = await Promise.all(filteredOrders.map(async o => {
       let localizedServiceName = o.serviceName;
+      let localizedDescription = o.description;
       if (req.lang && req.lang !== 'en' && o.serviceName && mysqlPool) {
         try {
           const [svcRows] = await mysqlPool.query(
-            `SELECT title, title_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
+            `SELECT title, title_${req.lang}, description_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
             [String(o.serviceName).toLowerCase()]
           );
-          if (svcRows && svcRows[0] && svcRows[0][`title_${req.lang}`]) {
-            localizedServiceName = svcRows[0][`title_${req.lang}`];
+          if (svcRows && svcRows[0]) {
+            if (svcRows[0][`title_${req.lang}`]) {
+              localizedServiceName = svcRows[0][`title_${req.lang}`];
+            }
+            if (svcRows[0][`description_${req.lang}`]) {
+              localizedDescription = svcRows[0][`description_${req.lang}`];
+            }
           }
         } catch (e) { /* ignore, use English name */ }
       }
-      return { ...o, serviceName: localizedServiceName };
+      return { ...o, serviceName: localizedServiceName, description: localizedDescription };
     }));
 
     // Enriched list mapping
@@ -6507,6 +6513,25 @@ app.get('/api/orders/:id', async (req, res) => {
     const order = await DbLayer.getOrderById(orderId);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (req.lang && req.lang !== 'en' && order.serviceName && mysqlPool) {
+      try {
+        const [svcRows] = await mysqlPool.query(
+          `SELECT title_${req.lang}, description_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
+          [String(order.serviceName).toLowerCase()]
+        );
+        if (svcRows && svcRows[0]) {
+          if (svcRows[0][`title_${req.lang}`]) {
+            order.serviceName = svcRows[0][`title_${req.lang}`];
+            order.title_hi = svcRows[0][`title_${req.lang}`]; 
+          }
+          if (svcRows[0][`description_${req.lang}`]) {
+            order.description = svcRows[0][`description_${req.lang}`];
+            order.description_hi = svcRows[0][`description_${req.lang}`];
+          }
+        }
+      } catch (e) { /* ignore */ }
     }
 
     const localizedOrder = localizeService(order, req.lang);
