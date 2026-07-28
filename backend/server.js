@@ -3989,18 +3989,26 @@ const getCategoryIdByName = (catName) => {
 app.get('/api/amc/plans', (req, res) => {
   const plans = AMC_SUPPORTED_CATEGORIES.map(categoryName => {
     const catId = getCategoryIdByName(categoryName);
+    const locCat = localizeCategory({ name: categoryName, id: catId }, req.lang);
+    const isHi = (req.lang === 'hi');
     return {
-      category: categoryName,
+      category: locCat.name,
       categoryId: catId,
       category_id: catId,
       catId: catId,
       id: catId,
       baseRatePerSqFt: 1.0,
       price: 1.0,
-      description: `Annual Maintenance Contract for ${categoryName}. Free 12 services per year. Base price: ₹1 per sq feet.`
+      description: isHi 
+        ? `${locCat.name} के लिए वार्षिक रखरखाव अनुबंध (AMC)। प्रति वर्ष 12 मुफ्त सेवाएँ। बेस रेट: ₹1/वर्ग फुट।`
+        : `Annual Maintenance Contract for ${locCat.name}. Free 12 services per year. Base price: ₹1 per sq feet.`
     };
   });
-  res.json({ success: true, plans });
+  res.json({ 
+    success: true, 
+    plans,
+    message: (req.lang === 'hi') ? "AMC प्लान्स सफलतापूर्ण प्राप्त हुए" : undefined
+  });
 });
 
 // 12c. AMC: Subscribe to Plan
