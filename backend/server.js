@@ -5210,7 +5210,7 @@ const handlePostCheckout = async (req, res) => {
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
-      const advanceOnlineAmount = Number(foundService.price);
+      const advanceOnlineAmount = amountPaid > 0 ? amountPaid : Number(foundService.price);
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
@@ -5262,7 +5262,7 @@ const handlePostCheckout = async (req, res) => {
     // AMC coupon discount logic
     const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
     let activeAmcId = null;
-    let finalPrice = Number(foundService.price);
+    let finalPrice = amountPaid > 0 ? amountPaid : Number(foundService.price);
 
     if (useAmc) {
       const category = getCanonicalCategoryName(foundService.category || getServiceCategory(foundService.title));
@@ -6321,7 +6321,7 @@ const handleGetCheckout = async (req, res) => {
     const userBalance = Number(targetUser.walletBalance || 0);
     
     // Dynamically calculate srvPrice using the original service price if not AMC
-    const originalPrice = resolvedProduct ? Number(resolvedProduct.price) : Number(order.price || 299);
+    const originalPrice = (order && order.price !== undefined && order.price !== null) ? Number(order.price) : (resolvedProduct ? Number(resolvedProduct.price) : 299);
     const srvPrice = isAmc ? 0 : originalPrice;
     
     // Fixed ₹100 wallet deduction: only if balance >= ₹100, else ₹0
