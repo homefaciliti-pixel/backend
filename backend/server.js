@@ -2330,8 +2330,9 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
     categoryId: r.category_id ? r.category_id.toString() : "",
     duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
   };
-  for (const lang of ['hi', 'mr', 'gu', 'bn', 'ta', 'te']) {
+  for (const lang of ['hi', 'mr', 'gu', 'bn', 'ta', 'te', 'kn', 'ml', 'pa', 'or', 'as']) {
     if (r[`title_${lang}`]) serviceObj[`title_${lang}`] = r[`title_${lang}`];
+    if (r[`name_${lang}`]) serviceObj[`name_${lang}`] = r[`name_${lang}`];
     if (r[`description_${lang}`]) serviceObj[`description_${lang}`] = r[`description_${lang}`];
   }
   return serviceObj;
