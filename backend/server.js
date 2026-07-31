@@ -750,6 +750,7 @@ const MySqlDbLayer = {
         img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
       }
       return {
+        ...r,
         id: String(r.id),
         name: r.title,
         image: img
