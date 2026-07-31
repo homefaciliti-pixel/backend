@@ -10,11 +10,22 @@ module.exports = async (req, res, next) => {
                req.headers['lang'] || req.headers['language'] ||
                req.headers['accept-language'];
 
-    // 2. Check full raw URL string (in case URL was formatted like ?status=?lang=hi or ?status=&lang=hi)
+    // Extract first language code if comma-separated or containing locale
+    lang = String(lang).split(',')[0].split('-')[0].trim().toLowerCase();
+
+    const supportedLanguages = ['en', 'hi', 'gu', 'mr', 'ta', 'te', 'kn', 'ml', 'bn', 'pa', 'or', 'as'];
+    
+    // 2. Check full raw URL string for supported languages (in case URL was formatted like ?status=?lang=hi or ?status=&lang=hi)
     const fullUrl = (req.originalUrl || req.url || '');
     if (!lang || lang === 'en') {
-      if (/[\?&=]lang=hi\b/i.test(fullUrl) || /[\?&=]language=hi\b/i.test(fullUrl) || /lang=hi/i.test(fullUrl)) {
-        lang = 'hi';
+      for (const sl of supportedLanguages) {
+        if (sl !== 'en') {
+          const regex = new RegExp(`[\\?&=]lang=${sl}\\b|[\\?&=]language=${sl}\\b|lang=${sl}`, 'i');
+          if (regex.test(fullUrl)) {
+            lang = sl;
+            break;
+          }
+        }
       }
     }
 
@@ -44,15 +55,7 @@ module.exports = async (req, res, next) => {
       }
     }
 
-    if (!lang) {
-      lang = 'en';
-    }
-
-    // Extract first language code if comma-separated or containing locale
-    lang = String(lang).split(',')[0].split('-')[0].trim().toLowerCase();
-
-    const supportedLanguages = ['en', 'hi'];
-    if (!supportedLanguages.includes(lang)) {
+    if (!lang || !supportedLanguages.includes(lang)) {
       lang = 'en';
     }
 

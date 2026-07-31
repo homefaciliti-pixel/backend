@@ -63,7 +63,12 @@ async function reloadTranslationCache() {
         gu: row.gu || "",
         bn: row.bn || "",
         ta: row.ta || "",
-        te: row.te || ""
+        te: row.te || "",
+        kn: row.kn || "",
+        ml: row.ml || "",
+        pa: row.pa || "",
+        or: row.or || "",
+        as: row.as || ""
       };
     }
     translationCache = newCache;

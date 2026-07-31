@@ -4,7 +4,7 @@
  * Supported languages: en, hi
  */
 
-const SUPPORTED_LANGS = ['hi'];
+const SUPPORTED_LANGS = ['hi', 'gu', 'mr', 'ta', 'te', 'kn', 'ml', 'bn', 'pa', 'or', 'as'];
 
 const CATEGORY_MAP = [
   { matchIds: ['1', 'plumber'], hi: 'प्लंबर', en: 'Plumber' },
@@ -263,8 +263,16 @@ function localizeCategory(row, lang) {
 
   let finalName = baseName;
 
-  if (normalizedLang === 'hi') {
-    finalName = row.title_hi || row.name_hi || (match ? match.hi : autoTranslateTitleToHindi(baseName));
+  if (normalizedLang !== 'en' && SUPPORTED_LANGS.includes(normalizedLang)) {
+    const dbValue = row[`title_${normalizedLang}`] || row[`name_${normalizedLang}`];
+    if (dbValue) {
+      finalName = dbValue;
+    } else if (normalizedLang === 'hi') {
+      finalName = (match ? match.hi : autoTranslateTitleToHindi(baseName));
+    } else {
+      // Fallback for new languages if missing in DB
+      finalName = baseName;
+    }
   } else {
     finalName = (match ? match.en : baseName);
   }
@@ -289,27 +297,28 @@ function localizeService(row, lang) {
   let localizedTitle = '';
   let localizedDesc = '';
 
-  if (normalizedLang === 'hi') {
+  if (normalizedLang !== 'en' && SUPPORTED_LANGS.includes(normalizedLang)) {
     // 1. Check direct DB properties
-    localizedTitle = row.title_hi || row.name_hi || '';
-    localizedDesc = row.description_hi || '';
+    localizedTitle = row[`title_${normalizedLang}`] || row[`name_${normalizedLang}`] || '';
+    localizedDesc = row[`description_${normalizedLang}`] || '';
 
-    // 2. Search in SERVICE_TRANSLATIONS dictionary (fuzzy clean key)
-    if (baseTitle) {
-      const cleanKey = baseTitle.toLowerCase().trim().replace(/\s+/g, ' ');
-      const match = SERVICE_TRANSLATIONS[cleanKey];
-      if (match) {
-        if (!localizedTitle && match.hi) localizedTitle = match.hi;
-        if (!localizedDesc && match.dhi) localizedDesc = match.dhi;
+    // 2. Legacy fallback for Hindi
+    if (normalizedLang === 'hi') {
+      if (baseTitle) {
+        const cleanKey = baseTitle.toLowerCase().trim().replace(/\s+/g, ' ');
+        const match = SERVICE_TRANSLATIONS[cleanKey];
+        if (match) {
+          if (!localizedTitle && match.hi) localizedTitle = match.hi;
+          if (!localizedDesc && match.dhi) localizedDesc = match.dhi;
+        }
       }
-    }
 
-    // 3. Fallback automatic Hindi translator for titles and descriptions if still missing or English
-    if (!localizedTitle || /[a-zA-Z]/.test(localizedTitle)) {
-      localizedTitle = autoTranslateTitleToHindi(baseTitle);
-    }
-    if (!localizedDesc || /[a-zA-Z]{5,}/.test(localizedDesc)) {
-      localizedDesc = `${localizedTitle} की पेशेवर और गुणवत्तापूर्ण सेवा`;
+      if (!localizedTitle || /[a-zA-Z]/.test(localizedTitle)) {
+        localizedTitle = autoTranslateTitleToHindi(baseTitle);
+      }
+      if (!localizedDesc || /[a-zA-Z]{5,}/.test(localizedDesc)) {
+        localizedDesc = `${localizedTitle} की पेशेवर और गुणवत्तापूर्ण सेवा`;
+      }
     }
   }
 
@@ -333,17 +342,25 @@ function localizeService(row, lang) {
 function localizeAddress(addr, lang) {
   if (!addr) return addr;
   const normalizedLang = (lang || 'en').toLowerCase().trim();
-  if (normalizedLang === 'hi') {
-    const typeHi = addr.type_hi || (addr.type === 'Home' ? 'घर' : (addr.type === 'Work' || addr.type === 'Office' ? 'कार्यालय' : 'अन्य'));
-    const localityHi = addr.locality_hi || autoTranslateTitleToHindi(addr.locality);
-    const cityHi = addr.city_hi || autoTranslateTitleToHindi(addr.city);
-    const landmarkHi = addr.landmark_hi || autoTranslateTitleToHindi(addr.landmark);
+  if (normalizedLang !== 'en' && SUPPORTED_LANGS.includes(normalizedLang)) {
+    let typeLocal = addr[`type_${normalizedLang}`];
+    let localityLocal = addr[`locality_${normalizedLang}`];
+    let cityLocal = addr[`city_${normalizedLang}`];
+    let landmarkLocal = addr[`landmark_${normalizedLang}`];
+    
+    if (normalizedLang === 'hi') {
+      typeLocal = typeLocal || (addr.type === 'Home' ? 'घर' : (addr.type === 'Work' || addr.type === 'Office' ? 'कार्यालय' : 'अन्य'));
+      localityLocal = localityLocal || autoTranslateTitleToHindi(addr.locality);
+      cityLocal = cityLocal || autoTranslateTitleToHindi(addr.city);
+      landmarkLocal = landmarkLocal || autoTranslateTitleToHindi(addr.landmark);
+    }
+    
     return {
       ...addr,
-      type: typeHi || addr.type,
-      locality: localityHi || addr.locality,
-      city: cityHi || addr.city,
-      landmark: landmarkHi || addr.landmark
+      type: typeLocal || addr.type,
+      locality: localityLocal || addr.locality,
+      city: cityLocal || addr.city,
+      landmark: landmarkLocal || addr.landmark
     };
   }
   return addr;

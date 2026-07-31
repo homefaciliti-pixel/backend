@@ -42,6 +42,11 @@ const Translation = {
         bn TEXT DEFAULT NULL,
         ta TEXT DEFAULT NULL,
         te TEXT DEFAULT NULL,
+        kn TEXT DEFAULT NULL,
+        ml TEXT DEFAULT NULL,
+        pa TEXT DEFAULT NULL,
+        \`or\` TEXT DEFAULT NULL,
+        \`as\` TEXT DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
@@ -66,10 +71,10 @@ const Translation = {
     const values = Object.values(data);
     if (columns.length === 0) return;
     
-    const updateClause = columns.map(col => `${col} = VALUES(${col})`).join(', ');
+    const updateClause = columns.map(col => `\`${col}\` = VALUES(\`${col}\`)`).join(', ');
     
     await p.query(`
-      INSERT INTO translations (translation_key, ${columns.join(', ')})
+      INSERT INTO translations (translation_key, ${columns.map(c => `\`${c}\``).join(', ')})
       VALUES (?, ${columns.map(() => '?').join(', ')})
       ON DUPLICATE KEY UPDATE ${updateClause}
     `, [key, ...values]);
