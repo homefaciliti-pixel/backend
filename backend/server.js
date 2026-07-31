@@ -1912,7 +1912,17 @@ app.put('/api/auth/profile', async (req, res) => {
 app.get('/api/languages', (req, res) => {
   const languagesList = [
     { "code": "en", "name": "English", "nativeName": "English" },
-    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" }
+    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" },
+    { "code": "gu", "name": "Gujarati", "nativeName": "ગુજરાતી" },
+    { "code": "mr", "name": "Marathi", "nativeName": "मराठी" },
+    { "code": "ta", "name": "Tamil", "nativeName": "தமிழ்" },
+    { "code": "te", "name": "Telugu", "nativeName": "తెలుగు" },
+    { "code": "kn", "name": "Kannada", "nativeName": "కన్నడ" },
+    { "code": "ml", "name": "Malayalam", "nativeName": "മലയാളം" },
+    { "code": "bn", "name": "Bengali", "nativeName": "বাংলা" },
+    { "code": "pa", "name": "Punjabi", "nativeName": "ਪੰਜਾਬੀ" },
+    { "code": "or", "name": "Odia", "nativeName": "ଓଡ଼ିଆ" },
+    { "code": "as", "name": "Assamese", "nativeName": "অসমীয়া" }
   ];
   res.json({
     success: true,
