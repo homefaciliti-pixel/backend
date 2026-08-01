@@ -5867,11 +5867,11 @@ const resolveServiceDetails = async (productId) => {
 
   // Fallback service instead of returning null to prevent 404 errors with dummy IDs
   return {
-    productId: productId,
-    serviceName: `Service ${productId}`,
-    title: `Service ${productId}`,
+    productId: "Tap Repair",
+    serviceName: "Tap Repair",
+    title: "Tap Repair",
     price: 299,
-    description: `Generic service for ${productId}`,
+    description: "Fix leaking taps and water issues",
     image: "",
     category: "Plumber",
     categoryId: ""
@@ -5999,7 +5999,8 @@ const handleGetCheckout = async (req, res) => {
           const recentRealOrder = userOrders.find(o =>
             o.serviceName &&
             o.serviceName.toLowerCase() !== 'tap repair' &&
-            (!o.productId || o.productId.toString().toLowerCase() !== 'tap repair')
+            !/^service \d+$/i.test(o.serviceName) &&
+            (!o.productId || (o.productId.toString().toLowerCase() !== 'tap repair' && !/^\d+$/.test(o.productId.toString())))
           );
           if (recentRealOrder) {
             inferredProductId = recentRealOrder.productId || recentRealOrder.serviceName;
