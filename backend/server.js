@@ -5023,13 +5023,14 @@ const handlePostBooking = async (req, res) => {
       };
       draftOrders.set(user.phone, order);
       console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone}`);
-      // Also persist to DB so server restarts don't lose the draft
-      try {
-        await DbLayer.createOrder(order);
-        console.log(`[handlePostBooking] Draft order #${order.id} also saved to DB`);
-      } catch (dbErr) {
-        console.warn(`[handlePostBooking] Could not save draft to DB:`, dbErr.message);
-      }
+    }
+
+    // Always persist to DB so server restarts don't lose the draft (both created and updated drafts)
+    try {
+      await DbLayer.createOrder(order);
+      console.log(`[handlePostBooking] Saved draft order #${order.id} to DB`);
+    } catch (dbErr) {
+      console.warn(`[handlePostBooking] Could not save draft to DB:`, dbErr.message);
     }
 
     logBookingResult(200, true, null, user.phone);
@@ -5994,8 +5995,24 @@ const handleGetCheckout = async (req, res) => {
     // Check if the idParam looks like a phone number (user id)
     if (isNaN(idParam) || idParam.length >= 8) {
       const targetPhone = idParam === "me" ? user.phone : idParam;
-      const pendingOrders = [];
-      const memDraft = draftOrders.get(targetPhone);
+       const pendingOrders = [];
+      let memDraft = draftOrders.get(targetPhone);
+      if (!memDraft) {
+        // Hydrate from DB if missing (e.g. server restart)
+        try {
+          const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
+          const dbDraft = userOrders.find(o =>
+            (o.bookingStatus === 'draft' || o.status === 'Draft')
+          );
+          if (dbDraft) {
+            memDraft = dbDraft;
+            draftOrders.set(targetPhone, memDraft);
+            console.log(`[GetCheckout] Hydrated in-memory draft from DB: #${dbDraft.id} for user ${targetPhone}`);
+          }
+        } catch (dbErr) {
+          console.warn("[GetCheckout] Failed to hydrate draft from DB:", dbErr.message);
+        }
+      }
       if (memDraft) {
         pendingOrders.push(memDraft);
       }
@@ -6284,6 +6301,12 @@ const handleGetCheckout = async (req, res) => {
       if (needsUpdate) {
         draftOrders.set(order.userPhone, order);
         console.log(`[GetCheckout] Persisted overrides to in-memory draft order #${order.id}`);
+        try {
+          await DbLayer.createOrder(order);
+          console.log(`[GetCheckout] Persisted overrides of draft order #${order.id} to DB`);
+        } catch (dbErr) {
+          console.warn(`[GetCheckout] Could not save overridden draft to DB:`, dbErr.message);
+        }
       }
     }
 
