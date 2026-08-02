@@ -6012,9 +6012,38 @@ const handleGetCheckout = async (req, res) => {
         if (!chosenOrder) {
           chosenOrder = pendingOrders.find(o => o.serviceName && o.serviceName.toLowerCase() !== 'tap repair');
         }
-        // Final fallback: most recent draft (pendingOrders is already DESC by id)
+        // Final fallback: most recent draft
         order = JSON.parse(JSON.stringify(chosenOrder || pendingOrders[0]));
+
+        // CRITICAL: If queryProductId is provided and the draft has wrong/generic serviceName,
+        // override with the actual service the user just booked.
+        if (order && queryProductId && queryProductId.toLowerCase() !== 'tap repair') {
+          if (!order.serviceName ||
+              order.serviceName.toLowerCase() === 'tap repair' ||
+              /^service \d+$/i.test(order.serviceName)) {
+            // Get the real price from DB if possible
+            let realPrice = order.price;
+            try {
+              const [priceRows] = await mysqlPool.query(
+                'SELECT price, discount FROM node_services WHERE LOWER(title) = ? LIMIT 1',
+                [queryProductId.toLowerCase()]
+              );
+              if (priceRows.length > 0) {
+                const dbPrice = parseFloat(priceRows[0].price);
+                const disc = priceRows[0].discount ? parseFloat(priceRows[0].discount) : 0;
+                realPrice = Math.max(0, dbPrice - disc);
+              }
+            } catch(e) { /* ignore */ }
+            order.serviceName = queryProductId;
+            order.productId = queryProductId;
+            if (realPrice && realPrice !== 299) order.price = realPrice;
+            if (order.payment) order.payment.amountPaid = order.price;
+            draftOrders.set(targetPhone, order);
+            console.log(`[GetCheckout] Overrode draft serviceName with queryProductId: "${queryProductId}"`);
+          }
+        }
       }
+
       
       // Dynamic fallback if no order exists for this user ID
       if (!order) {
