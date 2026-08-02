@@ -23,7 +23,8 @@ class ServiceDetailScreen extends StatefulWidget {
 /// SERVICE API
 Future<void> bookingApi({
   required productId,
-
+  required int price,
+  required String serviceName,
   required BuildContext context,
   required ServiceViewModel vm,
 }) async {
@@ -51,7 +52,10 @@ Future<void> bookingApi({
     final body = {
 
       "productId": productId,
-      //service.title,
+
+      "serviceName": serviceName,
+
+      "price": price,
 
       "date":
       vm.selectedDate!
@@ -919,7 +923,7 @@ https://homefaciliti.com
 
                 child: ElevatedButton(
                   onPressed: () {
-                    showBookingBottomSheet(context,service.title);
+                    showBookingBottomSheet(context, service!.title, service.price);
                   },
 
                   style: ElevatedButton.styleFrom(
@@ -946,7 +950,7 @@ https://homefaciliti.com
       ),
     );
   }
-  void showBookingBottomSheet(BuildContext context, String productId) {
+  void showBookingBottomSheet(BuildContext context, String productId, int price) {
     //
     // final vm =
     // Provider.of<ServiceViewModel>(
@@ -1313,6 +1317,8 @@ https://homefaciliti.com
 
                             await bookingApi(
                               productId: productId,
+                              price: price,
+                              serviceName: productId,
                               context: context,
                               vm: vm,
                             );

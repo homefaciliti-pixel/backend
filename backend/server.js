@@ -4908,14 +4908,34 @@ const handlePostBooking = async (req, res) => {
     
     // Resolve dynamic service details
     let resolvedProduct = await resolveServiceDetails(productId);
-    if (!resolvedProduct) {
-      resolvedProduct = {
-        productId: productId,
-        serviceName: productId,
-        title: productId,
-        price: 299,
-        description: "Service booking"
-      };
+    
+    // If resolveServiceDetails returned the "Tap Repair" fallback but the user
+    // actually booked a different service, use the client-provided data instead.
+    // The Flutter app now sends serviceName and price in the request body.
+    const clientServiceName = req.body.serviceName || req.query.serviceName;
+    const clientPrice = req.body.price !== undefined ? Number(req.body.price) : null;
+    
+    if (!resolvedProduct || resolvedProduct.serviceName === 'Tap Repair') {
+      if (clientServiceName && clientServiceName.toLowerCase() !== 'tap repair') {
+        // Use what the client sent — it's the actual service the user selected
+        resolvedProduct = {
+          productId: productId,  // keep the original title as productId
+          serviceName: clientServiceName,
+          title: clientServiceName,
+          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 299,
+          description: `${clientServiceName} service`,
+          image: ""
+        };
+        console.log(`[handlePostBooking] Using client-provided service: "${clientServiceName}" at ₹${resolvedProduct.price}`);
+      } else {
+        resolvedProduct = {
+          productId: productId,
+          serviceName: productId,
+          title: productId,
+          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 299,
+          description: "Service booking"
+        };
+      }
     }
 
     const pendingOrders = [];
