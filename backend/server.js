@@ -45,11 +45,11 @@ function safeJsonParse(str, fallback = null) {
 
 function parseOrderNumbers(row) {
   if (!row) return null;
-  row.price = parseFloat(row.price);
+  row.price = row.price !== undefined && row.price !== null ? Math.round(Number(row.price)) : 299;
   row.address = safeJsonParse(row.address);
   row.payment = safeJsonParse(row.payment);
-  row.advancePayment = row.advancePayment !== undefined && row.advancePayment !== null ? parseFloat(row.advancePayment) : 199.00;
-  row.remainingAmount = row.remainingAmount !== undefined && row.remainingAmount !== null ? parseFloat(row.remainingAmount) : 0.00;
+  row.advancePayment = row.advancePayment !== undefined && row.advancePayment !== null ? Math.round(Number(row.advancePayment)) : 199;
+  row.remainingAmount = row.remainingAmount !== undefined && row.remainingAmount !== null ? Math.round(Number(row.remainingAmount)) : 0;
   return row;
 }
 
