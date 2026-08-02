@@ -6035,7 +6035,8 @@ const handleGetCheckout = async (req, res) => {
         // CRITICAL: If queryProductId is provided and the draft has wrong/generic serviceName,
         // override with the actual service the user just booked.
         if (order && queryProductId && queryProductId.toLowerCase() !== 'tap repair') {
-          if (!order.serviceName ||
+          if (String(order.productId).toLowerCase() !== queryProductId.toLowerCase() || 
+              String(order.serviceName).toLowerCase() !== queryProductId.toLowerCase() ||
               order.serviceName.toLowerCase() === 'tap repair' ||
               /^service \d+$/i.test(order.serviceName)) {
             // Get the real price from DB if possible
@@ -6053,10 +6054,17 @@ const handleGetCheckout = async (req, res) => {
             } catch(e) { /* ignore */ }
             order.serviceName = queryProductId;
             order.productId = queryProductId;
-            if (realPrice && realPrice !== 299) order.price = realPrice;
+            order.price = realPrice;
             if (order.payment) order.payment.amountPaid = order.price;
+            order.razorpayOrderId = null; // Clear old Razorpay order ID since the product has changed!
             draftOrders.set(targetPhone, order);
-            console.log(`[GetCheckout] Overrode draft serviceName with queryProductId: "${queryProductId}"`);
+            console.log(`[GetCheckout] Overrode draft product with queryProductId: "${queryProductId}" (price: ${realPrice})`);
+            try {
+              await DbLayer.createOrder(order);
+              console.log(`[GetCheckout] Persisted overridden draft order #${order.id} to DB`);
+            } catch (dbErr) {
+              console.warn(`[GetCheckout] Could not save overridden draft to DB:`, dbErr.message);
+            }
           }
         }
       }
