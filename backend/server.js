@@ -4808,9 +4808,12 @@ const handlePostBooking = async (req, res) => {
 
   if (productId) {
     const resolvedProduct = await resolveServiceDetails(productId);
-    if (resolvedProduct) {
+    // Only update productId if resolved product is NOT the fallback "Tap Repair"
+    // This prevents the user's actual service title from being overwritten with the fallback
+    if (resolvedProduct && resolvedProduct.serviceName !== 'Tap Repair') {
       productId = resolvedProduct.productId;
     }
+    // If fallback was returned, keep the original title as productId
   }
 
   if (!productId || !date || !timeSlot) {
@@ -5000,6 +5003,13 @@ const handlePostBooking = async (req, res) => {
       };
       draftOrders.set(user.phone, order);
       console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone}`);
+      // Also persist to DB so server restarts don't lose the draft
+      try {
+        await DbLayer.createOrder(order);
+        console.log(`[handlePostBooking] Draft order #${order.id} also saved to DB`);
+      } catch (dbErr) {
+        console.warn(`[handlePostBooking] Could not save draft to DB:`, dbErr.message);
+      }
     }
 
     logBookingResult(200, true, null, user.phone);
@@ -5991,66 +6001,97 @@ const handleGetCheckout = async (req, res) => {
         const resolvedAddr = await resolveAddressForPhone(targetPhone);
 
         // Priority 1: Use queryProductId if provided (set by updated Flutter app)
-        // Priority 2: Infer from user's most recent non-fallback order history
-        // Priority 3: Last resort — "Tap Repair"
-        let inferredProductId = queryProductId;
-        if (!inferredProductId) {
-          const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
-          const recentRealOrder = userOrders.find(o =>
-            o.serviceName &&
-            o.serviceName.toLowerCase() !== 'tap repair' &&
-            !/^service \d+$/i.test(o.serviceName) &&
-            (!o.productId || (o.productId.toString().toLowerCase() !== 'tap repair' && !/^\d+$/.test(o.productId.toString())))
-          );
-          if (recentRealOrder) {
-            inferredProductId = recentRealOrder.productId || recentRealOrder.serviceName;
-          }
-        }
+        const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
 
-        let resolvedProduct = inferredProductId ? await resolveServiceDetails(inferredProductId) : null;
-        if (!resolvedProduct) {
-          resolvedProduct = await resolveServiceDetails("Tap Repair") || {
-            productId: "Tap Repair",
-            serviceName: "Tap Repair",
-            title: "Tap Repair",
-            price: 299,
-            description: "Fix leaking taps and water issues"
-          };
-        }
-        const lastOrderId = await DbLayer.getLastOrderId();
-        let highestId = lastOrderId;
-        for (const draft of draftOrders.values()) {
-          if (draft.id > highestId) {
-            highestId = draft.id;
+        // Priority 1: queryProductId passed by the Flutter app
+        // Priority 2: A recent draft order saved in DB (survives server restarts)
+        // Priority 3: Most recent non-Tap-Repair order (for returning users)
+        // Priority 4: Absolute fallback - Tap Repair
+
+        // Check if there's a recent draft in DB to restore
+        const recentDraftOrder = userOrders.find(o =>
+          o.serviceName &&
+          o.serviceName.toLowerCase() !== 'tap repair' &&
+          !/^service \d+$/i.test(o.serviceName) &&
+          (o.bookingStatus === 'draft' || o.status === 'Draft') &&
+          (!o.productId || (o.productId.toString().toLowerCase() !== 'tap repair' && !/^\d+$/.test(o.productId.toString())))
+        );
+
+        if (recentDraftOrder && !queryProductId) {
+          // Restore draft from DB into memory
+          draftOrders.set(targetPhone, recentDraftOrder);
+          order = JSON.parse(JSON.stringify(recentDraftOrder));
+          console.log(`[GetCheckout] Restored draft order #${recentDraftOrder.id} from DB for user ${targetPhone}`);
+        } else {
+          // No draft found - need to create a new one
+          let inferredProductId = queryProductId;
+          if (!inferredProductId) {
+            const recentRealOrder = userOrders.find(o =>
+              o.serviceName &&
+              o.serviceName.toLowerCase() !== 'tap repair' &&
+              !/^service \d+$/i.test(o.serviceName) &&
+              (!o.productId || (o.productId.toString().toLowerCase() !== 'tap repair' && !/^\d+$/.test(o.productId.toString())))
+            );
+            if (recentRealOrder) {
+              inferredProductId = recentRealOrder.productId || recentRealOrder.serviceName;
+            }
           }
-        }
-        const orderId = highestId + 1;
-        
-        order = {
-          id: orderId,
-          userPhone: targetPhone,
-          userId: targetPhone,
-          serviceName: resolvedProduct.serviceName,
-          price: resolvedProduct.price,
-          date: queryDate || (await getDynamicDateAndSlot()).date,
-          status: "Draft",
-          bookingStatus: "draft",
-          partnerName: null,
-          partnerDistance: null,
-          productId: resolvedProduct.productId,
-          description: resolvedProduct.description,
-          timeSlot: querySlot || (await getDynamicDateAndSlot()).timeSlot,
-          address: resolvedAddr,
-          payment: {
-            paymentMethod: queryPaymentMethod || "Wallet",
-            amountPaid: resolvedProduct.price
-          },
-          createdAt: Date.now()
-        };
-        draftOrders.set(targetPhone, order);
-        justCreated = true;
-        console.log(`[GetCheckout] Created in-memory fallback order #${orderId} for user ${targetPhone}`);
-      }
+
+          let resolvedProduct = inferredProductId ? await resolveServiceDetails(inferredProductId) : null;
+          if (!resolvedProduct || resolvedProduct.serviceName === 'Tap Repair') {
+            if (inferredProductId && inferredProductId !== 'Tap Repair') {
+              // Service not in DB but we have the title - use it directly
+              resolvedProduct = {
+                productId: inferredProductId,
+                serviceName: inferredProductId,
+                title: inferredProductId,
+                price: 299,
+                description: `${inferredProductId} service`
+              };
+            } else {
+              resolvedProduct = {
+                productId: "Tap Repair",
+                serviceName: "Tap Repair",
+                title: "Tap Repair",
+                price: 299,
+                description: "Fix leaking taps and water issues"
+              };
+            }
+          }
+
+          const lastOrderId = await DbLayer.getLastOrderId();
+          let highestId = lastOrderId;
+          for (const draft of draftOrders.values()) {
+            if (draft.id > highestId) highestId = draft.id;
+          }
+          const orderId = highestId + 1;
+
+          order = {
+            id: orderId,
+            userPhone: targetPhone,
+            userId: targetPhone,
+            serviceName: resolvedProduct.serviceName,
+            price: resolvedProduct.price,
+            date: queryDate || (await getDynamicDateAndSlot()).date,
+            status: "Draft",
+            bookingStatus: "draft",
+            partnerName: null,
+            partnerDistance: null,
+            productId: resolvedProduct.productId,
+            description: resolvedProduct.description,
+            timeSlot: querySlot || (await getDynamicDateAndSlot()).timeSlot,
+            address: resolvedAddr,
+            payment: {
+              paymentMethod: queryPaymentMethod || "Wallet",
+              amountPaid: resolvedProduct.price
+            },
+            createdAt: Date.now()
+          };
+          draftOrders.set(targetPhone, order);
+          justCreated = true;
+          console.log(`[GetCheckout] Created new fallback order #${orderId} for user ${targetPhone} with product: ${resolvedProduct.serviceName}`);
+        } // end else (no draft found)
+      } // end if (!order)
     } else {
       // Treat as numerical orderId
       const orderId = parseInt(idParam);
