@@ -1435,14 +1435,28 @@ async function getAuthenticatedUser(req) {
     return null;
   }
   const token = authHeader.split(' ')[1];
+  if (!token) return null;
+
   try {
-    // Backward compatibility: check if it's a 10-digit raw phone number
     let phone;
-    if (/^\d{10}$/.test(token)) {
-      phone = token;
+    const cleanDigits = token.replace(/\D/g, '');
+    if (cleanDigits.length === 10) {
+      phone = cleanDigits;
+    } else if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+      phone = cleanDigits.substring(2);
     } else {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      phone = decoded.phone;
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        phone = decoded.phone || decoded.userId || decoded.id;
+        if (phone) {
+          const digits = String(phone).replace(/\D/g, '');
+          phone = digits.length === 12 && digits.startsWith('91') ? digits.substring(2) : digits;
+        }
+      } catch (jwtErr) {
+        if (cleanDigits.length >= 10) {
+          phone = cleanDigits.slice(-10);
+        }
+      }
     }
 
     if (!phone) return null;
