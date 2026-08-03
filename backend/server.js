@@ -5376,6 +5376,7 @@ const handlePostCheckout = async (req, res) => {
 
     // AMC coupon discount logic
     const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
+    let activeAmcId = null; // declared here so it's accessible in finalOrder below
     let foundPrice = 499;
     if (foundService && foundService.price !== undefined && foundService.price !== null && !isNaN(foundService.price)) {
       foundPrice = Number(foundService.price);
