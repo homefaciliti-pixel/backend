@@ -6097,33 +6097,33 @@ const handleGetCheckout = async (req, res) => {
         // Final fallback: most recent draft
         order = JSON.parse(JSON.stringify(chosenOrder || pendingOrders[0]));
 
+        // Helper to check if a service title is generic tap repair fallback
+        const isTapRepairFallback = (sName) => {
+          if (!sName) return true;
+          const lower = String(sName).toLowerCase().trim();
+          return lower === 'tap repair' || lower === 'tap / faucet repair & replacement' || /^service \d+$/i.test(lower);
+        };
+
         // CRITICAL: If queryProductId is provided and the draft has wrong/generic serviceName,
         // override with the actual service the user just booked.
-        if (order && queryProductId && queryProductId.toLowerCase() !== 'tap repair') {
+        if (order && queryProductId && !isTapRepairFallback(queryProductId)) {
           if (String(order.productId).toLowerCase() !== queryProductId.toLowerCase() || 
               String(order.serviceName).toLowerCase() !== queryProductId.toLowerCase() ||
-              order.serviceName.toLowerCase() === 'tap repair' ||
-              /^service \d+$/i.test(order.serviceName)) {
-            // Get the real price from DB if possible
-            let realPrice = order.price;
-            try {
-              const [priceRows] = await mysqlPool.query(
-                'SELECT price, discount FROM node_services WHERE LOWER(title) = ? LIMIT 1',
-                [queryProductId.toLowerCase()]
-              );
-              if (priceRows.length > 0) {
-                const dbPrice = parseFloat(priceRows[0].price);
-                const disc = priceRows[0].discount ? parseFloat(priceRows[0].discount) : 0;
-                realPrice = Math.max(0, dbPrice - disc);
-              }
-            } catch(e) { /* ignore */ }
-            order.serviceName = queryProductId;
-            order.productId = queryProductId;
+              isTapRepairFallback(order.serviceName)) {
+            // Resolve exact product details dynamically from DB or catalog
+            const resolvedQueryProduct = await resolveServiceDetails(queryProductId);
+            let realPrice = resolvedQueryProduct ? resolvedQueryProduct.price : order.price;
+            let realName = resolvedQueryProduct ? resolvedQueryProduct.title : queryProductId;
+            let realDesc = resolvedQueryProduct ? resolvedQueryProduct.description : `${queryProductId} service`;
+
+            order.serviceName = realName;
+            order.productId = realName;
             order.price = realPrice;
+            order.description = realDesc;
             if (order.payment) order.payment.amountPaid = order.price;
             order.razorpayOrderId = null; // Clear old Razorpay order ID since the product has changed!
             draftOrders.set(targetPhone, order);
-            console.log(`[GetCheckout] Overrode draft product with queryProductId: "${queryProductId}" (price: ${realPrice})`);
+            console.log(`[GetCheckout] Overrode draft product with queryProductId: "${realName}" (price: ${realPrice})`);
             try {
               await DbLayer.createOrder(order);
               console.log(`[GetCheckout] Persisted overridden draft order #${order.id} to DB`);
