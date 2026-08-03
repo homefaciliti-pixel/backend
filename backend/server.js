@@ -5879,11 +5879,11 @@ const sanitizeProductObj = (prod, defaultTitle = "professional Plumber") => {
 const resolveServiceDetails = async (productId) => {
   if (!productId) {
     return {
-      productId: "Tap Repair",
-      serviceName: "Tap Repair",
-      title: "Tap Repair",
-      price: 299,
-      description: "Fix leaking taps and water issues",
+      productId: "professional Plumber",
+      serviceName: "professional Plumber",
+      title: "professional Plumber",
+      price: 499,
+      description: "Professional Plumber Home Service",
       image: ""
     };
   }
@@ -5961,15 +5961,16 @@ const resolveServiceDetails = async (productId) => {
     };
   }
 
-  // Fallback service instead of returning null to prevent 404 errors with dummy IDs
+  // Return the requested productId dynamically instead of hardcoded Tap Repair
+  const fallbackName = productId && productId.trim() !== '' ? productId.trim() : "professional Plumber";
   return {
-    productId: "Tap Repair",
-    serviceName: "Tap Repair",
-    title: "Tap Repair",
-    price: 299,
-    description: "Fix leaking taps and water issues",
+    productId: fallbackName,
+    serviceName: fallbackName,
+    title: fallbackName,
+    price: 499,
+    description: `${fallbackName} service`,
     image: "",
-    category: "Plumber",
+    category: getServiceCategory(fallbackName),
     categoryId: ""
   };
 };
