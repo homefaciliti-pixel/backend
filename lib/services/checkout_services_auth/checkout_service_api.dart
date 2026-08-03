@@ -4,29 +4,23 @@ import 'package:http/http.dart' as http;
 
 import '../../viewmodel/checkout_model.dart';
 
-//import '../../model/checkout_model.dart';
-
 class CheckoutService {
 
   Future<CheckoutModel?> getCheckout({
-
     required String phone,
     required String token,
-    String? productId,
-
+    required String status,
   }) async {
 
     try {
 
-      // Build URL – include productId query param when available so the
-      // backend always returns the correct service instead of the
-      // "Tap Repair" fallback.
+      // status is the productId/service name selected by user
       final cleanPhone = (phone.isNotEmpty) ? phone : "me";
       final baseUrl =
           "https://backend-1-ux3b.onrender.com/api/checkout-api/$cleanPhone";
-      final uri = (productId != null && productId.isNotEmpty)
+      final uri = status.isNotEmpty
           ? Uri.parse(baseUrl)
-              .replace(queryParameters: {"productId": productId})
+              .replace(queryParameters: {"productId": status})
           : Uri.parse(baseUrl);
 
       final response = await http.get(

@@ -10,7 +10,8 @@ import '../payment/payment_screen.dart';
 // import '../../viewmodel/checkout_viewmodel.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  final String status;
+  const CheckoutScreen({super.key, this.status = ""});
 
   @override
   State<CheckoutScreen> createState() =>
@@ -39,12 +40,11 @@ class _CheckoutScreenState
 
     String phone = prefs.getString("phone") ?? "";
 
-    // Read the service that was booked in ServiceDetailScreen.
-    // Passing it to the API prevents the server from falling back
-    // to the default "Tap Repair" draft when the user navigates
-    // back to this screen after going to the payment page.
-    String productId =
-        prefs.getString("lastBookedProductId") ?? "";
+    // status passed from AddressScreen (which gets it from ServiceDetailScreen)
+    // Passing it to the API ensures the correct service is loaded
+    String status = widget.status.isNotEmpty
+        ? widget.status
+        : (prefs.getString("lastBookedProductId") ?? "");
 
     if (!mounted) return;
 
@@ -54,7 +54,7 @@ class _CheckoutScreenState
     ).fetchCheckout(
       phone: phone,
       token: token,
-      productId: productId.isNotEmpty ? productId : null,
+      status: status,
     );
   }
 
