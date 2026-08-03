@@ -5223,9 +5223,27 @@ const handlePostCheckout = async (req, res) => {
     const phone = user.phone;
     
     // Resolve service properties from dynamic database or fall back to hardcoded SERVICES_DATA
-    const foundService = await resolveServiceDetails(productId);
-    if (!foundService) {
-      return res.status(404).json({ error: `Service/Product '${productId}' not found in catalog` });
+    let foundService = await resolveServiceDetails(productId);
+    
+    // If resolveServiceDetails returned the "Tap Repair" fallback but the user
+    // actually booked a different service, use the client-provided data instead.
+    const clientServiceName = req.body.serviceName || req.query.serviceName || req.body.title || req.query.title;
+    const clientPrice = req.body.price !== undefined ? Number(req.body.price) : (req.body.payment ? Number(req.body.payment.amountPaid) : null);
+    
+    if (!foundService || foundService.serviceName === 'Tap Repair') {
+      if (clientServiceName && clientServiceName.toLowerCase() !== 'tap repair') {
+        foundService = {
+          productId: productId,
+          serviceName: clientServiceName,
+          title: clientServiceName,
+          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 299,
+          description: req.body.description || `${clientServiceName} service`,
+          image: req.body.image || ""
+        };
+        console.log(`[handlePostCheckout] Using client-provided service override: "${clientServiceName}" at ₹${foundService.price}`);
+      } else if (!foundService) {
+        return res.status(404).json({ error: `Service/Product '${productId}' not found in catalog` });
+      }
     }
     
     // Retrieve the user's latest saved address or save new one if passed in body
