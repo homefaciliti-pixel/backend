@@ -5838,7 +5838,7 @@ const sanitizeUserObj = (user) => {
   };
 };
 
-const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
+const sanitizeProductObj = (prod, defaultTitle = "professional Plumber") => {
   if (!prod) {
     return {
       productId: defaultTitle,
@@ -5847,10 +5847,10 @@ const sanitizeProductObj = (prod, defaultTitle = "Tap Repair") => {
       name: defaultTitle,
       productName: defaultTitle,
       product_name: defaultTitle,
-      price: 299,
-      description: "Fix leaking taps and water issues",
-      productDescription: "Fix leaking taps and water issues",
-      product_description: "Fix leaking taps and water issues",
+      price: 499,
+      description: "Professional Plumber Home Service",
+      productDescription: "Professional Plumber Home Service",
+      product_description: "Professional Plumber Home Service",
       image: "",
       date: "",
       timeSlot: ""
@@ -6147,29 +6147,25 @@ const handleGetCheckout = async (req, res) => {
         // Priority 3: Most recent non-Tap-Repair order (for returning users)
         // Priority 4: Absolute fallback - Tap Repair
 
-        // Check if there's a recent draft in DB to restore
+        // Check if there's a recent non-fallback draft in DB to restore
         const recentDraftOrder = userOrders.find(o =>
-          o.serviceName &&
-          o.serviceName.toLowerCase() !== 'tap repair' &&
-          !/^service \d+$/i.test(o.serviceName) &&
           (o.bookingStatus === 'draft' || o.status === 'Draft') &&
-          (!o.productId || o.productId.toString().toLowerCase() !== 'tap repair')
-        );
+          !isTapRepairFallback(o.serviceName) &&
+          !isTapRepairFallback(o.productId)
+        ) || userOrders.find(o => (o.bookingStatus === 'draft' || o.status === 'Draft'));
 
         if (recentDraftOrder && !queryProductId) {
           // Restore draft from DB into memory
           draftOrders.set(targetPhone, recentDraftOrder);
           order = JSON.parse(JSON.stringify(recentDraftOrder));
-          console.log(`[GetCheckout] Restored draft order #${recentDraftOrder.id} from DB for user ${targetPhone}`);
+          console.log(`[GetCheckout] Restored draft order #${recentDraftOrder.id} (${recentDraftOrder.serviceName}) from DB for user ${targetPhone}`);
         } else {
           // No draft found - need to create a new one
           let inferredProductId = queryProductId;
           if (!inferredProductId) {
             const recentRealOrder = userOrders.find(o =>
-              o.serviceName &&
-              o.serviceName.toLowerCase() !== 'tap repair' &&
-              !/^service \d+$/i.test(o.serviceName) &&
-              (!o.productId || o.productId.toString().toLowerCase() !== 'tap repair')
+              !isTapRepairFallback(o.serviceName) &&
+              !isTapRepairFallback(o.productId)
             );
             if (recentRealOrder) {
               inferredProductId = recentRealOrder.productId || recentRealOrder.serviceName;
@@ -6177,23 +6173,23 @@ const handleGetCheckout = async (req, res) => {
           }
 
           let resolvedProduct = inferredProductId ? await resolveServiceDetails(inferredProductId) : null;
-          if (!resolvedProduct || resolvedProduct.serviceName === 'Tap Repair') {
-            if (inferredProductId && inferredProductId !== 'Tap Repair') {
+          if (!resolvedProduct || isTapRepairFallback(resolvedProduct.serviceName)) {
+            if (inferredProductId && !isTapRepairFallback(inferredProductId)) {
               // Service not in DB but we have the title - use it directly
               resolvedProduct = {
                 productId: inferredProductId,
                 serviceName: inferredProductId,
                 title: inferredProductId,
-                price: 299,
+                price: 499,
                 description: `${inferredProductId} service`
               };
             } else {
-              resolvedProduct = {
-                productId: "Tap Repair",
-                serviceName: "Tap Repair",
-                title: "Tap Repair",
-                price: 299,
-                description: "Fix leaking taps and water issues"
+              resolvedProduct = await resolveServiceDetails("professional Plumber") || {
+                productId: "professional Plumber",
+                serviceName: "professional Plumber",
+                title: "professional Plumber",
+                price: 499,
+                description: "Professional Plumber Home Service"
               };
             }
           }
