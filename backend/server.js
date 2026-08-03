@@ -5218,6 +5218,10 @@ const handlePostCheckout = async (req, res) => {
     const phone = user.phone;
     
     // Resolve service properties from dynamic database or fall back to hardcoded SERVICES_DATA
+    const clientServiceName = req.body.serviceName || req.query.serviceName || req.body.title || req.query.title;
+    const clientPrice = req.body.price !== undefined ? Number(req.body.price) : (req.body.payment ? Number(req.body.payment.amountPaid) : null);
+    
+    let foundService = await resolveServiceDetails(productId);
     if (!foundService) {
       foundService = {
         productId: productId,
