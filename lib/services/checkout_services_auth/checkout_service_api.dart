@@ -21,8 +21,9 @@ class CheckoutService {
       // Build URL – include productId query param when available so the
       // backend always returns the correct service instead of the
       // "Tap Repair" fallback.
+      final cleanPhone = (phone.isNotEmpty) ? phone : "me";
       final baseUrl =
-          "https://backend-1-ux3b.onrender.com/api/checkout-api/$phone";
+          "https://backend-1-ux3b.onrender.com/api/checkout-api/$cleanPhone";
       final uri = (productId != null && productId.isNotEmpty)
           ? Uri.parse(baseUrl)
               .replace(queryParameters: {"productId": productId})

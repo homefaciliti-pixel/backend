@@ -54,15 +54,25 @@ async function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function safeTranslate(text, to) {
-  if (!text || text.trim() === '') return '';
-  try {
-    const res = await translate(text, { to });
-    return res.text;
-  } catch (err) {
-    console.error(`[Translate Error] text="${text}", to="${to}":`, err.message);
-    return text;
+async function safeTranslate(text, to, retries = 5, delayMs = 2000) {
+  if (!text || text.trim() === '') return null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await translate(text, { to });
+      return res.text;
+    } catch (err) {
+      if (err.message.includes('Too Many Requests') || err.message.includes('429')) {
+        console.warn(`[Rate Limit] Waiting ${delayMs}ms before retry ${i + 1}/${retries} for "${text}" to "${to}"`);
+        await delay(delayMs);
+        delayMs *= 2; // Exponential backoff
+      } else {
+        console.error(`[Translate Error] text="${text}", to="${to}":`, err.message);
+        return null;
+      }
+    }
   }
+  console.error(`[Translate Error] Failed after ${retries} retries for "${text}" to "${to}"`);
+  return null;
 }
 
 async function seedLanguages() {
@@ -102,9 +112,9 @@ async function seedLanguages() {
   }
 
   console.log("Translating Categories...");
-  const [categories] = await pool.query("SELECT id, name, title FROM node_categories");
+  const [categories] = await pool.query("SELECT id, title FROM node_categories");
   for (const cat of categories) {
-    const baseText = cat.title || cat.name;
+    const baseText = cat.title;
     if (!baseText) continue;
     
     const updates = {};
@@ -115,8 +125,10 @@ async function seedLanguages() {
       const [[check]] = await pool.query(`SELECT ${colTitle}, ${colName} FROM node_categories WHERE id = ?`, [cat.id]);
       if (!check || (!check[colTitle] && !check[colName])) {
         const translated = await safeTranslate(baseText, lang);
-        updates[colTitle] = translated;
-        updates[colName] = translated;
+        if (translated) {
+          updates[colTitle] = translated;
+          updates[colName] = translated;
+        }
         await delay(500);
       }
     }
@@ -140,13 +152,15 @@ async function seedLanguages() {
       const [[check]] = await pool.query(`SELECT ${colTitle}, ${colDesc} FROM node_services WHERE id = ?`, [srv.id]);
       if (!check || !check[colTitle]) {
         if (srv.title) {
-          updates[colTitle] = await safeTranslate(srv.title, lang);
+          const translated = await safeTranslate(srv.title, lang);
+          if (translated) updates[colTitle] = translated;
           await delay(300);
         }
       }
       if (!check || !check[colDesc]) {
         if (srv.description) {
-          updates[colDesc] = await safeTranslate(srv.description, lang);
+          const translated = await safeTranslate(srv.description, lang);
+          if (translated) updates[colDesc] = translated;
           await delay(300);
         }
       }

@@ -6056,8 +6056,8 @@ const handleGetCheckout = async (req, res) => {
     
     // Check if the idParam looks like a phone number (user id)
     if (isNaN(idParam) || idParam.length >= 8) {
-      const targetPhone = idParam === "me" ? user.phone : idParam;
-       const pendingOrders = [];
+      targetPhone = idParam === "me" ? user.phone : idParam;
+      const pendingOrders = [];
       let memDraft = draftOrders.get(targetPhone);
       if (!memDraft) {
         // Hydrate from DB if missing (e.g. server restart)
