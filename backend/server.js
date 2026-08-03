@@ -478,7 +478,7 @@ const MySqlDbLayer = {
   },
 
   async getUserByPhone(phone) {
-    const row = await this.queryOne("SELECT * FROM node_users_v2 WHERE phone = ?", [phone]);
+    const row = await this.queryOne("SELECT * FROM node_users_v2 WHERE phone IN (?) LIMIT 1", [getPhoneVariants(phone)]);
     if (!row) return null;
     row.walletBalance = parseFloat(row.walletBalance);
     return row;
@@ -511,17 +511,21 @@ const MySqlDbLayer = {
   },
 
   async updateUser(phone, updates) {
-    if (Object.keys(updates).length === 0) return this.getUserByPhone(phone);
+    const user = await this.getUserByPhone(phone);
+    const targetPhone = user ? user.phone : phone;
+    if (Object.keys(updates).length === 0) return user;
     const keys = Object.keys(updates);
     const values = Object.values(updates);
     const setClause = keys.map(k => `${k} = ?`).join(", ");
-    await mysqlPool.query(`UPDATE node_users_v2 SET ${setClause} WHERE phone = ?`, [...values, phone]);
-    return this.getUserByPhone(phone);
+    await mysqlPool.query(`UPDATE node_users_v2 SET ${setClause} WHERE phone = ?`, [...values, targetPhone]);
+    return this.getUserByPhone(targetPhone);
   },
 
   async deleteUser(phone) {
-    await mysqlPool.query("DELETE FROM node_users_v2 WHERE phone = ?", [phone]);
-    await mysqlPool.query("DELETE FROM node_addresses_v2 WHERE userPhone = ?", [phone]);
+    const user = await this.getUserByPhone(phone);
+    const targetPhone = user ? user.phone : phone;
+    await mysqlPool.query("DELETE FROM node_users_v2 WHERE phone = ?", [targetPhone]);
+    await mysqlPool.query("DELETE FROM node_addresses_v2 WHERE userPhone = ?", [targetPhone]);
     return true;
   },
 
@@ -550,7 +554,7 @@ const MySqlDbLayer = {
   },
 
   async getOrdersByUserPhone(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 WHERE userPhone = ? ORDER BY id DESC", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_orders_v2 WHERE userPhone IN (?) ORDER BY id DESC", [getPhoneVariants(phone)]);
     return rows.map(row => parseOrderNumbers(row));
   },
 
@@ -560,7 +564,7 @@ const MySqlDbLayer = {
   },
 
   async getWalletTransactions(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_wallet_transactions WHERE userPhone = ? ORDER BY id DESC", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_wallet_transactions WHERE userPhone IN (?) ORDER BY id DESC", [getPhoneVariants(phone)]);
     return rows.map(row => {
       row.amount = parseFloat(row.amount);
       return row;
@@ -576,7 +580,7 @@ const MySqlDbLayer = {
   },
 
   async getAmcSubscriptions(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_amc_subscriptions WHERE userPhone = ? ORDER BY startDate DESC", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_amc_subscriptions WHERE userPhone IN (?) ORDER BY startDate DESC", [getPhoneVariants(phone)]);
     return rows;
   },
 
@@ -628,8 +632,8 @@ const MySqlDbLayer = {
 
   async getAmcSubscriptionByCategory(phone, category) {
     const row = await this.queryOne(
-      "SELECT * FROM node_amc_subscriptions WHERE userPhone = ? AND category = ? AND status = 'active' AND endDate > NOW() LIMIT 1",
-      [phone, category]
+      "SELECT * FROM node_amc_subscriptions WHERE userPhone IN (?) AND category = ? AND status = 'active' AND endDate > NOW() LIMIT 1",
+      [getPhoneVariants(phone), category]
     );
     return row;
   },
@@ -644,7 +648,7 @@ const MySqlDbLayer = {
   },
 
   async getSavedCards(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_saved_cards WHERE userPhone = ? ORDER BY createdAt DESC", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_saved_cards WHERE userPhone IN (?) ORDER BY createdAt DESC", [getPhoneVariants(phone)]);
     return rows;
   },
 
@@ -778,7 +782,7 @@ const MySqlDbLayer = {
   },
 
   async getAddressesByUserPhone(phone) {
-    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses_v2 WHERE userPhone = ?", [phone]);
+    const [rows] = await mysqlPool.query("SELECT * FROM node_addresses_v2 WHERE userPhone IN (?)", [getPhoneVariants(phone)]);
     return rows.map(r => {
       r.latitude = r.latitude !== null ? parseFloat(r.latitude) : null;
       r.longitude = r.longitude !== null ? parseFloat(r.longitude) : null;
@@ -5723,6 +5727,18 @@ const normalizeTimeSlot = (slotStr) => {
 
 };
 
+const getPhoneVariants = (phone) => {
+  if (!phone) return [];
+  const clean = String(phone).replace(/\D/g, '');
+  if (clean.length < 10) return [phone];
+  const last10 = clean.substring(clean.length - 10);
+  return [
+    last10,
+    `91${last10}`,
+    `+91${last10}`
+  ];
+};
+
 // Sanitizers to prevent Dart Type Null Errors on the client
 const sanitizeAddressObj = (addr, lang = 'en') => {
   if (!addr) {
@@ -6088,7 +6104,7 @@ const handleGetCheckout = async (req, res) => {
           o.serviceName.toLowerCase() !== 'tap repair' &&
           !/^service \d+$/i.test(o.serviceName) &&
           (o.bookingStatus === 'draft' || o.status === 'Draft') &&
-          (!o.productId || (o.productId.toString().toLowerCase() !== 'tap repair' && !/^\d+$/.test(o.productId.toString())))
+          (!o.productId || o.productId.toString().toLowerCase() !== 'tap repair')
         );
 
         if (recentDraftOrder && !queryProductId) {
@@ -6104,7 +6120,7 @@ const handleGetCheckout = async (req, res) => {
               o.serviceName &&
               o.serviceName.toLowerCase() !== 'tap repair' &&
               !/^service \d+$/i.test(o.serviceName) &&
-              (!o.productId || (o.productId.toString().toLowerCase() !== 'tap repair' && !/^\d+$/.test(o.productId.toString())))
+              (!o.productId || o.productId.toString().toLowerCase() !== 'tap repair')
             );
             if (recentRealOrder) {
               inferredProductId = recentRealOrder.productId || recentRealOrder.serviceName;
