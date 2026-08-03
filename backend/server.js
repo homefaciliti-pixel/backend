@@ -5856,7 +5856,13 @@ const sanitizeProductObj = (prod, defaultTitle = "professional Plumber") => {
       timeSlot: ""
     };
   }
-  const titleVal = String(prod.title || prod.serviceName || prod.productName || prod.product_name || prod.productId || defaultTitle);
+  let titleVal = String(prod.serviceName || prod.title || prod.productName || prod.product_name || prod.productId || defaultTitle).trim();
+  if (titleVal === "0" || titleVal === "null" || titleVal === "undefined" || !titleVal) {
+    titleVal = String(prod.productId || prod.title || prod.serviceName || defaultTitle).trim();
+    if (titleVal === "0" || titleVal === "null" || titleVal === "undefined" || !titleVal) {
+      titleVal = defaultTitle;
+    }
+  }
   const descVal = String(prod.description || prod.productDescription || prod.product_description || "");
   return {
     productId: titleVal,
@@ -5865,7 +5871,7 @@ const sanitizeProductObj = (prod, defaultTitle = "professional Plumber") => {
     name: titleVal,
     productName: titleVal,
     product_name: titleVal,
-    price: Number(prod.price !== undefined && prod.price !== null ? prod.price : 299),
+    price: Number(prod.price !== undefined && prod.price !== null ? prod.price : 499),
     description: descVal,
     productDescription: descVal,
     product_description: descVal,

@@ -291,8 +291,13 @@ function localizeService(row, lang) {
   if (!row) return row;
   const normalizedLang = (lang || 'en').toLowerCase().trim();
 
-  const baseTitle = row.title || row.serviceName || row.productName || row.product_name || row.name || row.productId || '';
-  const baseDesc = row.description || row.productDescription || row.product_description || '';
+  let baseTitle = String(row.serviceName || row.title || row.productName || row.product_name || row.name || row.productId || '').trim();
+  if (baseTitle === '0' || baseTitle === 'null' || baseTitle === 'undefined') {
+    baseTitle = String(row.productId || row.title || row.serviceName || '').trim();
+    if (baseTitle === '0' || baseTitle === 'null' || baseTitle === 'undefined') baseTitle = '';
+  }
+
+  const baseDesc = String(row.description || row.productDescription || row.product_description || '');
 
   let localizedTitle = '';
   let localizedDesc = '';
@@ -322,7 +327,10 @@ function localizeService(row, lang) {
     }
   }
 
-  const finalTitle = localizedTitle || baseTitle;
+  let finalTitle = localizedTitle || baseTitle;
+  if (!finalTitle || finalTitle === '0' || finalTitle === 'null' || finalTitle === 'undefined') {
+    finalTitle = baseTitle && baseTitle !== '0' && baseTitle !== 'null' ? baseTitle : '';
+  }
   const finalDesc = localizedDesc || baseDesc;
 
   return {

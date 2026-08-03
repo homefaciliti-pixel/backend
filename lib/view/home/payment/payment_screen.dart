@@ -507,8 +507,9 @@ class _PaymentScreenState extends State<PaymentScreenNew> {
                         children: [
 
                           Text(
-
-                            widget.title,
+                            (widget.title.isNotEmpty && widget.title != "0" && widget.title != "null")
+                                ? widget.title
+                                : "Service",
 
                             style: const TextStyle(
 

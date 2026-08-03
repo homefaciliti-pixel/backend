@@ -300,8 +300,9 @@ class _CheckoutScreenState
                       children: [
 
                         Text(
-
-                          data.product.serviceName,
+                          (data.product.serviceName.isNotEmpty && data.product.serviceName != "0" && data.product.serviceName != "null")
+                              ? data.product.serviceName
+                              : (data.product.productId.isNotEmpty && data.product.productId != "0" ? data.product.productId : "Service"),
 
                           style: const TextStyle(
                             fontSize: 18,

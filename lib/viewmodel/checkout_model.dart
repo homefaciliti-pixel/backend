@@ -70,22 +70,20 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    String rawTitle = (json["serviceName"] ?? json["title"] ?? json["name"] ?? json["productName"] ?? json["productId"] ?? "").toString().trim();
+    if (rawTitle.isEmpty || rawTitle == "0" || rawTitle == "null" || rawTitle == "undefined") {
+      rawTitle = (json["productId"] ?? json["title"] ?? "Service").toString().trim();
+      if (rawTitle == "0" || rawTitle == "null" || rawTitle == "undefined") rawTitle = "Service";
+    }
 
     return Product(
-
-      productId: json["productId"] ?? "",
-
-      serviceName: json["serviceName"] ?? "",
-
-      price: json["price"] ?? 0,
-
-      description: json["description"] ?? "",
-
-      image: json["image"] ?? "",
-
-      date: json["date"] ?? "",
-
-      timeSlot: json["timeSlot"] ?? "",
+      productId: (json["productId"] ?? rawTitle).toString(),
+      serviceName: rawTitle,
+      price: json["price"] is int ? json["price"] : (json["price"] != null ? int.tryParse(json["price"].toString()) ?? 0 : 0),
+      description: (json["description"] ?? json["productDescription"] ?? "").toString(),
+      image: (json["image"] ?? "").toString(),
+      date: (json["date"] ?? "").toString(),
+      timeSlot: (json["timeSlot"] ?? "").toString(),
     );
   }
 }
