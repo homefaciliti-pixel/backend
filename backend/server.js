@@ -5362,8 +5362,11 @@ const handlePostCheckout = async (req, res) => {
 
     // AMC coupon discount logic
     const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
-    let activeAmcId = null;
-    let finalPrice = amountPaid > 0 ? amountPaid : Number(foundService.price);
+    let foundPrice = 499;
+    if (foundService && foundService.price !== undefined && foundService.price !== null && !isNaN(foundService.price)) {
+      foundPrice = Number(foundService.price);
+    }
+    let finalPrice = amountPaid > 0 ? amountPaid : foundPrice;
 
     if (useAmc) {
       const category = getCanonicalCategoryName(foundService.category || getServiceCategory(foundService.title));
@@ -5480,8 +5483,8 @@ const handlePostCheckout = async (req, res) => {
       message: translate("checkout_success", req.lang)
     });
   } catch (err) {
-    console.error("Checkout failed:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Checkout failed stack:", err.stack || err);
+    res.status(500).json({ error: err.message || "Internal Server Error" });
   }
 };
 
