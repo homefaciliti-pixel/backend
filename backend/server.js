@@ -4947,27 +4947,22 @@ const handlePostBooking = async (req, res) => {
     // If resolveServiceDetails returned the "Tap Repair" fallback but the user
     // actually booked a different service, use the client-provided data instead.
     // The Flutter app now sends serviceName and price in the request body.
-    const clientServiceName = req.body.serviceName || req.query.serviceName;
-    const clientPrice = req.body.price !== undefined ? Number(req.body.price) : null;
-    
-    if (!resolvedProduct || resolvedProduct.serviceName === 'Tap Repair') {
-      if (clientServiceName && clientServiceName.toLowerCase() !== 'tap repair') {
-        // Use what the client sent — it's the actual service the user selected
+    if (!resolvedProduct) {
+      if (clientServiceName) {
         resolvedProduct = {
-          productId: productId,  // keep the original title as productId
+          productId: productId,
           serviceName: clientServiceName,
           title: clientServiceName,
-          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 299,
+          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 499,
           description: `${clientServiceName} service`,
           image: ""
         };
-        console.log(`[handlePostBooking] Using client-provided service: "${clientServiceName}" at ₹${resolvedProduct.price}`);
       } else {
         resolvedProduct = {
           productId: productId,
           serviceName: productId,
           title: productId,
-          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 299,
+          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 499,
           description: "Service booking"
         };
       }
@@ -5223,27 +5218,15 @@ const handlePostCheckout = async (req, res) => {
     const phone = user.phone;
     
     // Resolve service properties from dynamic database or fall back to hardcoded SERVICES_DATA
-    let foundService = await resolveServiceDetails(productId);
-    
-    // If resolveServiceDetails returned the "Tap Repair" fallback but the user
-    // actually booked a different service, use the client-provided data instead.
-    const clientServiceName = req.body.serviceName || req.query.serviceName || req.body.title || req.query.title;
-    const clientPrice = req.body.price !== undefined ? Number(req.body.price) : (req.body.payment ? Number(req.body.payment.amountPaid) : null);
-    
-    if (!foundService || foundService.serviceName === 'Tap Repair') {
-      if (clientServiceName && clientServiceName.toLowerCase() !== 'tap repair') {
-        foundService = {
-          productId: productId,
-          serviceName: clientServiceName,
-          title: clientServiceName,
-          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 299,
-          description: req.body.description || `${clientServiceName} service`,
-          image: req.body.image || ""
-        };
-        console.log(`[handlePostCheckout] Using client-provided service override: "${clientServiceName}" at ₹${foundService.price}`);
-      } else if (!foundService) {
-        return res.status(404).json({ error: `Service/Product '${productId}' not found in catalog` });
-      }
+    if (!foundService) {
+      foundService = {
+        productId: productId,
+        serviceName: clientServiceName || productId,
+        title: clientServiceName || productId,
+        price: clientPrice !== null && clientPrice > 0 ? clientPrice : 499,
+        description: req.body.description || `${productId} service`,
+        image: req.body.image || ""
+      };
     }
     
     // Retrieve the user's latest saved address or save new one if passed in body
@@ -6255,12 +6238,12 @@ const handleGetCheckout = async (req, res) => {
         const resolvedAddr = await resolveAddressForPhone(user.phone);
         let resolvedProduct = await resolveServiceDetails(queryProductId);
         if (!resolvedProduct) {
-          resolvedProduct = await resolveServiceDetails("Tap Repair") || {
-            productId: "Tap Repair",
-            serviceName: "Tap Repair",
-            title: "Tap Repair",
-            price: 299,
-            description: "Fix leaking taps and water issues"
+          resolvedProduct = await resolveServiceDetails("professional Plumber") || {
+            productId: "professional Plumber",
+            serviceName: "professional Plumber",
+            title: "professional Plumber",
+            price: 499,
+            description: "Professional Plumber Home Service"
           };
         }
         order = {
