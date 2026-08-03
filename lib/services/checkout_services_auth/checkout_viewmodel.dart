@@ -1,40 +1,41 @@
 import 'package:flutter/material.dart';
-
-import '../../viewmodel/checkout_model.dart';
 import 'checkout_service_api.dart';
-
-// import '../model/checkout_model.dart';
-// import '../services/checkout/checkout_service.dart';
+import '../../viewmodel/checkout_model.dart';
 
 class CheckoutViewModel extends ChangeNotifier {
+  CheckoutModel? _checkoutModel;
+  bool _loading = false;
 
-  final CheckoutService _service = CheckoutService();
-
-  CheckoutModel? checkoutModel;
-
-  bool loading = false;
+  CheckoutModel? get checkoutModel => _checkoutModel;
+  bool get loading => _loading;
 
   Future<void> fetchCheckout({
-
     required String phone,
     required String token,
     String? productId,
-
   }) async {
-
-    loading = true;
-
+    _loading = true;
     notifyListeners();
 
-    checkoutModel = await _service.getCheckout(
+    try {
+      final result = await CheckoutService().getCheckout(
+        phone: phone,
+        token: token,
+        productId: productId,
+      );
+      _checkoutModel = result;
+    } catch (e) {
+      debugPrint('CheckoutViewModel fetchCheckout error: $e');
+      _checkoutModel = null;
+    }
 
-      phone: phone,
-      token: token,
-      productId: productId,
-    );
+    _loading = false;
+    notifyListeners();
+  }
 
-    loading = false;
-
+  void clear() {
+    _checkoutModel = null;
+    _loading = false;
     notifyListeners();
   }
 }
