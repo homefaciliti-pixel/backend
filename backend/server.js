@@ -71,10 +71,41 @@ app.use('/api', languageRouter);
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+function getCanonicalPhone(phone) {
+  if (!phone) return "";
+  const clean = String(phone).replace(/\D/g, '');
+  return clean.length >= 10 ? clean.substring(clean.length - 10) : clean;
+}
+
 // Active OTPs in-memory storage (phone -> { otp, expiresAt })
-const activeOTPs = new Map();
+const activeOTPsMap = new Map();
+const activeOTPs = {
+  get(key) { return activeOTPsMap.get(getCanonicalPhone(key)); },
+  set(key, val) { activeOTPsMap.set(getCanonicalPhone(key), val); return this; },
+  delete(key) { return activeOTPsMap.delete(getCanonicalPhone(key)); },
+  has(key) { return activeOTPsMap.has(getCanonicalPhone(key)); },
+  clear() { activeOTPsMap.clear(); },
+  values() { return activeOTPsMap.values(); },
+  keys() { return activeOTPsMap.keys(); },
+  entries() { return activeOTPsMap.entries(); },
+  get size() { return activeOTPsMap.size; },
+  [Symbol.iterator]() { return activeOTPsMap[Symbol.iterator](); }
+};
+
 // Active checkout draft bookings in-memory storage (phone -> draftOrderObject)
-const draftOrders = new Map();
+const draftOrdersMap = new Map();
+const draftOrders = {
+  get(key) { return draftOrdersMap.get(getCanonicalPhone(key)); },
+  set(key, val) { draftOrdersMap.set(getCanonicalPhone(key), val); return this; },
+  delete(key) { return draftOrdersMap.delete(getCanonicalPhone(key)); },
+  has(key) { return draftOrdersMap.has(getCanonicalPhone(key)); },
+  clear() { draftOrdersMap.clear(); },
+  values() { return draftOrdersMap.values(); },
+  keys() { return draftOrdersMap.keys(); },
+  entries() { return draftOrdersMap.entries(); },
+  get size() { return draftOrdersMap.size; },
+  [Symbol.iterator]() { return draftOrdersMap[Symbol.iterator](); }
+};
 const isMockPaymentAllowed = () => {
   if (process.env.ALLOW_MOCK_PAYMENTS === "true") {
     return true;
