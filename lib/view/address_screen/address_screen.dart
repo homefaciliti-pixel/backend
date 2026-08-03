@@ -1,811 +1,241 @@
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:userapp/view/home/servicesdetail screen/checkout_screen.dart';
+
 
 import '../../model/address_model.dart';
-import '../../utils/app_colors.dart';
-import '../../view/paymentScreen/payment_screen.dart';
 import '../../viewmodel/address_viewmodel.dart';
-import '../home/servicesdetail screen/checkout_screen.dart';
 
 class AddressScreen extends StatefulWidget {
   const AddressScreen({super.key});
+
   @override
   State<AddressScreen> createState() => _AddressScreenState();
 }
-
 class _AddressScreenState extends State<AddressScreen> {
+
   final _formKey = GlobalKey<FormState>();
-  final nameController=  TextEditingController();
+
   final houseController = TextEditingController();
   final societyController = TextEditingController();
   final floorController = TextEditingController();
   final landmarkController = TextEditingController();
-  final phoneNumberController= TextEditingController();
-  final cityController = TextEditingController();
   final localityController = TextEditingController();
   final pinController = TextEditingController();
-  GoogleMapController? mapController;
-
-  LatLng currentPosition = const LatLng(26.9124, 75.7873);
-
-  Marker? selectedMarker;
-
-  String currentAddress = "";
+  final latController = TextEditingController();
+  final lonController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    getCurrentLocation();
-  }
-
-  Future<void> getCurrentLocation() async {
-
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled =
-    await Geolocator.isLocationServiceEnabled();
-
-    if (!serviceEnabled) {
-      return;
-    }
-
-    permission =
-    await Geolocator.checkPermission();
-
-    if (permission ==
-        LocationPermission.denied) {
-
-      permission =
-      await Geolocator.requestPermission();
-    }
-
-    if (permission ==
-        LocationPermission.deniedForever) {
-
-      return;
-    }
-
-    Position position =
-    await Geolocator.getCurrentPosition(
-      desiredAccuracy:
-      LocationAccuracy.high,
-    );
-
-    LatLng latLng = LatLng(
-      position.latitude,
-      position.longitude,
-    );
-
-    setState(() {
-
-      currentPosition = latLng;
-
-      selectedMarker = Marker(
-
-        markerId:
-        const MarkerId("selected"),
-
-        position: latLng,
-
-        draggable: true,
-
-        icon:
-        BitmapDescriptor.defaultMarkerWithHue(
-          BitmapDescriptor.hueViolet,
-        ),
-
-        onDragEnd: (value) {
-          updateLocation(value);
-        },
-      );
-    });
-
-    moveCamera(latLng);
-
-    updateLocation(latLng);
-  }
-
-  Future<void> moveCamera(
-      LatLng latLng,
-      ) async {
-
-    mapController?.animateCamera(
-
-      CameraUpdate.newCameraPosition(
-
-        CameraPosition(
-          target: latLng,
-          zoom: 18,
-        ),
-      ),
-    );
-  }
-
-  Future<void> updateLocation(
-      LatLng latLng,
-      ) async {
-
-    setState(() {
-      currentPosition = latLng;
-    });
-
-    List<Placemark> placemarks =
-    await placemarkFromCoordinates(
-      latLng.latitude,
-      latLng.longitude,
-    );
-
-    Placemark place = placemarks.first;
-
-    setState(() {
-
-      currentAddress =
-      "${place.street}, "
-          "${place.locality}, "
-          "${place.administrativeArea}, "
-          "${place.postalCode}";
-
-      cityController.text =
-      "${place.administrativeArea}, "
-          "${place.locality}";
-
-      localityController.text =
-          place.subLocality ?? "";
-
-      pinController.text =
-          place.postalCode ?? "";
+    Future.microtask(() {
+      final addressVM = Provider.of<AddressViewmodel>(context, listen: false);
+      // ✅ Clear stale address from previous booking so each checkout is fresh
+      addressVM.clearAddress();
+      addressVM.fetchStates();
     });
   }
 
   @override
+  void dispose() {
+    houseController.dispose();
+    societyController.dispose();
+    floorController.dispose();
+    landmarkController.dispose();
+    localityController.dispose();
+    pinController.dispose();
+    latController.dispose();
+    lonController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final vm =Provider.of<AddressViewmodel>(context);
+
+    final vm = Provider.of<AddressViewmodel>(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
+      appBar: AppBar(title: Text("Address")),
 
-          /// MAP
-          SizedBox(
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
 
-            height: MediaQuery.of(context)
-                .size
-                .height *
-                0.52,
+        child: Form(
+          key: _formKey,
 
-            child:
-            GoogleMap(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
 
-              mapType: MapType.normal,
-
-              initialCameraPosition: CameraPosition(
-                target: currentPosition,
-                zoom: 17,
+              Text("Enter New Address",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
 
-              myLocationEnabled: true,
+              SizedBox(height: 16),
 
-              myLocationButtonEnabled: false,
+              Text("Select Address Type"),
 
-              zoomControlsEnabled: true,
+              SizedBox(height: 10),
 
-              zoomGesturesEnabled: true,
+              Row(
+                children: ["Home", "Office", "Other"].map((type) {
+                  final isSelected = vm.selectedType == type;
 
-              scrollGesturesEnabled: true,
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: ChoiceChip(
+                      label: Text(type),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        vm.setType(type);
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
 
-              rotateGesturesEnabled: true,
+              SizedBox(height: 20),
 
-              tiltGesturesEnabled: true,
-
-              compassEnabled: true,
-
-              trafficEnabled: false,
-
-              buildingsEnabled: true,
-
-              indoorViewEnabled: true,
-
-              mapToolbarEnabled: true,
-
-              markers: {
-                Marker(
-
-                  markerId: const MarkerId("selected"),
-
-                  position: currentPosition,
-
-                  draggable: true,
-
-                  icon: BitmapDescriptor.defaultMarker,
-
-                  infoWindow: const InfoWindow(
-                    title: "Selected Location",
-                  ),
-
-                  onDragEnd: (LatLng value) {
-
-                    setState(() {
-                      currentPosition = value;
-                    });
-
-                    updateLocation(value);
+              /// TEXTFIELDS
+              ///
+              _buildField(houseController, "House/Flat/Apartment No."),
+              _buildField(societyController, "Society / Apartment Name"),
+              _buildField(floorController, "Floor"),
+              _buildField(landmarkController, "Landmark"),
+              
+              // State Dropdown
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DropdownButtonFormField<String>(
+                  value: vm.selectedState,
+                  hint: const Text("Select State"),
+                  items: vm.states.map((state) {
+                    return DropdownMenuItem<String>(
+                      value: state,
+                      child: Text(state),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    vm.selectState(val);
                   },
+                  validator: (val) => val == null ? "required state" : null,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: "State",
+                  ),
                 ),
-              },
+              ),
 
-              onMapCreated: (GoogleMapController controller) {
+              // City Dropdown
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DropdownButtonFormField<String>(
+                  value: vm.selectedCity,
+                  hint: const Text("Select City"),
+                  items: vm.cities.map((city) {
+                    return DropdownMenuItem<String>(
+                      value: city,
+                      child: Text(city),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    vm.selectCity(val);
+                  },
+                  validator: (val) => val == null ? "required city" : null,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: "City",
+                  ),
+                ),
+              ),
 
-                mapController = controller;
+              _buildField(localityController, "Locality"),
+              _buildField(pinController, "Pin code"),
 
-                controller.animateCamera(
-                  CameraUpdate.newCameraPosition(
-                    CameraPosition(
-                      target: currentPosition,
-                      zoom: 17,
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildField(latController, "Latitude (e.g. 26.9124)", isNumeric: true),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildField(lonController, "Longitude (e.g. 75.7873)", isNumeric: true),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 15),
+
+              /// BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue, Colors.green], //  gradient
                     ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              },
-
-              onTap: (LatLng latLng) {
-
-                setState(() {
-                  currentPosition = latLng;
-                });
-
-                updateLocation(latLng);
-
-                mapController?.animateCamera(
-                  CameraUpdate.newLatLng(latLng),
-                );
-              },
-            )
-
-          ),
-
-          /// BACK BUTTON
-          Positioned(
-
-            top: 45,
-            left: 15,
-
-            child: CircleAvatar(
-
-              backgroundColor: Colors.white,
-
-              child: IconButton(
-
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.black,
-                ),
-
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ),
-
-          /// CLOSE BUTTON
-          Positioned(
-
-            top: 45,
-            right: 15,
-
-            child: CircleAvatar(
-
-              backgroundColor: Colors.white,
-
-              child: IconButton(
-
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.black,
-                ),
-
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ),
-
-          /// CURRENT LOCATION BUTTON
-          Positioned(
-
-            top: MediaQuery.of(context)
-                .size
-                .height *
-                0.42,
-
-            right: 15,
-
-            child: FloatingActionButton(
-
-              mini: true,
-
-              backgroundColor: Colors.white,
-
-              onPressed: () {
-                getCurrentLocation();
-              },
-
-              child: const Icon(
-                Icons.my_location,
-                color: Colors.black,
-              ),
-            ),
-          ),
-
-          /// MESSAGE
-          Positioned(
-
-            top: MediaQuery.of(context)
-                .size
-                .height *
-                0.28,
-
-            left: 40,
-            right: 40,
-
-            child: Container(
-
-              padding:
-              const EdgeInsets.symmetric(
-                horizontal: 15,
-                vertical: 10,
-              ),
-
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius:
-                BorderRadius.circular(12),
-              ),
-
-              child: const Text(
-                "Place the pin accurately on map",
-
-                textAlign: TextAlign.center,
-
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-
-          /// BOTTOM SHEET
-          DraggableScrollableSheet(
-
-            initialChildSize: 0.48,
-
-            minChildSize: 0.48,
-
-            maxChildSize: 0.90,
-
-            builder: (context, scrollController) {
-
-              return Container(
-
-                padding: const EdgeInsets.all(16),
-
-                decoration: const BoxDecoration(
-
-                  color: Colors.white,
-
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(25),
-                    topRight: Radius.circular(25),
-                  ),
-                ),
-
-                child: SingleChildScrollView(
-
-                  controller: scrollController,
-
-                  child: Form(
-
-                    key: _formKey,
-
-                    child: Column(
-
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-
-                      children: [
-
-                        /// DRAG HANDLE
-                        Center(
-                          child: Container(
-                            width: 50,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade400,
-                              borderRadius:
-                              BorderRadius.circular(20),
-                            ),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        final latVal = double.tryParse(latController.text);
+                        final lonVal = double.tryParse(lonController.text);
+                        
+                        vm.saveAddress(
+                          AddressModel(
+                            type: vm.selectedType,
+                            houseNo: houseController.text,
+                            society: societyController.text,
+                            floor: floorController.text,
+                            landmark: landmarkController.text,
+                            city: "${vm.selectedState}, ${vm.selectedCity}",
+                            locality: localityController.text,
+                            pincode: pinController.text,
+                            latitude: latVal,
+                            longitude: lonVal,
                           ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        /// ADDRESS TITLE
-                        const Text(
-
-                          "Selected Address",
-
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight:
-                            FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        /// ADDRESS
-                        Text(
-
-                          currentAddress.isEmpty
-                              ? "Fetching location..."
-                              : currentAddress,
-
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.black87,
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        /// ADDRESS TYPE
-                        Row(
-
-                          children:
-                          ["Home", "Office", "Other"]
-                              .map((type) {
-
-                            final isSelected =
-                                vm.selectedType ==
-                                    type;
-
-                            return Padding(
-
-                              padding:
-                              const EdgeInsets.only(
-                                  right: 10),
-
-                              child: ChoiceChip(
-
-                                label: Text(type),
-
-                                selected: isSelected,
-
-                                selectedColor:
-                                AppColors
-                                    .primaryButton,
-
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.black,
-                                ),
-
-                                onSelected: (_) {
-                                  vm.setType(type);
-                                },
-                              ),
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        _buildField(
-                          nameController,
-                          "Name",
-                        ),
-                        _buildField(
-                          houseController,
-                          "House/Flat Number",
-                        ),
-
-                        _buildField(
-                          societyController,
-                          "Society / Apartment",
-                        ),
-
-                        _buildField(
-                          floorController,
-                          "Floor",
-                        ),
-
-                        _buildField(
-                          landmarkController,
-                          "Landmark",
-                        ),
-                        const SizedBox(height: 20),
-                        _buildField(
-                          phoneNumberController,
-                          "Alternate Phone Number",
-                        ),
-                        _buildField(
-                          cityController,
-                          "State, City",
-                        ),
-
-                        _buildField(
-                          localityController,
-                          "Locality",
-                        ),
-
-                        _buildField(
-                          pinController,
-                          "Pin Code",
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        /// SAVE BUTTON
-                        SizedBox(
-
-                          width: double.infinity,
-                          height: 55,
-
-                          child: Container(
-
-                            decoration: BoxDecoration(
-
-                              gradient: LinearGradient(
-
-                                colors: [
-                                  AppColors
-                                      .primaryButton,
-
-                                  AppColors
-                                      .secondaryButton,
-                                ],
-                              ),
-
-                              borderRadius:
-                              BorderRadius.circular(
-                                  30),
-                            ),
-
-                            child: ElevatedButton(
-                              onPressed: () async {
-
-                                final prefs =
-                                await SharedPreferences.getInstance();
-
-                                String? token =
-                                prefs.getString("token");
-
-                                if (token == null || token.isEmpty) {
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-
-                                    const SnackBar(
-                                      content: Text("Token not found"),
-                                    ),
-                                  );
-
-                                  return;
-                                }
-
-                                if (_formKey.currentState!.validate()) {
-
-                                  final body = {
-
-                                    "type": vm.selectedType,
-                                    "name": nameController.text.trim(),
-                                    "alternateNumber":phoneNumberController.text.trim(),
-
-                                    "houseNo": houseController.text.trim(),
-
-                                    "society": societyController.text.trim(),
-
-                                    "floor": floorController.text.trim(),
-
-                                    "landmark": landmarkController.text.trim(),
-
-                                    "city": cityController.text.trim(),
-
-                                    "locality": localityController.text.trim(),
-
-                                    "pincode": pinController.text.trim(),
-
-                                    "latitude": currentPosition.latitude,
-
-                                    "longitude": currentPosition.longitude,
-                                  };
-
-                                  final success =
-                                  await vm.saveAddressApi(
-
-                                    token: token,
-
-                                    body: body,
-                                  );
-
-                                  if (!mounted) return;
-
-                                  if (success) {
-
-                                    ScaffoldMessenger.of(context).showSnackBar(
-
-                                      const SnackBar(
-                                        content: Text("Address Saved"),
-                                      ),
-                                    );
-
-                                    Navigator.push(
-
-                                      context,
-
-                                      MaterialPageRoute(
-                                        builder: (_) => CheckoutScreen(),
-                                      ),
-                                    );
-
-                                  } else {
-
-                                    ScaffoldMessenger.of(context).showSnackBar(
-
-                                      const SnackBar(
-                                        content: Text("Failed to save address"),
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              // onPressed: () {
-                              //
-                              //   if (_formKey
-                              //       .currentState!
-                              //       .validate()) {
-                              //
-                              //     vm.saveAddress(
-                              //
-                              //       AddressModel(
-                              //
-                              //         type:
-                              //         vm.selectedType,
-                              //
-                              //         houseNo:
-                              //         houseController
-                              //             .text,
-                              //
-                              //         society:
-                              //         societyController
-                              //             .text,
-                              //
-                              //         floor:
-                              //         floorController
-                              //             .text,
-                              //
-                              //         landmark:
-                              //         landmarkController
-                              //             .text,
-                              //
-                              //         city:
-                              //         cityController
-                              //             .text,
-                              //
-                              //         locality:
-                              //         localityController
-                              //             .text,
-                              //
-                              //         pincode:
-                              //         pinController
-                              //             .text,
-                              //       ),
-                              //     );
-                              //
-                              //     Navigator.push(
-                              //
-                              //       context,
-                              //
-                              //       MaterialPageRoute(
-                              //         builder: (_) =>
-                              //         CheckoutScreen(),
-                              //           //  PaymentScreen(),
-                              //       ),
-                              //     );
-                              //   }
-                              // },
-
-                              style:
-                              ElevatedButton
-                                  .styleFrom(
-
-                                backgroundColor:
-                                Colors
-                                    .transparent,
-
-                                shadowColor:
-                                Colors
-                                    .transparent,
-                              ),
-                               child: vm.loading
-
-                            ? const SizedBox(
-
-                            height: 22,
-                              width: 22,
-
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-
-                                : const Text(
-
-                            "Check Out",
-
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 30),
-                      ],
+                        );
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                    ),
+                    child: Text(
+                      "Confirm Address",
+                      style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold,fontSize:15,
                     ),
                   ),
                 ),
-              );
-            },
+              )
+              )
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildField(
-      TextEditingController controller,
-      String hint,
-      ) {
+  Widget _buildField(TextEditingController controller, String hint, {bool isNumeric = false}) {
     return Padding(
-      padding:
-      const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controller,
+        keyboardType: isNumeric ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
         decoration: InputDecoration(
           hintText: hint,
-          contentPadding:
-          const EdgeInsets.symmetric(
-            horizontal: 15,
-            vertical: 16,
-          ),
-
-          border: OutlineInputBorder(
-
-            borderRadius:
-            BorderRadius.circular(15),
-          ),
+          border: OutlineInputBorder(),
         ),
-
         validator: (value) {
-
-          if (value == null ||
-              value.isEmpty) {
-
-            return "Required";
+          if (value == null || value.isEmpty) {
+            return "required";
           }
-
           return null;
         },
       ),
