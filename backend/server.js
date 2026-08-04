@@ -2585,8 +2585,8 @@ const handleServiceDetail = async (req, res) => {
     try {
       const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
       const [srvRows] = await mysqlPool.query(
-        "SELECT * FROM node_services WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
-        [title.toLowerCase(), isNaN(title) ? -1 : parseInt(title), cleanTitle]
+        "SELECT * FROM node_services WHERE LOWER(title) = ? OR LOWER(title_hi) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ? OR REPLACE(REPLACE(REPLACE(LOWER(title_hi), ' ', ''), '-', ''), '_', '') = ?",
+        [title.toLowerCase(), title.toLowerCase(), isNaN(title) ? -1 : parseInt(title), cleanTitle, cleanTitle]
       );
       if (srvRows.length > 0) {
         const r = srvRows[0];
@@ -4375,8 +4375,8 @@ const getServiceCategoryDbOrStatic = async (productId) => {
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
       const [srvRows] = await mysqlPool.query(
-        "SELECT category_id FROM node_services WHERE LOWER(title) = ? OR id = ?",
-        [productId.toLowerCase(), isNaN(productId) ? -1 : parseInt(productId)]
+        "SELECT category_id FROM node_services WHERE LOWER(title) = ? OR LOWER(title_hi) = ? OR id = ?",
+        [productId.toLowerCase(), productId.toLowerCase(), isNaN(productId) ? -1 : parseInt(productId)]
       );
       if (srvRows.length > 0 && srvRows[0].category_id) {
         const [catRows] = await mysqlPool.query(
@@ -4855,15 +4855,9 @@ const handlePostBooking = async (req, res) => {
     if (debugLogs.length > 50) debugLogs.shift();
   };
 
-  if (productId) {
-    const resolvedProduct = await resolveServiceDetails(productId);
-    // Only update productId if resolved product is NOT the fallback "Tap Repair"
-    // This prevents the user's actual service title from being overwritten with the fallback
-    if (resolvedProduct && resolvedProduct.serviceName !== 'Tap Repair') {
-      productId = resolvedProduct.productId;
-    }
-    // If fallback was returned, keep the original title as productId
-  }
+  // NOTE: productId is kept as-is from the client request.
+  // Service resolution happens once below during order creation (line ~4959).
+  // Early double-resolution was removed to prevent wrong-service substitution.
 
   if (!productId || !date || !timeSlot) {
     logBookingResult(400, false, "productId, date, and timeSlot are required");
@@ -5903,29 +5897,56 @@ const resolveServiceDetails = async (productId) => {
 
   if (dbMode === "mysql" && mysqlPool !== null) {
     try {
-      const [srvRows] = await mysqlPool.query(
-        "SELECT * FROM node_services WHERE LOWER(title) = ? OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(title), '-', ''), '_', ''), ' ', ''), 'lekage', 'leakage'), 'lekege', 'leakage') = ? OR id = ?", 
-        [String(productId).toLowerCase(), normProduct, isNaN(productId) ? -1 : parseInt(productId)]
+      // STEP 1: Try EXACT title match first (case-insensitive)
+      // This is the safest match - prevents wrong service substitution
+      const [exactRows] = await mysqlPool.query(
+        "SELECT * FROM node_services WHERE LOWER(title) = ? OR LOWER(title_hi) = ? OR id = ? LIMIT 1",
+        [String(productId).toLowerCase(), String(productId).toLowerCase(), isNaN(productId) ? -1 : parseInt(productId)]
       );
-      if (srvRows.length > 0) {
-        const r = srvRows[0];
+      if (exactRows.length > 0) {
+        const r = exactRows[0];
         const dbPrice = parseFloat(r.price);
         const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
         let finalPrice = dbPrice;
         if (discountVal > 0) {
           finalPrice = Math.max(0, dbPrice - discountVal);
         }
-
         let dbCategoryName = null;
         try {
           const [catRows] = await mysqlPool.query("SELECT title FROM node_categories WHERE id = ?", [r.category_id]);
-          if (catRows.length > 0) {
-            dbCategoryName = catRows[0].title;
-          }
-        } catch (catErr) {
-          console.warn("[resolveServiceDetails] Failed to fetch category from DB:", catErr.message);
-        }
+          if (catRows.length > 0) dbCategoryName = catRows[0].title;
+        } catch (catErr) { /* ignore */ }
+        return {
+          productId: r.title,
+          serviceName: r.title,
+          title: r.title,
+          price: finalPrice,
+          description: r.description,
+          image: r.image,
+          category: dbCategoryName,
+          categoryId: r.category_id ? r.category_id.toString() : ""
+        };
+      }
 
+      // STEP 2: Only if exact match failed, try normalized fuzzy match
+      // Use a narrower normalized query to reduce wrong-service risk
+      const [fuzzyRows] = await mysqlPool.query(
+        "SELECT * FROM node_services WHERE REPLACE(REPLACE(REPLACE(LOWER(title), '-', ''), '_', ''), ' ', '') = ? OR REPLACE(REPLACE(REPLACE(LOWER(title_hi), '-', ''), '_', ''), ' ', '') = ? LIMIT 1",
+        [normProduct, normProduct]
+      );
+      if (fuzzyRows.length > 0) {
+        const r = fuzzyRows[0];
+        const dbPrice = parseFloat(r.price);
+        const discountVal = r.discount !== null && r.discount !== undefined ? parseFloat(r.discount) : 0.00;
+        let finalPrice = dbPrice;
+        if (discountVal > 0) {
+          finalPrice = Math.max(0, dbPrice - discountVal);
+        }
+        let dbCategoryName = null;
+        try {
+          const [catRows] = await mysqlPool.query("SELECT title FROM node_categories WHERE id = ?", [r.category_id]);
+          if (catRows.length > 0) dbCategoryName = catRows[0].title;
+        } catch (catErr) { /* ignore */ }
         return {
           productId: r.title,
           serviceName: r.title,
@@ -6408,7 +6429,7 @@ const handleGetCheckout = async (req, res) => {
     let services = [];
     if (dbMode === "mysql" && mysqlPool !== null) {
       try {
-        const [srvRows] = await mysqlPool.query("SELECT category_id FROM node_services WHERE LOWER(title) = ? OR id = ?", [order.serviceName.toLowerCase(), isNaN(order.productId) ? -1 : parseInt(order.productId)]);
+        const [srvRows] = await mysqlPool.query("SELECT category_id FROM node_services WHERE LOWER(title) = ? OR LOWER(title_hi) = ? OR id = ?", [order.serviceName.toLowerCase(), order.serviceName.toLowerCase(), isNaN(order.productId) ? -1 : parseInt(order.productId)]);
         if (srvRows.length > 0) {
           const categoryId = srvRows[0].category_id;
           const [catSrvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE category_id = ? AND status IN (0, 1)", [categoryId]);

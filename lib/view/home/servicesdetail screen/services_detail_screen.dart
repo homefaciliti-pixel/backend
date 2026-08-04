@@ -923,7 +923,9 @@ https://homefaciliti.com
 
                 child: ElevatedButton(
                   onPressed: () {
-                    showBookingBottomSheet(context, service!.title, service.price);
+                    // Use service.productId (always English, from DB) NOT service.title (may be localized/Hindi)
+                    // This ensures the backend can resolve the correct service regardless of language setting
+                    showBookingBottomSheet(context, service!.productId.isNotEmpty ? service.productId : service.title, service.price);
                   },
 
                   style: ElevatedButton.styleFrom(

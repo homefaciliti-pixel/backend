@@ -333,6 +333,14 @@ function localizeService(row, lang) {
   }
   const finalDesc = localizedDesc || baseDesc;
 
+  // IMPORTANT: productId must always remain the original English service title.
+  // It is used for booking resolution on the backend (DB lookup by title).
+  // Only display fields (title, name, serviceName) are localized.
+  // Localizing productId caused: English user → Hindi productId sent → backend couldn't find service
+  const originalProductId = row.productId && row.productId !== '0' && row.productId !== 'null'
+    ? row.productId
+    : (row.title || row.serviceName || baseTitle);
+
   return {
     ...row,
     title: finalTitle,
@@ -340,7 +348,7 @@ function localizeService(row, lang) {
     productName: finalTitle,
     product_name: finalTitle,
     serviceName: finalTitle,
-    productId: finalTitle,
+    productId: originalProductId,   // ← Always English, never localized
     description: finalDesc,
     productDescription: finalDesc,
     product_description: finalDesc
