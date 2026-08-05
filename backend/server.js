@@ -4977,91 +4977,44 @@ const handlePostBooking = async (req, res) => {
     }
 
     const pendingOrders = [];
-    const memDraft = draftOrders.get(user.phone);
-    if (memDraft) {
-      pendingOrders.push(memDraft);
-    }
-
     const statusParam = req.body.status || req.query.status || (req.body.booking && req.body.booking.status);
     const useAmc = statusParam === "AMC" || req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && String(req.body.payment.paymentMethod).toLowerCase() === "amc");
 
-    let order;
-    if (pendingOrders && pendingOrders.length > 0) {
-      const existingOrder = pendingOrders[0];
-      const updates = {
-        productId: resolvedProduct.productId,
-        serviceName: resolvedProduct.serviceName,
-        price: useAmc ? 0.00 : resolvedProduct.price,
-        description: resolvedProduct.description,
-        date: date,
-        timeSlot: timeSlot,
-        status: useAmc ? "AMC" : "Draft",
-        razorpayOrderId: null, // Reset Razorpay order ID to force recreation with new price!
-      };
-      if (useAmc) {
-        updates.payment = {
-          paymentMethod: "AMC",
-          amountPaid: 0.00
-        };
-      } else if (existingOrder.payment) {
-        updates.payment = {
-          ...existingOrder.payment,
-          amountPaid: resolvedProduct.price
-        };
-      } else {
-        updates.payment = {
-          paymentMethod: "Wallet",
-          amountPaid: resolvedProduct.price
-        };
+    // ALWAYS create a new draft order record with a new unique ID instead of overwriting/reusing.
+    // This prevents active or previously booked orders from being updated or removed.
+    const resolvedAddr = await resolveAddressForPhone(user.phone);
+    const lastOrderId = await DbLayer.getLastOrderId();
+    let highestId = lastOrderId;
+    for (const draft of draftOrders.values()) {
+      if (draft.id > highestId) {
+        highestId = draft.id;
       }
-
-      // Auto-resolve user's address from database if missing
-      if (!existingOrder.address) {
-        const resolvedAddr = await resolveAddressForPhone(user.phone);
-        if (resolvedAddr) {
-          updates.address = resolvedAddr;
-        }
-      }
-
-      order = { ...existingOrder, ...updates };
-      draftOrders.set(user.phone, order);
-      console.log(`[handlePostBooking] Updated in-memory draft order #${existingOrder.id} with new booking details`);
-    } else {
-      // Create new pending order in memory
-      const resolvedAddr = await resolveAddressForPhone(user.phone);
-      const lastOrderId = await DbLayer.getLastOrderId();
-      let highestId = lastOrderId;
-      for (const draft of draftOrders.values()) {
-        if (draft.id > highestId) {
-          highestId = draft.id;
-        }
-      }
-      const orderId = highestId + 1;
-
-      order = {
-        id: orderId,
-        userPhone: user.phone,
-        userId: user.phone,
-        serviceName: resolvedProduct.serviceName,
-        price: useAmc ? 0.00 : resolvedProduct.price,
-        date: date,
-        status: useAmc ? "AMC" : "Draft",
-        bookingStatus: "draft",
-        partnerName: null,
-        partnerDistance: null,
-        productId: resolvedProduct.productId,
-        description: resolvedProduct.description,
-        timeSlot: timeSlot,
-        address: resolvedAddr,
-        payment: {
-          paymentMethod: useAmc ? "AMC" : "Wallet",
-          amountPaid: useAmc ? 0.00 : resolvedProduct.price
-        },
-        createdAt: Date.now()
-      };
-      draftOrders.set(user.phone, order);
-      console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone}`);
     }
+    const orderId = highestId + 1;
+
+    const order = {
+      id: orderId,
+      userPhone: user.phone,
+      userId: user.phone,
+      serviceName: resolvedProduct.serviceName,
+      price: useAmc ? 0.00 : resolvedProduct.price,
+      date: date,
+      status: useAmc ? "AMC" : "Draft",
+      bookingStatus: "draft",
+      partnerName: null,
+      partnerDistance: null,
+      productId: resolvedProduct.productId,
+      description: resolvedProduct.description,
+      timeSlot: timeSlot,
+      address: resolvedAddr,
+      payment: {
+        paymentMethod: useAmc ? "AMC" : "Wallet",
+        amountPaid: useAmc ? 0.00 : resolvedProduct.price
+      },
+      createdAt: Date.now()
+    };
+    draftOrders.set(user.phone, order);
+    console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone}`);
 
     // Always persist to DB so server restarts don't lose the draft (both created and updated drafts)
     try {
@@ -5277,6 +5230,21 @@ const handlePostCheckout = async (req, res) => {
     
     // Check if there is already an existing draft order for this user to confirm/place
     let existingOrder = draftOrders.get(phone) || null;
+    if (!existingOrder) {
+      try {
+        const userOrders = await DbLayer.getOrdersByUserPhone(phone);
+        const dbDraft = userOrders.find(o =>
+          (o.bookingStatus === 'draft' || o.status === 'Draft')
+        );
+        if (dbDraft) {
+          existingOrder = dbDraft;
+          draftOrders.set(phone, existingOrder);
+          console.log(`[Checkout] Hydrated draft order #${dbDraft.id} from DB for user ${phone}`);
+        }
+      } catch (dbErr) {
+        console.warn("[Checkout] Failed to hydrate draft from DB:", dbErr.message);
+      }
+    }
     
     // Auto-increment simple numerical ID or reuse existing pending order ID
     let orderId;
