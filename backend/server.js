@@ -5643,22 +5643,8 @@ const resolveAddressForPhone = async (phone) => {
     console.error("Resolve address from user profile failed:", userErr);
   }
 
-  // Default mock address fallback
-  return {
-    type: "Home",
-    houseNo: "104",
-    society: "Green Villa",
-    floor: "1st",
-    landmark: "Near Central Park",
-    city: "Mumbai, Maharashtra",
-    locality: "Andheri West",
-    pincode: "400053",
-    latitude: 26.9124,
-    longitude: 75.7873,
-    name: "Mock Guest",
-    alternateNumber: "",
-    countryCode: "+91"
-  };
+  // Default mock address fallback: Return null to prevent populating draft orders with fake data.
+  return null;
 };
 
 const normalizeString = (str) => {
