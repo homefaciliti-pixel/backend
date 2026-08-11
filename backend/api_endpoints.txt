@@ -438,16 +438,21 @@ GET /api/booking/available-slots
 
 POST /api/bookings
 - Headers: Authorization: Bearer <jwt_token>
-- Body: { "productId": "string", "date": "string", "timeSlot": "string" }
+- Body (Multiple Services): { "items": [{ "productId": "string", "quantity": number }], "date": "string", "timeSlot": "string" }
+- Body (Legacy Single Service): { "productId": "string", "date": "string", "timeSlot": "string" }
   * Note: `productId` is format- and spelling-insensitive (e.g., `lekage repair` or `leakage-repair` resolves to `Leakage Repair` automatically).
-  * Persistence (NEW): This API dynamically persists/registers the validated booking details directly in the database as the user's active pending checkout order. If a pending order already exists, it is updated in-place with the selected product, date, and slot. If no pending order exists, a new one is created automatically.
+  * Persistence: This API dynamically persists/registers the validated booking details directly in the database as a new draft order record. Every call to this API creates a brand-new draft order with a unique order ID (old drafts are preserved and not updated/overwritten).
+  * Capacity: Checks slot availability and pincode capacity limits across all requested items.
 - Response: {
     "success": true,
     "message": "Booking details validated and registered",
     "booking": {
       "productId": "Leakage Repair",
       "date": "2026-05-27",
-      "timeSlot": "2:00 PM - 3:00 PM"
+      "timeSlot": "2:00 PM - 3:00 PM",
+      "items": [
+        { "productId": "Leakage Repair", "serviceName": "Leakage Repair", "price": 499, "quantity": 1 }
+      ]
     }
   }
 
@@ -612,6 +617,16 @@ GET /api/checkout-api/:userId
       "date": "2026-05-28",
       "timeSlot": "4:00 PM - 5:00 PM"
     },
+    "items": [
+      {
+        "productId": "Tap Repair",
+        "serviceName": "Tap Repair",
+        "price": 299,
+        "quantity": 1,
+        "description": "Fix leaking taps and water issues",
+        "image": ""
+      }
+    ],
     "address": {
       "type": "Home",
       "houseNo": "104",
@@ -654,6 +669,7 @@ GET /api/checkout-api/:userId
   - Auto-Address: Resolves user's latest saved address, falling back to profile location, then mock address.
   - Persistent Overrides: Query params productId, date, timeSlot are saved to DB.
   - Interactive Option Lists: Returns addresses, services/products, slots, dates for frontend dropdowns.
+  - Items List (NEW): Includes the localized itemized list of multiple selected services with quantities.
 
 
 ---------------------------------------------------------

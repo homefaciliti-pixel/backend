@@ -1,529 +1,821 @@
 =========================================
-HOME SERVICES API - NEW PRODUCTS & CATEGORIES
+HOME SERVICES APPLICATION - API REFERENCE
 =========================================
 
-The following categories have been expanded with 4 to 5 products (services) each in the backend API.
+Base URL: https://backend-1-ux3b.onrender.com
+
+Database Configuration:
+- Uses MySQL database (BigRock at homefaciliti.com) as primary persistence layer.
+- Automatically initializes table schemas (users, orders, addresses, categories, referrals, slots) on server startup.
+- Dynamically falls back to local database.json file if the MySQL connection fails or is unconfigured.
+
+
+Authentication Note:
+All private APIs require the custom header 'Authorization: Bearer <jwt_token>'
+where the JWT token is obtained from /api/auth/verify-otp response. For backward
+compatibility, sending a raw phone number in the Bearer token header is also supported.
 
 ---------------------------------------------------------
-1. Category: cleaning (Cleaning)
+1. Authentication APIs
 ---------------------------------------------------------
 
-Endpoint: GET /api/categories/cleaning/services
-Response Payload / Product Listing:
-[
-  {
-    "title": "Home Cleaning",
-    "price": 999,
-    "description": "Full house cleaning service",
-    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop",
-    "discount": 23,
-    "rating": 4.9,
-    "reviewsCount": 312,
-    "cutPrice": 1299
-  },
-  {
-    "title": "Bathroom Cleaning",
-    "price": 499,
-    "description": "Deep bathroom cleaning",
-    "image": "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop",
-    "discount": 16,
-    "rating": 4.7,
-    "reviewsCount": 154,
-    "cutPrice": 599
-  },
-  {
-    "title": "Kitchen Cleaning",
-    "price": 699,
-    "description": "Degreasing cabinets, countertops, and appliances",
-    "image": "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=400&auto=format&fit=crop",
-    "discount": 22,
-    "rating": 4.8,
-    "reviewsCount": 195,
-    "cutPrice": 899
-  },
-  {
-    "title": "Sofa & Carpet Cleaning",
-    "price": 799,
-    "description": "Vacuuming and steam sanitizing fabric surfaces",
-    "image": "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=400&auto=format&fit=crop",
-    "discount": 20,
-    "rating": 4.6,
-    "reviewsCount": 120,
-    "cutPrice": 999
-  },
-  {
-    "title": "Window Cleaning",
-    "price": 299,
-    "description": "Sparkling glass and pane washing inside-out",
-    "image": "https://images.unsplash.com/photo-1528740561666-bd247e66a20c?q=80&w=400&auto=format&fit=crop",
-    "discount": 25,
-    "rating": 4.5,
-    "reviewsCount": 74,
-    "cutPrice": 399
+POST /api/auth/send-otp
+- Body: { "phone": "string", "userId": "string", "countryCode": "string" } (You can pass either phone or userId. countryCode is optional, default: "+91")
+- Response: { "success": true, "message": "OTP sent successfully to +919876543210", "otp": "5599" } (Returns generated dynamic OTP code in payload for easy development/testing fallback)
+
+POST /api/auth/verify-otp
+- Body: { "phone": "string", "userId": "string", "otp": "string", "countryCode": "string" } (You can pass either phone or userId. Accepts generated dynamic OTP, or universal mock bypass OTP: "1234")
+- Response: {
+    "success": true,
+    "message": "OTP verified successfully",
+    "user": {
+      "name": "Hira",
+      "phone": "8504920167",
+      "userId": "8504920167",
+      "email": "hira@hmail.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "HIR123456",
+      "walletBalance": 0,
+      "countryCode": "+91"
+    },
+    "userId": "8504920167",
+    "isNewUser": false,
+    "referralAppliedStatus": 0,
+    "token": "<jwt_token>"
   }
-]
 
----------------------------------------------------------
-2. Category: AcRepair (AC Repair & Maintenance)
----------------------------------------------------------
+POST /api/auth/logout
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "message": "Logged out successfully" }
 
-Endpoint: GET /api/categories/AcRepair/services
-Response Payload / Product Listing:
-[
-  {
-    "title": "Ac Service",
-    "price": 500,
-    "description": "Full filter and coil cleaning",
-    "image": "https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400&auto=format&fit=crop",
-    "discount": 16,
-    "rating": 4.8,
-    "reviewsCount": 420,
-    "cutPrice": 599
-  },
-  {
-    "title": "AC Gas Charging",
-    "price": 1500,
-    "description": "Refill refrigerant gas to restore peak cooling",
-    "image": "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=400&auto=format&fit=crop",
-    "discount": 25,
-    "rating": 4.7,
-    "reviewsCount": 215,
-    "cutPrice": 1999
-  },
-  {
-    "title": "AC Installation",
-    "price": 1200,
-    "description": "Mount and configure split or window AC unit",
-    "image": "https://images.unsplash.com/photo-1621905252507-b354bc25edac?q=80&w=400&auto=format&fit=crop",
-    "discount": 20,
-    "rating": 4.9,
-    "reviewsCount": 165,
-    "cutPrice": 1499
-  },
-  {
-    "title": "AC Leakage Repair",
-    "price": 600,
-    "description": "Identify and plug water or gas leak issues",
-    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=400&auto=format&fit=crop",
-    "discount": 25,
-    "rating": 4.6,
-    "reviewsCount": 98,
-    "cutPrice": 799
-  },
-  {
-    "title": "AC Condenser Replacement",
-    "price": 2500,
-    "description": "Install brand new copper condenser unit",
-    "image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop",
-    "discount": 16,
-    "rating": 4.8,
-    "reviewsCount": 84,
-    "cutPrice": 2999
+GET /api/auth/profile
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "user": { ... } }
+
+PUT /api/auth/profile
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "name": "string", "email": "string", "location": "string", "locality": "string", "gender": "string", "countryCode": "string", "language": "string" }
+- Response: { "success": true, "user": { ... }, "message": "Profile updated successfully" }
+
+DELETE /api/auth/account
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "message": "Account deleted successfully" }
+- Note: Permanently deletes the user profile and all saved addresses associated with the authenticated user from the database.
+
+GET /api/languages
+- Response: {
+    "success": true,
+    "languages": [
+      { "code": "en", "name": "English", "nativeName": "English" },
+      { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" },
+      ...
+    ],
+    "message": "Languages list retrieved successfully"
   }
-]
+- Note: Returns a list of global and regional languages with their ISO codes, English names, and native scripts to populate the language selection dropdown.
 
----------------------------------------------------------
-3. Category: Salon And Spa (Grooming & Wellness)
----------------------------------------------------------
-
-Endpoint: GET /api/categories/Salon%20And%20Spa/services
-Response Payload / Product Listing:
-[
-  {
-    "title": "Hair Cut",
-    "price": 299,
-    "description": "Modern hair styling and trimming",
-    "image": "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop",
-    "discount": 25,
-    "rating": 4.9,
-    "reviewsCount": 540,
-    "cutPrice": 399
-  },
-  {
-    "title": "Facial & Grooming",
-    "price": 499,
-    "description": "Deep cleansing facial treatment and face massage",
-    "image": "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?q=80&w=400&auto=format&fit=crop",
-    "discount": 16,
-    "rating": 4.7,
-    "reviewsCount": 280,
-    "cutPrice": 599
-  },
-  {
-    "title": "Hair Coloring",
-    "price": 599,
-    "description": "Professional ammonia-free hair coloring",
-    "image": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=400&auto=format&fit=crop",
-    "discount": 25,
-    "rating": 4.6,
-    "reviewsCount": 145,
-    "cutPrice": 799
-  },
-  {
-    "title": "Massage Therapy",
-    "price": 899,
-    "description": "Stress-relieving full body Swedish massage",
-    "image": "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop",
-    "discount": 25,
-    "rating": 4.8,
-    "reviewsCount": 310,
-    "cutPrice": 1199
-  },
-  {
-    "title": "Pedicure & Manicure",
-    "price": 399,
-    "description": "Hand and foot grooming and nail clean spa",
-    "image": "https://images.unsplash.com/photo-1604654894610-df490651e56c?q=80&w=400&auto=format&fit=crop",
-    "discount": 20,
-    "rating": 4.7,
-    "reviewsCount": 185,
-    "cutPrice": 499
+POST /api/auth/language
+- Headers: Authorization: Bearer <jwt_token>
+- Body (JSON): { "language": "hi" }  // Language ISO code
+- Response: {
+    "success": true,
+    "user": { ... },
+    "message": "Language preference updated successfully"
   }
-]
+- Note: Updates the authenticated user's selected language preference.
+
+GET /api/language/:lang
+- Path Parameter: lang (e.g., "en", "hi", "mr", "gu", "bn", "ta", "te")
+- Response (JSON): {
+    "login_success": "লগইন সফল",
+    "profile_updated": "...",
+    "booking_success": "...",
+    ...
+  }
+- Note: Returns translation key-value maps. Falls back to English (en) if localized translation is missing.
+
+POST /api/language/upsert
+- Body (JSON): { "translation_key": "some_key", "en": "English text", "hi": "हिंदी टेक्स्ट", "mr": "मराठी मजकूर" }
+- Response: {
+    "success": true,
+    "message": "Translation saved and cache reloaded successfully"
+  }
+- Note: Adds or updates a translation mapping in the MySQL database and dynamically reloads the server's cache.
 
 ---------------------------------------------------------
-4. Product/Service Detail API
+2. Services & Categories APIs
 ---------------------------------------------------------
 
-Endpoint: GET /api/services/detail/:title or GET /api/services/detail?title=<title>
-Response Payload / Service Detail:
-{
-  "success": true,
-  "service": {
-    "productId": "Tap Repair",
-    "title": "Tap Repair",
-    "price": 299,
-    "description": "Fix leaking taps and water issues",
-    "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=400&auto=format&fit=crop",
+GET /api/categories
+- Response: { "success": true, "categories": [ { "id": "plumber", "name": "Plumber", "image": "https://..." }, ... ] }
+
+POST /api/categories
+- Body: { "name": "string", "id": "string" (optional), "image": "string" (optional) }
+- Response: { "success": true, "category": { "id": "gardening", "name": "Gardening", "image": "https://..." }, "message": "Category created successfully" }
+- Note: Adds a new category dynamically, allowing infinite categories.
+
+GET /api/categories/:category/services
+- Path Parameter: category (e.g., "Plumber", "Electrician", "AcRepair")
+- Query Parameters:
+  - `search` (optional): Filter services within this category by title or description
+- Response: {
+    "success": true,
     "category": "Plumber",
-    "duration": "1-2 Hours",
-    "rating": 4.7,
-    "reviewsCount": 142,
-    "discount": 25,
-    "cutPrice": 399,
-    "highlights": [
-      "Includes background-checked & certified partner",
-      "30-day post-service warranty cover included",
-      "Equipped with premium professional-grade tools",
-      "100% safe, hygienic, and high-quality service execution"
+    "total": 3,
+    "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ]
+  }
+- Note: Category matching is case-insensitive. Returns 404 if category not found.
+- Example: GET /api/categories/Plumber/services
+- Example: GET /api/categories/electrician/services?search=switch
+
+GET /api/services
+- Query Parameters:
+  - `category` (optional): Filter by category name
+  - `search` (optional): Query term search
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ] }
+
+GET /api/services/trending
+- Response: { "success": true, "services": [ { "title": "...", "price": 299, "description": "...", "image": "...", "discount": 25, "rating": 4.7, "reviewsCount": 142, "cutPrice": 399 }, ... ] } (Returns top 5 popular services)
+
+---------------------------------------------------------
+2a. Search API
+---------------------------------------------------------
+
+GET /api/search
+- Query Parameters:
+  - `q` or `query`: The search term (required)
+- Response: {
+    "success": true,
+    "query": "clean",
+    "results": {
+      "categories": ["Cleaning"],
+      "services": [
+        { "title": "Home Cleaning", "price": 999, "description": "...", "category": "Cleaning" },
+        ...
+      ],
+      "totalCategories": 1,
+      "totalServices": 2
+    }
+  }
+- Note: Searches across all service titles, descriptions, and category names simultaneously.
+        Each matched service includes a `category` field for context.
+- Example: GET /api/search?q=repair
+- Example: GET /api/search?query=cleaning
+
+---------------------------------------------------------
+3. Wallet Management APIs
+---------------------------------------------------------
+
+GET /api/wallet/balance
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "balance": 0.0, "message": "Wallet balance retrieved successfully" }
+
+POST /api/wallet/add
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "amount": number }
+- Response: { "success": true, "balance": number, "message": "Money added to wallet successfully" }
+
+POST /api/wallet/deduct
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "amount": number }
+- Response: { "success": true, "balance": number, "message": "Money deducted from wallet successfully" }
+
+GET /api/wallet/rules
+- Response: { "success": true, "maxPercentage": 20, "maxCap": 100, "message": "Wallet discount rules retrieved successfully" }
+- Note: Public endpoint showing the current Refer and Earn wallet discount policy rules (max 20% of order price can be paid by wallet, capped at ₹100 max).
+
+POST /api/wallet/calculate-discount
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "price": number }
+- Response: {
+    "success": true,
+    "price": 799,
+    "walletBalance": 500,
+    "allowedDiscount": 100,
+    "remainingPrice": 699,
+    "maxPercentage": 20,
+    "maxCap": 100
+  }
+- Note: Private endpoint to calculate the exact wallet deduction and remaining payment due for a given service price.
+
+GET /api/wallet/history
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "transactions": [
+      {
+        "id": 1,
+        "senderName": "Hira Yadav",
+        "amount": 500.00,
+        "type": "credit",
+        "description": "Referral bonus from Hira Yadav (+919199953391)",
+        "createdAt": "2026-07-10T08:00:00.000Z"
+      }
+    ],
+    "message": "Wallet transactions retrieved successfully"
+  }
+- Note: Private endpoint returning a complete transaction list of all credits/debits on the user's wallet (sorted newest first).
+
+
+---------------------------------------------------------
+4. Referral Program APIs
+---------------------------------------------------------
+
+GET /api/referrals/lookup/:code
+- Response: { "success": true, "user": { "name": "...", "phone": "...", "email": "...", "locality": "..." }, "message": "Referral user found successfully" }
+- Note: Looks up another user's basic details using their referral code.
+
+POST /api/referrals/apply
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "code": "string" }
+- Response: { "success": true, "message": "Referral code successfully applied! The referrer received ₹500.", "newBalance": number }
+- Note: Adds ₹500 to the referrer's wallet balance (whose referral code was applied). Current user receives ₹0 reward.
+
+---------------------------------------------------------
+5. Bookings & Orders APIs
+---------------------------------------------------------
+
+GET /api/orders
+- Headers: Authorization: Bearer <jwt_token>
+- Response:
+  {
+    "success": true,
+    "orders": [ { id, serviceName, price, date, timeSlot, status, address, payment, razorpayOrderId, ... } ],
+    "list": [ { "id": 1, "serviceName": "Tap Repair", "price": 299, "status": "Paid", "date": "2026-05-29", "timeSlot": "10:00 AM - 11:00 AM", "razorpayOrderId": "order_xyz123" } ],
+    "orderlist": { "total": 1, "data": [ { ...full order objects... } ] },
+    "message": "Orders retrieved successfully"
+  }
+- Note: `orders` = full order objects. `list` = compact summary (id, serviceName, price, status, date, timeSlot, razorpayOrderId). `orderlist` = { total: N, data: [...full orders] }.
+
+GET /api/orders/:id
+- Path Parameter: id (the numeric database Order ID, e.g. 1000007)
+- Response:
+  {
+    "id": 1000007,
+    "userPhone": "9876543210",
+    "serviceName": "AC Repair",
+    "price": 499,
+    "date": "2026-07-03T10:00:00.000Z",
+    "timeSlot": "10:00 AM - 11:00 AM",
+    "status": "Paid",
+    "bookingStatus": "accepted",
+    "partnerName": "Ravi Kumar",
+    "partnerDistance": "3.2 km away",
+    "partnerPhone": "9988776655",
+    "address": { ... },
+    "payment": { ... },
+    "createdAt": 1780480800000
+  }
+- Note: Retrieves all details of a specific order directly at the root by its numeric ID. This is a public endpoint (no authorization header required).
+
+
+POST /api/orders
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "serviceName": "string", "price": number, "date": "string" }
+- Response: { "success": true, "order": { "id": 1, ... }, "message": "Order placed successfully" }
+- Note: Creates the order and initializes the booking flow status to "searching".
+
+POST /api/orders/cancel (or POST /api/cancel-order)
+- Headers: Authorization: Bearer <jwt_token>
+- Body (JSON): {
+    "orderId": 501,         // (Required) Number or String order ID
+    "response": "Customer changed mind" // (Required) String cancellation reason/response
+  }
+- Response: {
+    "success": true,
+    "orderId": 501,
+    "status": "Cancelled",
+    "reason": "Customer changed mind",
+    "response": "Customer changed mind",
+    "order": {
+      "id": 501,
+      "userPhone": "9876543210",
+      "status": "Cancelled",
+      "bookingStatus": "idle",
+      "cancelReason": "Customer changed mind"
+    },
+    "message": "Order cancelled successfully"
+  }
+- Note: Cancels an order. Requires both `orderId` and `response` (or `reason`) mandatory in request body.
+
+PUT /api/orders/:id/cancel
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "order": { ... }, "message": "Order cancelled successfully" }
+
+---------------------------------------------------------
+6. Booking Flow Tracking (Real-time Simulation)
+---------------------------------------------------------
+
+GET /api/orders/:id/booking-flow
+- Headers: Authorization: Bearer <jwt_token>
+- Response: { "success": true, "status": "searching|assigned|accepted|onTheWay|completed", "partnerName": "...", "partnerDistance": "...", "message": "Booking flow status retrieved successfully" }
+- Note: Real routing flow. Bookings remain in 'searching' status until accepted by a partner in the partner app (within 5-10 km radius of the booking coordinates) or manually assigned by the admin from the admin panel.
+
+PUT /api/orders/:id/booking-flow
+- Headers: Authorization: Bearer <jwt_token>
+- Body: { "status": "string", "partnerName": "string", "partnerDistance": "string" }
+- Response: { "success": true, "status": "...", "partnerName": "...", "partnerDistance": "...", "message": "Booking flow status updated successfully" }
+
+---------------------------------------------------------
+7. Dropdown Selection APIs
+---------------------------------------------------------
+
+GET /api/states
+- Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully from database" }
+- Note: Queries the active database `states` table (returns names of states where status is active). Falls back to static configuration in JSON database fallback.
+
+GET /api/cities
+- Query Parameters:
+  - `state` (optional): Filter cities by state name (e.g. Rajasthan)
+- Response: { "success": true, "cities": ["Jaipur", "Ahmedabad", ...], "message": "Cities retrieved successfully" }
+- Note: Queries the active database `cities` table dynamically filtering by state ID if the state query parameter is supplied.
+
+GET /api/localities
+- Query Parameters:
+  - `city` (optional): Filter localities by city name (e.g. Jaipur)
+  - `state` (optional): Filter localities by state name (e.g. Rajasthan)
+- Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
+- Note: Queries the active database `localities` table dynamically filtering by city ID or state ID if matching parameters are supplied.
+
+GET /api/countries
+- Query Parameters:
+  - `search` (optional): Case-insensitive search query to filter countries by name, code, or dial code.
+- Response: {
+    "success": true,
+    "countries": [
+      {
+        "name": "India",
+        "code": "IN",
+        "dial_code": "+91",
+        "dialCode": "+91",
+        "flag": "🇮🇳",
+        "flagUrl": "https://flagcdn.com/w80/in.png",
+        "flag_url": "https://flagcdn.com/w80/in.png"
+      },
+      ...
+    ],
+    "message": "Countries retrieved successfully"
+  }
+- Note: Returns a comprehensive list of 246 countries of the world with their names, ISO 2-letter codes, dial codes, flag emojis, and public flag image CDN URLs.
+
+---------------------------------------------------------
+8. Banners API
+---------------------------------------------------------
+
+GET /api/banners
+- Response: {
+    "success": true,
+    "banners": [
+      {
+        "id": "string",
+        "image": "string (URL)",
+        "title": "string",
+        "category": "string (Target Category Name)"
+      }
+    ],
+    "message": "Banners retrieved successfully"
+  }
+
+---------------------------------------------------------
+9. Product/Service Detail API
+---------------------------------------------------------
+
+GET /api/services/detail/:title
+GET /api/services/detail?title=<title>
+- Path/Query Parameter: title (case-insensitive title of the service, e.g. "Tap Repair")
+- Response: {
+    "success": true,
+    "service": {
+      "productId": "Tap Repair",
+      "title": "Tap Repair",
+      "price": 299,
+      "description": "Fix leaking taps and water issues",
+      "image": "https://...",
+      "category": "Plumber",
+      "duration": "1-2 Hours",
+      "rating": 4.7,
+      "reviewsCount": 142,
+      "discount": 25,
+      "cutPrice": 399,
+      "highlights": [
+        "Includes background-checked & certified partner",
+        "30-day post-service warranty cover included",
+        "Equipped with premium professional-grade tools",
+        "100% safe, hygienic, and high-quality service execution"
+      ]
+    },
+    "message": "Service details retrieved successfully"
+  }
+
+---------------------------------------------------------
+10. Booking Availability Selection APIs
+---------------------------------------------------------
+
+GET /api/booking/available-dates
+- Response: {
+    "success": true,
+    "dates": [
+      { "formattedDate": "2026-05-26", "dayName": "Today", "displayDate": "26 May" },
+      { "formattedDate": "2026-05-27", "dayName": "Tomorrow", "displayDate": "27 May" }
+    ],
+    "message": "Available booking dates retrieved successfully"
+  }
+
+GET /api/booking/available-slots
+- Response: {
+    "success": true,
+    "slots": [
+      { "id": "slot_1", "time": "9:00 AM - 10:00 AM", "available": true },
+      { "id": "slot_2", "time": "10:00 AM - 11:00 AM", "available": true },
+      ...
+      { "id": "slot_11", "time": "7:00 PM - 8:00 PM", "available": true }
+    ],
+    "message": "Available booking time slots retrieved successfully"
+  }
+- Note: Returns 11 hourly slots ranging from 9:00 AM to 8:00 PM.
+
+POST /api/bookings
+- Headers: Authorization: Bearer <jwt_token>
+- Body (Multiple Services): { "items": [{ "productId": "string", "quantity": number }], "date": "string", "timeSlot": "string" }
+- Body (Legacy Single Service): { "productId": "string", "date": "string", "timeSlot": "string" }
+  * Note: `productId` is format- and spelling-insensitive (e.g., `lekage repair` or `leakage-repair` resolves to `Leakage Repair` automatically).
+  * Persistence: This API dynamically persists/registers the validated booking details directly in the database as a new draft order record. Every call to this API creates a brand-new draft order with a unique order ID (old drafts are preserved and not updated/overwritten).
+  * Capacity: Checks slot availability and pincode capacity limits across all requested items.
+- Response: {
+    "success": true,
+    "message": "Booking details validated and registered",
+    "booking": {
+      "productId": "Leakage Repair",
+      "date": "2026-05-27",
+      "timeSlot": "2:00 PM - 3:00 PM",
+      "items": [
+        { "productId": "Leakage Repair", "serviceName": "Leakage Repair", "price": 499, "quantity": 1 }
+      ]
+    }
+  }
+
+---------------------------------------------------------
+11. Coordinates Address APIs
+---------------------------------------------------------
+
+POST /api/addresses
+POST /api/address
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "type": "Home",
+    "houseNo": "104",
+    "society": "Green Villa",
+    "floor": "1st",
+    "landmark": "Near Central Park",
+    "city": "Mumbai, Maharashtra",
+    "locality": "Andheri West",
+    "pincode": "400053",
+    "latitude": 26.9124,
+    "longitude": 75.7873,
+    "name": "John Doe",
+    "alternateNumber": "9999911111",
+    "countryCode": "+91"
+  }
+- Response: {
+    "success": true,
+    "address": {
+      "userPhone": "9876543210",
+      "type": "Home",
+      "houseNo": "104",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Central Park",
+      "city": "Mumbai, Maharashtra",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": 26.9124,
+      "longitude": 75.7873,
+      "name": "John Doe",
+      "alternateNumber": "9999911111",
+      "countryCode": "+91"
+    },
+    "message": "Address saved successfully"
+  }
+- Note: Saves user address details and latitude/longitude coordinates to the database.
+
+GET /api/addresses
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "addresses": [
+      {
+        "userPhone": "9876543210",
+        "type": "Home",
+        ...
+        "latitude": 26.9124,
+        "longitude": 75.7873
+      }
+    ],
+    "message": "Addresses retrieved successfully"
+  }
+
+---------------------------------------------------------
+12. Checkout and Order Processing API
+---------------------------------------------------------
+
+POST /api/checkout
+POST /api/checkout-api
+- Headers: Authorization: Bearer <jwt_token>          (Required; verified OTP token strictly resolves the order owner)
+- Body: {
+    "userId": "string",                              (deprecated/ignored; owner is strictly retrieved from the authorization token)
+    "productId": "Tap Repair",                        (Required; format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`)
+    "timeSlot": "4:00 PM - 5:00 PM",                (optional - auto-computed if omitted)
+    "date": "2026-05-28",                            (optional - auto-computed if omitted)
+    "useAmc": true,                                  (optional; set to true to apply the AMC discount/coupon for free ₹0 service)
+    "payment": { "paymentMethod": "Online", "amountPaid": 0 },  (paymentMethod can be 'Online', 'Wallet', 'COD', or 'AMC')
+    "address": { ... }                               (optional; nested address details)
+  }
+- Response: {
+    "success": true,
+    "orderId": 1000007,
+    "userId": "9876543210",
+    "razorpayOrderId": "order_DBJOWqy2AuJZ59",
+    "order": {
+      "id": 1000007,
+      "userPhone": "9876543210",
+      "userId": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "date": "2026-05-28",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "4:00 PM - 5:00 PM",
+      "address": {
+        "type": "Home",
+        "houseNo": "104",
+        "society": "Green Villa",
+        "floor": "1st",
+        "landmark": "Near Central Park",
+        "city": "Mumbai, Maharashtra",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": 26.9124,
+        "longitude": 75.7873,
+        "name": "John Doe",
+        "alternateNumber": "9999911111",
+        "countryCode": "+91"
+      },
+      "payment": { "paymentMethod": "Online", "amountPaid": 0 },
+      "razorpayOrderId": "order_DBJOWqy2AuJZ59",
+      "razorpayPaymentId": null,
+      "createdAt": 177993467,
+      "amcId": "AMC45678912",                             (optional; linked AMC Subscription ID)
+      "advancePayment": 199.00,                           (Required; advance payment deposit, max(price, 199.00))
+      "remainingAmount": 100.00                           (Required; remaining balance to pay, max(0, price - advancePayment))
+    },
+    "message": "Checkout completed successfully and order placed"
+  }
+- Note: Requires productId. timeSlot and date are optional:
+  - If timeSlot is omitted, the server auto-selects the next available slot based on the current IST time
+    (e.g. if it is 3:05 PM IST, the default slot becomes "4:00 PM - 5:00 PM").
+  - If date is omitted, the server defaults to today's date in IST. If no slots remain today (after 8 PM),
+    it defaults to tomorrow's date with the first slot (9:00 AM - 10:00 AM).
+  - If paymentMethod is "Online", the server calls Razorpay's API to generate a real Razorpay Order ID
+    which is stored in the DB and returned as `razorpayOrderId`. Falls back to `order_mock_XXXXXX` if
+    Razorpay credentials are invalid.
+  - Flutter must extract BOTH `orderId` and `razorpayOrderId` from this response.
+    `orderId` is used to build the payment URL. `razorpayOrderId` is for reference/logging.
+  - If paymentMethod is "Wallet", the server enforces the Refer and Earn wallet discount policy:
+    - Deducts a maximum of 20% of the service price, up to a maximum of ₹100, from the user's wallet.
+    - Sets the order's `advancePayment` to the actual deducted wallet amount.
+    - Sets the order's `remainingAmount` to the remaining unpaid balance (`price - advancePayment`).
+    - Sets the order status to "Pending" because the remaining balance is unpaid and will be collected upon service completion.
+
+
+GET /api/checkout
+GET /api/checkout-api
+GET /api/checkout/:userId
+GET /api/checkout-api/:userId
+- Headers: Authorization: Bearer <jwt_token>
+- Optional Query Parameters: productId, date, timeSlot
+- Response: {
+    "success": true,
+    "orderId": 4,
+    "userId": "9876543210",
+    "user": {
+      "name": "Guest User",
+      "phone": "9876543210",
+      "email": "guest@example.com",
+      "walletBalance": 0
+    },
+    "product": {
+      "productId": "Tap Repair",
+      "serviceName": "Tap Repair",
+      "price": 299,
+      "description": "Fix leaking taps and water issues",
+      "date": "2026-05-28",
+      "timeSlot": "4:00 PM - 5:00 PM"
+    },
+    "items": [
+      {
+        "productId": "Tap Repair",
+        "serviceName": "Tap Repair",
+        "price": 299,
+        "quantity": 1,
+        "description": "Fix leaking taps and water issues",
+        "image": ""
+      }
+    ],
+    "address": {
+      "type": "Home",
+      "houseNo": "104",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Central Park",
+      "city": "Mumbai, Maharashtra",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": 26.9124,
+      "longitude": 75.7873,
+      "name": "Mock Guest",
+      "alternateNumber": ""
+    },
+    "payment": {
+      "paymentMethod": "Wallet",
+      "amountPaid": 299
+    },
+    "status": "Pending",
+    "bookingStatus": "searching",
+    "partnerName": null,
+    "partnerDistance": null,
+    "addresses": [ { "id": 1, "userPhone": "9876543210", "type": "Home", ... } ],
+    "services": [ { "productId": "Tap Repair", "title": "Tap Repair", "price": 299, ... } ],
+    "products": [ { "productId": "Tap Repair", "title": "Tap Repair", "price": 299, ... } ],
+    "slots": [
+      "9:00 AM - 10:00 AM", "10:00 AM - 11:00 AM", "11:00 AM - 12:00 PM",
+      "12:00 PM - 1:00 PM", "1:00 PM - 2:00 PM", "2:00 PM - 3:00 PM",
+      "3:00 PM - 4:00 PM", "4:00 PM - 5:00 PM", "5:00 PM - 6:00 PM",
+      "6:00 PM - 7:00 PM", "7:00 PM - 8:00 PM"
+    ],
+    "dates": [
+      { "formattedDate": "2026-05-28", "dayName": "Today", "displayDate": "28 May" },
+      { "formattedDate": "2026-05-29", "dayName": "Tomorrow", "displayDate": "29 May" }
     ]
-  },
-  "message": "Service details retrieved successfully"
-}
+  }
+- Note: Retrieves complete checkout summary for the specified user or order.
+  - Dynamic Date & Slot: Date and timeSlot are computed from current IST time when auto-created.
+  - Auto-Create: Creates a new order if none exists for the given userId/orderId.
+  - Auto-Address: Resolves user's latest saved address, falling back to profile location, then mock address.
+  - Persistent Overrides: Query params productId, date, timeSlot are saved to DB.
+  - Interactive Option Lists: Returns addresses, services/products, slots, dates for frontend dropdowns.
+  - Items List (NEW): Includes the localized itemized list of multiple selected services with quantities.
+
 
 ---------------------------------------------------------
-5. Available Booking Dates & Slots APIs
+12a. Policies & Information APIs
 ---------------------------------------------------------
 
-Endpoint: GET /api/booking/available-dates
-Response Payload / Available Dates (next 7 days):
-{
-  "success": true,
-  "dates": [
-    {
-      "formattedDate": "2026-05-26",
-      "dayName": "Today",
-      "displayDate": "26 May"
+GET /api/policies/privacy
+- Response: { "success": true, "title": "Privacy Policy", "lastUpdated": "May 27, 2026", "content": "...", "sections": [ ... ] }
+
+GET /api/about
+GET /api/policies/about (Redirects to /api/about)
+- Response: { "success": true, "title": "About Us", "description": "...", "vision": "...", "mission": "...", "highlights": [ ... ] }
+
+GET /api/policies/terms
+- Response: { "success": true, "title": "Terms and Conditions", "lastUpdated": "May 27, 2026", "content": "...", "sections": [ ... ] }
+
+GET /api/policies/refund
+- Response: { "success": true, "title": "Refund Policy", "lastUpdated": "May 27, 2026", "content": "...", "rules": [ ... ] }
+
+
+---------------------------------------------------------
+13. Razorpay Payment Verification API
+---------------------------------------------------------
+
+GET /api/payments/verify
+POST /api/payments/verify
+GET /api/payments/verify/:orderId
+POST /api/payments/verify/:orderId
+- Parameters (Path/Query/Body):
+  * `orderId` (optional; numeric database order ID)
+  * `razorpay_order_id` / `order_id` (optional; Razorpay Order ID to look up the order by)
+  * `paymentId` / `razorpay_payment_id` (optional; Razorpay Payment ID to verify payment status)
+- Response: {
+    "success": true,
+    "orderId": 4,
+    "paymentStatus": "captured",
+    "paymentDetails": {
+      "razorpay_payment_id": "pay_mock_ABC123XYZ",
+      "razorpay_order_id": "order_mock_DEF456UVW",
+      "status": "captured",
+      "amount": 29900,
+      "currency": "INR",
+      "method": "card",
+      "email": "user@example.com",
+      "contact": "+919876543210"
     },
-    {
-      "formattedDate": "2026-05-27",
-      "dayName": "Tomorrow",
-      "displayDate": "27 May"
-    }
-  ],
-  "message": "Available booking dates retrieved successfully"
-}
+    "message": "Payment checked successfully from Razorpay. Status: captured"
+  }
+- Note: Verifies payment status using the real Razorpay API. Dynamically detects and resolves the target
+  database order ID from URL path, query string, request body, or by looking up the order matching
+  `razorpay_order_id`. If `paymentId` is provided, it verifies that specific payment; otherwise checks
+  payments for the saved `razorpayOrderId` on the order. Falls back to simulated validation if API keys
+  are unauthenticated.
+  * Note for Cash / COD orders: Verification immediately returns success with `paymentStatus: "cod"`.
 
-Endpoint: GET /api/booking/available-slots
-Response Payload / Available Time Slots (11 hourly slots):
-{
-  "success": true,
-  "slots": [
-    { "id": "slot_1", "time": "9:00 AM - 10:00 AM", "available": true },
-    { "id": "slot_2", "time": "10:00 AM - 11:00 AM", "available": true },
-    { "id": "slot_3", "time": "11:00 AM - 12:00 PM", "available": true },
-    { "id": "slot_4", "time": "12:00 PM - 1:00 PM", "available": true },
-    { "id": "slot_5", "time": "1:00 PM - 2:00 PM", "available": true },
-    { "id": "slot_6", "time": "2:00 PM - 3:00 PM", "available": true },
-    { "id": "slot_7", "time": "3:00 PM - 4:00 PM", "available": true },
-    { "id": "slot_8", "time": "4:00 PM - 5:00 PM", "available": true },
-    { "id": "slot_9", "time": "5:00 PM - 6:00 PM", "available": true },
-    { "id": "slot_10", "time": "6:00 PM - 7:00 PM", "available": true },
-    { "id": "slot_11", "time": "7:00 PM - 8:00 PM", "available": true }
-  ],
-  "message": "Available booking time slots retrieved successfully"
-}
 
 ---------------------------------------------------------
-5a. Orders API
+13ab. Cash on Delivery (COD) Confirmation API
 ---------------------------------------------------------
 
-Endpoint: GET /api/orders
-Headers: Authorization: Bearer <jwt_token>
-Response Payload:
-{
-  "success": true,
-  "orders": [
-    {
-      "id": 1,
-      "serviceName": "Tap Repair",
-      "price": 299,
-      "date": "2026-05-29",
-      "timeSlot": "10:00 AM - 11:00 AM",
-      "status": "Paid",
-      "razorpayOrderId": "order_xyz123ABC",
-      "address": { ... },
-      "payment": { ... }
-    }
-  ],
-  "list": [
-    {
-      "id": 1,
-      "serviceName": "Tap Repair",
-      "price": 299,
-      "status": "Paid",
-      "date": "2026-05-29",
-      "timeSlot": "10:00 AM - 11:00 AM",
-      "razorpayOrderId": "order_xyz123ABC"
-    }
-  ],
-  "orderlist": {
-    "total": 1,
-    "data": [ { ...full order objects... } ]
-  },
-  "message": "Orders retrieved successfully"
-}
-Note:
-  - `orders`   = full order objects (all fields including address, payment)
-  - `list`     = compact summary (id, serviceName, price, status, date, timeSlot, razorpayOrderId)
-  - `orderlist` = { total: N, data: [...full orders] } — includes total count
+POST /api/payments/cod/:orderId
+- Parameters (Path):
+  * `orderId` (required; numeric database order ID)
+- Response: {
+    "success": true,
+    "orderId": 12,
+    "order": { ... },
+    "message": "COD order placed successfully"
+  }
+- Note: Updates the target order's status to "Pending" and bookingStatus to "searching". Used by the Flutter client to confirm order placement when "Cash on Delivery" is chosen.
 
-Endpoint: GET /api/orders/:id
-Path Parameter: id (the numeric database Order ID, e.g. 1000007)
-Response Payload:
-{
-  "id": 1000007,
-  "userPhone": "9876543210",
-  "serviceName": "AC Repair",
-  "price": 499,
-  "date": "2026-07-03T10:00:00.000Z",
-  "timeSlot": "10:00 AM - 11:00 AM",
-  "status": "Paid",
-  "bookingStatus": "accepted",
-  "partnerName": "Ravi Kumar",
-  "partnerDistance": "3.2 km away",
-  "partnerPhone": "9988776655",
-  "address": { ... },
-  "payment": { ... },
-  "createdAt": 1780480800000
-}
-Note: Retrieves all details of a specific order directly at the root by its numeric ID. This is a public endpoint (no authorization header required).
 
 ---------------------------------------------------------
-6. Policies & Information APIs
+13a. Hosted Payment Checkout Page URL
 ---------------------------------------------------------
 
-Endpoint: GET /api/policies/privacy
-Response Payload:
-{
-  "success": true,
-  "title": "Privacy Policy",
-  "lastUpdated": "May 27, 2026",
-  "content": "At Home Services, we value your privacy and are committed to protecting your personal data. This privacy policy describes how we collect, use, and share your information when you use our platform.",
-  "sections": [
-    {
-      "title": "1. Information We Collect",
-      "body": "We collect information you provide directly to us, such as your name, phone number, email address, physical address, and payment information when you register, schedule a service, or communicate with us."
-    },
-    {
-      "title": "2. How We Use Your Information",
-      "body": "We use your personal information to match you with certified service providers, process payments, verify bookings, send transaction alerts, and improve our home services platform experience."
-    },
-    {
-      "title": "3. Information Sharing & Security",
-      "body": "Your details are only shared with the assigned service technician for execution. We implement strict industry-standard technical measures to secure your data and do not sell information to third-party advertisers."
-    }
-  ]
-}
+GET /api/payments/pay/:orderId
+- Parameters (Path):
+  * `orderId` (required; numeric database order ID)
+- Response: HTML page serving the Razorpay Standard Checkout UI.
+- Note:
+  * Renders a premium payment checkout experience using Razorpay Checkout.js.
+  * Live Razorpay Key ID: rzp_live_RLno7eQMMUUT8A
+  * The Razorpay Order ID (`razorpayOrderId`) is generated DYNAMICALLY at checkout time (POST /api/checkout)
+    and stored in the DB. The payment page fetches the saved `razorpayOrderId` for this orderId from DB.
+  * If keys are invalid or not configured, displays an overlay for a simulated mock payment.
+  * On success, redirects to: GET /api/payments/callback?orderId=<orderId>
 
-Endpoint: GET /api/about (also GET /api/policies/about redirect)
-Response Payload:
-{
-  "success": true,
-  "title": "About Us",
-  "description": "Home Services is a premium, on-demand platform connecting homeowners with certified and background-checked service professionals like plumbers, electricians, mechanics, painters, and salon technicians.",
-  "vision": "To make home maintenance, repair, and cleaning services completely hassle-free, secure, and transparent.",
-  "mission": "To empower local service partners with technology and training while providing consumers with reliable, affordable, and high-quality solutions at their doorstep.",
-  "highlights": [
-    "100% Background Checked & Verified Partners",
-    "Standardised Pricing & No Hidden Charges",
-    "30-Day Post-Service Warranty Cover",
-    "Seamless In-App Booking and Booking Tracking"
-  ]
-}
+Flutter Dynamic Order ID Flow (End-to-End):
+  Step 1: POST /api/checkout
+          Response: { "orderId": 1000007, "razorpayOrderId": "order_ABC123XYZ" }
+  Step 2: Flutter stores BOTH IDs from checkout response.
+          orderId = checkoutResult['orderId']        (DB order ID)
+          razorpayOrderId = checkoutResult['razorpayOrderId']  (Razorpay order ID - for reference)
+  Step 3: Payment URL built as: GET /api/payments/pay/1000007  (uses DB orderId in path)
+  Step 4: Backend looks up `razorpayOrderId` from DB for orderId=1000007.
+  Step 5: Razorpay Checkout.js opens with the correct dynamic `razorpayOrderId`.
+  Step 6: User completes payment on Razorpay page.
+  Step 7: Browser redirects to /api/payments/callback?orderId=1000007
+  Step 8: Callback page shows success animation + 3-second auto-close countdown.
+  Step 9: Flutter detects browser close → shows "Verify Payment" dialog.
+  Step 10: User taps "Verify" → Flutter navigates to PaymentSuccessScreen.
 
-Endpoint: GET /api/policies/terms
-Response Payload:
-{
-  "success": true,
-  "title": "Terms and Conditions",
-  "lastUpdated": "May 27, 2026",
-  "content": "Welcome to Home Services. By registering or using our platform, you agree to comply with and be bound by the following terms of service. Please read them carefully.",
-  "sections": [
-    {
-      "title": "1. Service Booking & Cancellation",
-      "body": "All service bookings must be made through our official mobile app or portal. Users can cancel bookings free of charge up to 2 hours before the scheduled time slot. Late cancellations may incur a nominal convenience fee."
-    },
-    {
-      "title": "2. Payment & Billing Rules",
-      "body": "Standard charges are displayed upfront. Any additional materials or spare parts purchased by the technician will be billed separately with user consent. All payments must be processed digitally or through in-app wallet options."
-    },
-    {
-      "title": "3. Limitation of Liability",
-      "body": "While we verify all independent service professionals, Home Services acts as a coordinator. Any dispute or property damage claims are governed by our standard insurance and damage reimbursement guidelines."
-    }
-  ]
-}
-
-Endpoint: GET /api/policies/refund
-Response Payload:
-{
-  "success": true,
-  "title": "Refund Policy",
-  "lastUpdated": "May 27, 2026",
-  "content": "Our goal is your complete satisfaction. If you are unsatisfied with a service, we offer a transparent refund and rework policy governed by the following rules.",
-  "rules": [
-    {
-      "title": "1. Refund Eligibility",
-      "body": "Refunds are processed if the service was not executed as described, the service partner failed to show up, or severe quality issues are reported within 48 hours of service completion."
-    },
-    {
-      "title": "2. Standard Resolution Timeline",
-      "body": "For verified issues, we initiate a free-of-cost rework by a senior supervisor within 24 hours. If rework is not feasible, a full or partial refund is credited back to your original payment source or wallet within 5-7 business days."
-    },
-    {
-      "title": "3. Warranty Cover Limitations",
-      "body": "Our 30-day post-service warranty covers repairs executed by our partner. Reworks or issues arising due to external damage, misuse, or repairs handled by external non-platform technicians will invalidate refund/warranty claims."
-    }
-  ]
-}
 
 ---------------------------------------------------------
-7. Razorpay Payment Verification API
+13b. Hosted Payment Redirect Callback URL
 ---------------------------------------------------------
 
-Endpoint: GET /api/payments/verify
-Endpoint: POST /api/payments/verify
-Endpoint: GET /api/payments/verify/:orderId
-Endpoint: POST /api/payments/verify/:orderId
-Parameters (Query/Body/Path): orderId, razorpay_order_id, paymentId / razorpay_payment_id
-Response Payload:
-{
-  "success": true,
-  "orderId": 4,
-  "paymentStatus": "captured",
-  "paymentDetails": {
-    "razorpay_payment_id": "pay_mock_ABC123XYZ",
-    "razorpay_order_id": "order_mock_DEF456UVW",
-    "status": "captured",
-    "amount": 29900,
-    "currency": "INR",
-    "method": "card",
-    "email": "user@example.com",
-    "contact": "+919876543210"
-  },
-  "message": "Payment checked successfully from Razorpay. Status: captured"
-}
-Note: Verifies the payment status using the real Razorpay API. If a `paymentId` query parameter is provided, it fetches and verifies that payment. Otherwise, it checks all payments for the saved `razorpayOrderId` on the order/subscription. Falls back to simulation if credentials fail authentication.
-* Supports both normal order IDs (numeric) and AMC subscription IDs (starting with "AMC"). For AMC subscriptions, successful payment verification automatically marks the subscription as active in the database.
-* For Cash / COD orders, verification immediately returns success with `paymentStatus: "cod"`.
+GET /api/payments/callback
+- Parameters (Query):
+  * `orderId` (required; numeric database order ID)
+  * `razorpay_payment_id` / `paymentId` (optional; Razorpay transaction ID)
+  * `status` (optional; defaults to "captured")
+  * `mock` (optional; "true" for simulated payment)
+- Response: Premium animated HTML page showing payment success/failed tick animation with 3-second
+  auto-close countdown timer and a manual "Return to App Now" button.
+- Note:
+  * Updates the DB order `status` to "Paid" and saves `razorpayPaymentId` to the order record.
+  * Sets `bookingStatus` to "searching" to trigger nearest partner routing flow.
+  * Browser tab auto-closes after 3-second countdown.
+  * Flutter app automatically polls `/api/payments/verify/:orderId` every 2 seconds in the background.
+  * Once payment is verified, the app automatically closes the progress dialog and redirects the user directly to the PaymentSuccessScreen.
+
 
 ---------------------------------------------------------
-7c. Cash on Delivery (COD) Confirmation API
+13c. Flutter PaymentSuccessScreen (In-App Confirmation)
 ---------------------------------------------------------
 
-Endpoint: POST /api/payments/cod/:orderId
-Parameters (Path): orderId (required; numeric database order ID)
-Response Payload:
-{
-  "success": true,
-  "orderId": 12,
-  "order": { ... },
-  "message": "COD order placed successfully"
-}
-Note: Updates the target order's status to "Pending" and bookingStatus to "searching". Used by the Flutter client to confirm order placement when "Cash on Delivery" is chosen.
-
----------------------------------------------------------
-7a. Hosted Payment Checkout Page URL
----------------------------------------------------------
-
-Endpoint: GET /api/payments/pay/:orderId
-Parameters (Path): orderId (required; numeric database order ID)
-Response: HTML page serving the Razorpay Standard Checkout UI or simulated sandbox payment option if Razorpay credentials are not active.
-
----------------------------------------------------------
-7b. Hosted Payment Redirect Callback URL
----------------------------------------------------------
-
-Endpoint: GET /api/payments/callback
-Parameters (Query): orderId (required), razorpay_payment_id / paymentId, status, mock
-Response: HTML page showing a beautiful payment success/failed tick animation screen and prompts to return to the app.
-Note: Updates the order to 'Paid' and triggers partner search. The browser tab auto-closes after 3 seconds. The Flutter app automatically polls verification in the background and redirects to the PaymentSuccessScreen.
-
----------------------------------------------------------
-8. Dynamic GET Checkout – Auto-Create, Auto-Address & Persistent Overrides
----------------------------------------------------------
-
-Endpoint: GET /api/checkout
-Endpoint: GET /api/checkout-api
-Endpoint: GET /api/checkout/:userId
-Endpoint: GET /api/checkout-api/:userId
-Headers: Authorization: Bearer <jwt_token>
-Optional Query Parameters: productId (format- and spelling-insensitive, e.g. `lekage repair` -> `Leakage Repair`), date, timeSlot
-
-Key Behaviors:
-
-0. Dynamic Date & Slot Defaults (NEW):
-   - When no date or timeSlot is provided (in query, body, or headers), the server computes
-     the next available booking slot based on the current IST time (UTC+5:30).
-   - Logic: Picks the first hourly slot (from 9 AM to 8 PM) whose start hour is strictly
-     after the current IST hour. If no slots remain today, rolls to tomorrow's first slot.
-   - Example: If called at 3:05 PM IST  → date = today, timeSlot = "4:00 PM - 5:00 PM"
-   - Example: If called at 8:30 PM IST  → date = tomorrow, timeSlot = "9:00 AM - 10:00 AM"
-   - This same logic applies to POST /api/checkout when timeSlot/date are omitted.
-
-1. Auto-Create (Persistent Fallback):
-   - If no order exists for the given userId (phone number) or numeric orderId, the server
-     automatically creates a new order with a proper auto-incremented ID.
-   - The created order is persisted to the database (MySQL or database.json).
-   - A 2nd call with the same userId returns the previously created order instead of creating another.
-
-2. Auto-Address Resolution (3-level fallback):
-   - Level 1: Latest saved address from the addresses collection for this user.
-   - Level 2: User profile `location` and `locality` fields (set via PUT /api/auth/profile).
-   - Level 3: Static default mock address (Green Villa, Mumbai).
-   - The resolved address is applied to the order and updated in the database.
-
-3. Persistent Query Overrides:
-   - Passing ?productId=, ?date=, or ?timeSlot= overrides the corresponding order fields.
-   - The overrides are saved to the database, so a follow-up call without query params
-     still returns the overridden values.
-   - Example: GET /api/checkout/9876543210?productId=AC+Gas+Charging&date=2026-06-01&timeSlot=10:00+AM+-+11:00+AM
-
-4. Interactive Selection Choice Lists (NEW):
-   - The endpoint returns lists of available choices so the user can change options directly on the checkout screen:
-     * `addresses`: All saved addresses of the user retrieved dynamically from the `node_addresses` table.
-     * `services` & `products`: All active services in the same category as the selected service, queried dynamically from the MySQL `services` table, with fully resolved image URLs. Both keys contain identical data for Flutter compatibility.
-     * `slots`: List of available time slots for the selected date, retrieved from the `slots` database table.
-     * `dates`: Generates next 7 calendar dates (e.g. formattedDate: "2026-05-28", dayName: "Today"/"Tomorrow"/"Friday", displayDate: "28 May").
-
+This is a Flutter in-app screen (not an API endpoint) shown automatically upon successful payment verification:
+  - Animated checkmark with elastic pop-in and green gradient glow ring
+  - Amount badge (e.g. Rs.299) displayed in a gradient pill
+  - Order ID (DB orderId) and Razorpay Payment ID shown
+  - Service name, booking date, time slot displayed
+  - "Track My Booking" CTA button -> navigates to SearchingPartnerScreen
+  - File: lib/view/paymentScreen/payment_success_screen.dart
+  - File: lib/viewmodel/order_viewmodel.dart (checkout() returns Map with both orderId + razorpayOrderId)
+  - File: lib/view/paymentScreen/payment_screen.dart (uses checkoutResult['orderId'] for payment URL)
 
 
 ---------------------------------------------------------
 14. Database Configuration & Fallback Engine (MySQL + JSON)
 ---------------------------------------------------------
 
-The backend uses a highly resilient database routing architecture to store and manage data. It dynamically chooses the active database layer based on environment configuration and server startup connectivity, supporting MySQL as the remote database and a local JSON file database as a fallback.
+The backend uses a highly resilient database routing architecture to store and manage data. It dynamically
+chooses the active database layer based on environment configuration and server startup connectivity,
+supporting MySQL as the remote database and a local JSON file database as a fallback.
 
 Database Priority Order:
 1. MySQL (Primary)
@@ -535,250 +827,372 @@ Database Priority Order:
      - `addresses`
      - `categories` (seeds default categories if empty)
      - `referrals_applied`
+     - `contacts`
 2. JSON File Database (Fallback)
    - Host: Local file system (`database.json`)
    - Backup mode: Activates automatically if MySQL connection fails to establish or is unconfigured.
 
 How the Fallback Engine Works:
 - On startup, the backend attempts to establish a connection to the MySQL pool.
-- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs the error and falls back to running in-memory backed by `database.json`.
-- All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring zero service downtime across environments.
+- If MySQL is not configured or connection fails (e.g. IP is not whitelisted in BigRock cPanel), it logs
+  the error and falls back to running in-memory backed by `database.json`.
+- All `DbLayer` queries dynamically route to the active database mode, preventing crashes and ensuring
+  zero service downtime across environments.
 
 ---------------------------------------------------------
 15. Contact & Support API
 ---------------------------------------------------------
 
-Endpoint: POST /api/contact
-Body: { "name": "string", "email": "string", "phone": "string" (optional), "message": "string" }
-Response: { "success": true, "message": "Contact message sent successfully", "contact": { ... } }
-
----------------------------------------------------------
-16. Account Deletion API
----------------------------------------------------------
-
-Endpoint: DELETE /api/auth/account
-Headers: Authorization: Bearer <jwt_token>
-Response: { "success": true, "message": "Account deleted successfully" }
-
----------------------------------------------------------
-17. Dropdown Selection APIs (States, Cities, Localities)
----------------------------------------------------------
-
-Endpoint: GET /api/states
-Response: { "success": true, "states": ["Maharashtra", "Delhi", ...], "message": "States retrieved successfully from database" }
-
-Endpoint: GET /api/cities
-Query Parameters: state (optional; e.g. Rajasthan)
-Response: { "success": true, "cities": ["Jaipur", "Ahmedabad", ...], "message": "Cities retrieved successfully" }
-
-Endpoint: GET /api/localities
-Query Parameters: city (optional; e.g. Jaipur), state (optional; e.g. Rajasthan)
-Response: { "success": true, "localities": ["Pratap Nagar", "Mansarovar", ...], "message": "Localities retrieved successfully" }
-
----------------------------------------------------------
-18. Parameter Normalization and Available Slot Filtering (NEW)
----------------------------------------------------------
-
-All time slots, dates, and service/product names are automatically normalized before being processed, validated, or persisted to the database.
-
-1. Time Slot Normalization:
-   - Shorthand time slot formats (e.g., "9:00am to 10:am", "5:00pm to 6:00pm", or "5:00 pm - 6:00 pm") are automatically normalized to the standard catalog format (e.g., "9:00 AM - 10:00 AM").
-   - Colons not followed by digits (such as trailing colons, e.g., "10:am") are automatically stripped to "10am" before performing standard hour/AM-PM extraction.
-
-2. Date Normalization:
-   - Date parameters supplied in varying formats (e.g., "31/05/2026", "31-05-2026") are normalized to standard ISO format "YYYY-MM-DD" (e.g., "2026-05-31").
-
-3. Product/Service Name Normalization:
-   - Spelling typos (e.g., "lekage repair", "lekege repair") or formatting variations (e.g., "leakage-repair", "leakage_repair") are resolved to the correct catalog title (e.g., "Leakage Repair").
-   - Both order `productId` and `serviceName` fields are stored and returned in this normalized format.
-
-4. Slot Availability Filtering:
-   - Available slots lists returned in GET `/api/booking/available-slots` and GET `/api/checkout` are dynamically filtered to ONLY return slots that can actually be selected by the user (slots where `available === true`). Already booked/overlapping slots are excluded from the payload.
-
----------------------------------------------------------
-19. AMC Booking Endpoint (NEW)
----------------------------------------------------------
-
-Endpoint: POST /api/amc/book (also POST /api/amc/bookings)
-Request Body:
-{
-  "amcId": "AMC123456",
-  "productId": "Tap Repair",
-  "date": "2026-07-20",
-  "timeSlot": "12:00 PM - 02:00 PM",
-  "address": { ... } // optional
-}
-Response Payload:
-{
-  "success": true,
-  "orderId": 10001,
-  "order_id": 10001,
-  "message": "Successfully booked service 'Tap Repair' under AMC subscription AMC123456!",
-  "order": {
-    "id": 10001,
-    "userPhone": "9876543210",
-    "userId": "9876543210",
-    "serviceName": "Tap Repair",
-    "price": 0.00,
-    "date": "2026-07-20",
-    "status": "Pending",
-    "bookingStatus": "searching",
-    "productId": "Tap Repair",
-    "description": "Fix leaking taps and water issues",
-    "timeSlot": "12:00 PM - 02:00 PM",
-    "payment": {
-      "paymentMethod": "AMC",
-      "amountPaid": 0.00
-    },
-    "amcId": "AMC123456",
-    "advancePayment": 0.00,
-    "remainingAmount": 0.00
+POST /api/contact
+- Body: { "name": "string", "email": "string", "phone": "string" (optional), "message": "string" }
+- Response: {
+    "success": true,
+    "message": "Contact message sent successfully",
+    "contact": {
+      "id": 1,
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "phone": "+919876543210",
+      "message": "Hello, I need help with my booking.",
+      "createdAt": "2026-05-29T06:30:00.000Z"
+    }
   }
-}
-Note: The service's category must match the AMC subscription's category, and the subscriber must have completed less than 12 bookings.
+- Note: Saves customer support and contact form inquiries to the database
+  (`node_contacts` MySQL table or JSON fallback contacts list).
 
 ---------------------------------------------------------
-20. AMC Subscription Purchase Endpoint (NEW)
+16. App Version Config API
 ---------------------------------------------------------
 
-Endpoint: POST /api/amc/subscribe
-Multipart Form-Data Body:
-- "category": "Plumber" (string, required)
-- "areaSqFt": 1200 (number, required)
-- "floors": 2 (number, required)
-- "price": 2500 (number, optional; overrides default calculations if passed)
-- "note" or "notes": "Special plumbing request" (string, optional)
-- "photo" or "image" or "pdf" or "file" or "document": [File Upload / URL String] (optional; single parameter to submit a document, PDF, or photo)
+GET /api/app-version
+- Response:
+  {
+    "success": true,
+    "android": {
+      "latestVersion": "1.0.3",
+      "minSupportedVersion": "1.0.2",
+      "forceUpdate": false
+    },
+    "ios": {
+      "latestVersion": "1.0.4",
+      "minSupportedVersion": "1.0.3",
+      "forceUpdate": true
+    }
+  }
+- Note: Public endpoint to fetch configuration values of current latest app versions and minimal supported versions.
 
-Response Payload:
-{
-  "success": true,
-  "orderId": "AMC45678912",
-  "order_id": "AMC45678912",
-  "amcId": "AMC45678912",
-  "message": "Successfully subscribed to AMC for Plumber! Valid for 1 year with 12 free bookings.",
-  "subscription": {
+POST /api/app-version
+- Body:
+  {
+    "android": {
+      "latestVersion": "1.0.4",
+      "minSupportedVersion": "1.0.3",
+      "forceUpdate": false
+    },
+    "ios": {
+      "latestVersion": "1.0.5",
+      "minSupportedVersion": "1.0.4",
+      "forceUpdate": true
+    }
+  }
+- Response:
+  {
+    "success": true,
+    "android": {
+      "latestVersion": "1.0.4",
+      "minSupportedVersion": "1.0.3",
+      "forceUpdate": false
+    },
+    "ios": {
+      "latestVersion": "1.0.5",
+      "minSupportedVersion": "1.0.4",
+      "forceUpdate": true
+    },
+    "message": "App version configuration updated successfully"
+  }
+- Note: Dynamic admin endpoint to update the app version parameters. Any of the keys can be omitted for partial updates.
+
+
+---------------------------------------------------------
+13. Annual Maintenance Contract (AMC) APIs
+---------------------------------------------------------
+
+GET /api/amc/plans
+- Response: {
+    "success": true,
+    "plans": [
+      {
+        "category": "Plumber",
+        "baseRatePerSqFt": 2.0,
+        "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹2 per sq feet."
+      }
+    ]
+  }
+- Note: Public endpoint listing all available categories for AMC subscription.
+
+POST /api/amc/subscribe
+- Headers: Authorization: Bearer <jwt_token>
+- Multipart Form-Data Body:
+    - "category": "Plumber" (string, required)
+    - "areaSqFt": 1200 (number, required)
+    - "floors": 2 (number, required)
+    - "price": 2500 (number, optional; overrides default price calculations if passed)
+    - "note" or "notes": "Special plumbing request" (string, optional)
+    - "photo" or "image" or "pdf" or "file" or "document": [File Upload / URL String] (optional; single parameter to submit a document, PDF, or photo)
+- Response: {
+    "success": true,
+    "orderId": "AMC45678912",
+    "order_id": "AMC45678912",
     "amcId": "AMC45678912",
-    "userPhone": "9876543210",
+    "message": "Successfully subscribed to AMC for Plumber! Valid for 1 year with 12 free bookings.",
+    "subscription": {
+      "amcId": "AMC45678912",
+      "userPhone": "9876543210",
+      "category": "Plumber",
+      "areaSqFt": 1200,
+      "floors": 2,
+      "price": 2400.00,
+      "status": "active",
+      "startDate": "2026-07-10T11:00:00.000Z",
+      "endDate": "2027-07-10T11:00:00.000Z",
+      "photoUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
+      "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
+      "fileUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
+      "note": "Special plumbing request"
+    }
+  }
+- Note: Private multipart endpoint to buy an AMC plan. Accepts a single document (either image or PDF) via 'photo'/'image'/'pdf'/'file'/'document' upload fields, and returns the URL in 'photoUrl', 'pdfUrl', and 'fileUrl' for maximum client compatibility. Dynamic price = areaSqFt * 2 * floors.
+
+GET /api/amc/subscriptions
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "activeSubscriptions": [
+      {
+        "amcId": "AMC45678912",
+        "userPhone": "9876543210",
+        "category": "Plumber",
+        "areaSqFt": 1200,
+        "floors": 2,
+        "price": 2400.00,
+        "status": "active",
+        "startDate": "2026-07-10T11:00:00.000Z",
+        "endDate": "2027-07-10T11:00:00.000Z",
+        "completedCount": 1,
+        "currentMonthCount": 1,
+        "monthlyLimit": 1,
+        "canBookThisMonth": false,
+        "totalAllowed": 12,
+        "progressMessage": "1 complete out of 12 (Limit: 1 service per month)",
+        "buttons": {
+          "bookService": "Book Service (at ₹0)",
+          "renewService": "Renew Service"
+        }
+      }
+    ],
+    "availablePlans": [
+      {
+        "category": "AcRepair",
+        "baseRatePerSqFt": 2.0,
+        "description": "Subscribe to Annual Maintenance Contract for AcRepair (12 free services per year at ₹2/sq ft base rate)."
+      }
+    ],
+    "message": "AMC subscriptions and plans retrieved successfully"
+  }
+- Note: Private endpoint that returns the user's active subscriptions (with progress/counters) and available category plans for slide views.
+
+POST /api/amc/renew
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "amcId": "AMC45678912"
+  }
+- Response: {
+    "success": true,
+    "message": "AMC subscription AMC45678912 renewed successfully! Extended for 1 year.",
+    "subscription": {
+      "amcId": "AMC45678912",
+      "userPhone": "9876543210",
+      "category": "Plumber",
+      "areaSqFt": 1200,
+      "floors": 2,
+      "price": 2400.00,
+      "status": "active",
+      "startDate": "2026-07-10T11:00:00.000Z",
+      "endDate": "2028-07-10T11:00:00.000Z"
+    }
+  }
+- Note: Private endpoint to renew an active or expired subscription, extending it by 1 year.
+
+POST /api/amc/book (also POST /api/amc/bookings)
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "amcId": "AMC45678912",
+    "productId": "Tap Repair",
+    "date": "2026-07-20",
+    "timeSlot": "12:00 PM - 02:00 PM",
+    "address": {
+      "type": "Home",
+      "houseNo": "123",
+      "society": "Green Villa",
+      "floor": "1st",
+      "landmark": "Near Park",
+      "city": "Jaipur",
+      "locality": "Malviya Nagar",
+      "pincode": "302017",
+      "latitude": 26.85,
+      "longitude": 75.82,
+      "name": "Hira Yadav",
+      "alternateNumber": "9876543211",
+      "countryCode": "+91"
+    }
+  }
+- Response: {
+    "success": true,
+    "message": "Successfully booked service 'Tap Repair' under AMC subscription AMC45678912!",
+    "order": {
+      "id": 10001,
+      "userPhone": "9876543210",
+      "userId": "9876543210",
+      "serviceName": "Tap Repair",
+      "price": 0.00,
+      "date": "2026-07-20",
+      "status": "Pending",
+      "bookingStatus": "searching",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap Repair",
+      "description": "Fix leaking taps and water issues",
+      "timeSlot": "12:00 PM - 02:00 PM",
+      "address": { ... },
+      "payment": {
+        "paymentMethod": "AMC",
+        "amountPaid": 0.00
+      },
+      "razorpayOrderId": null,
+      "razorpayPaymentId": null,
+      "createdAt": 1784112000000,
+      "amcId": "AMC45678912",
+      "advancePayment": 0.00,
+      "remainingAmount": 0.00
+    }
+  }
+- Note: Private endpoint to book a service under an active AMC subscription. The service's category MUST match the AMC subscription's category, and the subscriber must have completed less than 12 bookings. Price is overridden to 0.00.
+
+
+14. Extended AMC, Saved Cards & Payment APIs
+
+GET /api/amc/plans/:category
+- Headers: None
+- Response: {
+    "success": true,
+    "plan": {
+      "category": "Plumber",
+      "baseRatePerSqFt": 2.0,
+      "description": "Annual Maintenance Contract for Plumber. Free 12 services per year. Base price: ₹2 per sq feet..."
+    }
+  }
+
+POST /api/amc/plan-property-details
+- Headers: None
+- Body: {
+    "category": "Plumber",
+    "areaSqFt": 1200,
+    "floors": 2
+  }
+- Response: {
+    "success": true,
     "category": "Plumber",
     "areaSqFt": 1200,
     "floors": 2,
-    "price": 2400.00,
-    "status": "active",
-    "startDate": "2026-07-10T11:00:00.000Z",
-    "endDate": "2027-07-10T11:00:00.000Z",
-    "photoUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
-    "pdfUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
-    "fileUrl": "https://backend-1-ux3b.onrender.com/uploads/amc/1784112000000-photo.png",
-    "note": "Special plumbing request",
-    "orderId": "AMC45678912",
-    "order_id": "AMC45678912"
+    "ratePerSqFt": 2,
+    "totalPrice": 2400,
+    "description": "Estimated AMC for Plumber over 1200 sq ft across 2 floor(s)."
   }
-}
 
----------------------------------------------------------
-22. Cancel Order API (NEW)
----------------------------------------------------------
+GET /api/cards
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "cards": [
+      {
+        "id": 1,
+        "userPhone": "9876543210",
+        "cardHolderName": "John Doe",
+        "cardNumber": "**** **** **** 1111",
+        "expiryDate": "12/29",
+        "cardType": "Visa"
+      }
+    ]
+  }
 
-Endpoint: POST /api/orders/cancel (or POST /api/cancel-order)
-Headers: Authorization: Bearer <jwt_token>
-JSON Body:
-{
-  "orderId": 501,
-  "response": "Customer requested cancellation"
-}
+POST /api/cards
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "cardHolderName": "John Doe",
+    "cardNumber": "1234567812341111",
+    "expiryDate": "12/29",
+    "cardType": "Visa"
+  }
+- Response: {
+    "success": true,
+    "card": {
+      "id": 1,
+      "userPhone": "9876543210",
+      "cardHolderName": "John Doe",
+      "cardNumber": "**** **** **** 1111",
+      "expiryDate": "12/29",
+      "cardType": "Visa"
+    },
+    "message": "Card saved successfully"
+  }
 
-Response Payload:
-{
-  "success": true,
-  "orderId": 501,
-  "status": "Cancelled",
-  "reason": "Customer requested cancellation",
-  "response": "Customer requested cancellation",
-  "order": {
-    "id": 501,
-    "userPhone": "9876543210",
-    "status": "Cancelled",
-    "bookingStatus": "idle",
-    "cancelReason": "Customer requested cancellation"
-  },
-  "message": "Order cancelled successfully"
-}
-Note: Both `orderId` and `response` (or `reason`) are mandatory in the request body. If either is missing, a 400 error is returned.
+POST /api/payments
+- Headers: Authorization: Bearer <jwt_token>
+- Body: {
+    "orderId": 501, // Can also be an AMC subscription string ID like "AMC00482747"
+    "amount": 299,
+    "paymentMethod": "Online" // "Online", "Razorpay", etc.
+  }
+- Response: {
+    "success": true,
+    "orderId": 501, // (or string "AMC00482747" if AMC subscription payment)
+    "amount": 299,
+    "paymentMethod": "Online",
+    "razorpayOrderId": "order_K7x9s...",
+    "status": "Initiated",
+    "message": "Razorpay order generated successfully"
+  }
+- Note: Supports both normal numerical order IDs and string AMC subscription IDs starting with "AMC". For AMC subscriptions, the generated razorpayOrderId is persisted in the subscription record for verification.
 
----------------------------------------------------------
-23. Language Support & Localization APIs (NEW)
----------------------------------------------------------
+GET /api/categories/:category/services?status=AMC
+- Note: Adding `status=AMC` query/body parameter overrides service prices to ₹0 and sets `"status": "AMC"`.
 
-1. Fetch List of World Languages
-Endpoint: GET /api/languages
-Headers: None
-Response Payload:
-{
-  "success": true,
-  "languages": [
-    { "code": "en", "name": "English", "nativeName": "English" },
-    { "code": "hi", "name": "Hindi", "nativeName": "हिन्दी" },
-    { "code": "es", "name": "Spanish", "nativeName": "Español" },
-    { "code": "fr", "name": "French", "nativeName": "Français" },
-    { "code": "de", "name": "German", "nativeName": "Deutsch" },
-    { "code": "zh", "name": "Chinese", "nativeName": "中文" },
-    { "code": "ar", "name": "Arabic", "nativeName": "العربية" }
-  ],
-  "message": "Languages list retrieved successfully"
-}
+GET /api/services/detail/:title?status=AMC
+- Note: Adding `status=AMC` query/body parameter overrides details price to ₹0 and sets `"status": "AMC"`.
 
-2. Update Selected App Language
-Endpoint: POST /api/auth/language
-Headers: Authorization: Bearer <jwt_token>
-JSON Body:
-{
-  "language": "hi"
-}
-Response Payload:
-{
-  "success": true,
-  "user": {
-    "phone": "9876543210",
-    "name": "Hira",
-    "email": "hira@hmail.com",
-    "language": "hi",
-    "walletBalance": 0
-  },
-  "message": "Language preference updated successfully"
-}
-Note: You can also update language dynamically via PUT /api/auth/profile by passing "language" in the JSON body.
+POST /api/bookings (Add body status = AMC)
+- Body: {
+    "productId": "Tap Repair",
+    "date": "2026-07-13",
+    "timeSlot": "10:00 AM - 11:00 AM",
+    "status": "AMC"
+  }
+- Note: Configures the draft booking with AMC method, ₹0 price, and `"status": "AMC"`.
 
-3. Get Translation Strings
-Endpoint: GET /api/language/:lang
-Headers: None
-Response Payload:
-{
-  "login_success": "লগইন সফল",
-  "profile_updated": "...",
-  "booking_success": "...",
-  "unauthorized": "...",
-  "service_request": "..."
-}
-Note: Returns a dictionary of active translation strings for the requested language code. Falls back to English (en) if missing.
+POST /api/address (Add body status = AMC)
+- Note: Address creation accepts status in body and echoes it back in response: `{"success": true, "address": ..., "status": "AMC"}`.
 
-4. Add/Update Translation Key
-Endpoint: POST /api/language/upsert
-Headers: None
-JSON Body:
-{
-  "translation_key": "some_key",
-  "en": "English text",
-  "hi": "हिंदी टेक्स्ट",
-  "mr": "मराठी मजकूर"
-}
-Response Payload:
-{
-  "success": true,
-  "message": "Translation saved and cache reloaded successfully"
-}
-Note: Persists/updates translation strings in the MySQL translations database table and dynamically refreshes the server's cache.
+GET /api/checkout-api?status=AMC
+- Note: Calculates pricing as AMC booking (₹0 advancePayment, ₹0 remainingAmount, ₹0 platformCharge, ₹0 totalAmount) and sets `"status": "AMC"`.
 
+POST /api/checkout (Add body status = AMC)
+- Note: Placed order is registered as AMC in the database with `"status": "AMC"` and ₹0 price.
+
+GET /api/orders?status=AMC
+- Note: Filters orders list to return only orders linked to AMC (`status = 'AMC'` or `paymentMethod = 'AMC'`).
+
+GET /api/orders/:id
+- Note: Returns order details with top-level `status` and unified response.
 
 
 
