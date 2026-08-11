@@ -48,6 +48,7 @@ function parseOrderNumbers(row) {
   row.price = row.price !== undefined && row.price !== null ? Math.round(Number(row.price)) : 299;
   row.address = safeJsonParse(row.address);
   row.payment = safeJsonParse(row.payment);
+  row.items = safeJsonParse(row.items) || [];
   row.advancePayment = row.advancePayment !== undefined && row.advancePayment !== null ? Math.round(Number(row.advancePayment)) : 199;
   row.remainingAmount = row.remainingAmount !== undefined && row.remainingAmount !== null ? Math.round(Number(row.remainingAmount)) : 0;
   return row;
@@ -281,6 +282,11 @@ async function initMySqlDb() {
     }
     try {
       await conn.query("ALTER TABLE node_addresses_v2 ADD COLUMN countryCode VARCHAR(10) DEFAULT '+91'");
+    } catch (err) {
+      // Column might already exist
+    }
+    try {
+      await conn.query("ALTER TABLE node_orders_v2 ADD COLUMN items TEXT DEFAULT NULL");
     } catch (err) {
       // Column might already exist
     }
@@ -697,13 +703,14 @@ const MySqlDbLayer = {
       id, userPhone, serviceName, price, date, status, bookingStatus,
       partnerName, partnerDistance, productId, description, timeSlot,
       address, payment, razorpayOrderId, razorpayPaymentId, createdAt,
-      amcId, advancePayment, remainingAmount
+      amcId, advancePayment, remainingAmount, items
     } = order;
 
     const finalStatus = status || "Pending";
     const finalBookingStatus = bookingStatus || "searching";
     const finalAddress = address ? JSON.stringify(address) : null;
     const finalPayment = payment ? JSON.stringify(payment) : null;
+    const finalItems = items ? JSON.stringify(items) : null;
     const finalCreatedAt = createdAt || Date.now();
     const finalAmcId = amcId || null;
     const finalAdvance = advancePayment !== undefined ? advancePayment : 199.00;
@@ -714,8 +721,8 @@ const MySqlDbLayer = {
         id, userPhone, serviceName, price, date, status, bookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
         address, payment, razorpayOrderId, razorpayPaymentId, createdAt, amcId,
-        advancePayment, remainingAmount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        advancePayment, remainingAmount, items
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         userPhone=VALUES(userPhone), serviceName=VALUES(serviceName), price=VALUES(price),
         date=VALUES(date), status=VALUES(status), bookingStatus=VALUES(bookingStatus),
@@ -723,12 +730,12 @@ const MySqlDbLayer = {
         productId=VALUES(productId), description=VALUES(description), timeSlot=VALUES(timeSlot),
         address=VALUES(address), payment=VALUES(payment), razorpayOrderId=VALUES(razorpayOrderId),
         razorpayPaymentId=VALUES(razorpayPaymentId), createdAt=VALUES(createdAt), amcId=VALUES(amcId),
-        advancePayment=VALUES(advancePayment), remainingAmount=VALUES(remainingAmount)`,
+        advancePayment=VALUES(advancePayment), remainingAmount=VALUES(remainingAmount), items=VALUES(items)`,
       [
         id, userPhone, serviceName, price, date, finalStatus, finalBookingStatus,
         partnerName, partnerDistance, productId, description, timeSlot,
         finalAddress, finalPayment, razorpayOrderId, razorpayPaymentId, finalCreatedAt, finalAmcId,
-        finalAdvance, finalRemaining
+        finalAdvance, finalRemaining, finalItems
       ]
     );
 
@@ -4855,15 +4862,29 @@ const handlePostBooking = async (req, res) => {
     if (debugLogs.length > 50) debugLogs.shift();
   };
 
-  // NOTE: productId is kept as-is from the client request.
-  // Service resolution happens once below during order creation (line ~4959).
-  // Early double-resolution was removed to prevent wrong-service substitution.
-
-  if (!productId || !date || !timeSlot) {
-    logBookingResult(400, false, "productId, date, and timeSlot are required");
-    return res.status(400).json({ error: "productId, date, and timeSlot are required" });
+  // Support multiple items list
+  const rawItems = req.body.items || req.query.items || (req.body.booking && req.body.booking.items);
+  let itemsList = [];
+  if (Array.isArray(rawItems)) {
+    itemsList = rawItems;
+  } else if (rawItems && typeof rawItems === 'string') {
+    try {
+      itemsList = JSON.parse(rawItems);
+    } catch (e) {
+      console.warn("Failed to parse items query/body string:", e.message);
+    }
   }
-  
+
+  // Fallback to legacy single product booking if no items list was sent
+  if (itemsList.length === 0 && productId) {
+    itemsList.push({ productId: productId, quantity: 1 });
+  }
+
+  if (itemsList.length === 0 || !date || !timeSlot) {
+    logBookingResult(400, false, "items list (or productId), date, and timeSlot are required");
+    return res.status(400).json({ error: "items list (or productId), date, and timeSlot are required" });
+  }
+
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) {
@@ -4871,7 +4892,35 @@ const handlePostBooking = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Validate slot availability (no overlap with existing bookings on the same date for the same product)
+    // Resolve details for all selected services and compute total price
+    const resolvedItems = [];
+    let totalPrice = 0;
+    for (const item of itemsList) {
+      const itemProdId = item.productId || item.product_id || item.id;
+      const qty = parseInt(item.quantity || item.qty || 1) || 1;
+      if (!itemProdId) continue;
+      
+      const resolved = await resolveServiceDetails(itemProdId);
+      if (resolved) {
+        resolvedItems.push({
+          productId: resolved.productId,
+          serviceName: resolved.serviceName,
+          price: Number(resolved.price),
+          quantity: qty,
+          description: resolved.description || "",
+          image: resolved.image || "",
+          category: resolved.category || ""
+        });
+        totalPrice += Number(resolved.price) * qty;
+      }
+    }
+
+    if (resolvedItems.length === 0) {
+      logBookingResult(400, false, "No valid services could be resolved from request items", user.phone);
+      return res.status(400).json({ error: "No valid services could be resolved from request items." });
+    }
+
+    // Validate slot availability (no overlap with existing bookings on the same date for any of the products)
     const allOrders = await DbLayer.getAllOrders();
     const targetDate = normalizeDate(date.split('T')[0]);
     const matchingOrders = allOrders.filter(order => {
@@ -4879,9 +4928,26 @@ const handlePostBooking = async (req, res) => {
       if (order.status && order.status.toLowerCase() === "cancelled") return false;
       if (order.bookingStatus && order.bookingStatus.toLowerCase() === "draft") return false;
       const orderDate = normalizeDate(order.date.split('T')[0]);
-      const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
-                           (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
-      return orderDate === targetDate && matchProduct;
+      if (orderDate !== targetDate) return false;
+
+      // Extract all product IDs related to this saved order
+      const orderProductIds = [];
+      if (order.items && Array.isArray(order.items)) {
+        orderProductIds.push(...order.items.map(it => String(it.productId).toLowerCase()));
+      }
+      if (order.productId) {
+        orderProductIds.push(String(order.productId).toLowerCase());
+      }
+      if (order.serviceName) {
+        orderProductIds.push(String(order.serviceName).toLowerCase());
+      }
+
+      // Check if any of our requested services overlap with this order's products
+      return resolvedItems.some(it => {
+        const idLower = String(it.productId).toLowerCase();
+        const nameLower = String(it.serviceName).toLowerCase();
+        return orderProductIds.includes(idLower) || orderProductIds.includes(nameLower);
+      });
     });
 
     const reqRange = parseTimeRange(timeSlot);
@@ -4918,10 +4984,25 @@ const handlePostBooking = async (req, res) => {
         const orderDate = normalizeDate(order.date.split('T')[0]);
         if (orderDate !== targetDate) return false;
 
-        // Match service/product
-        const matchProduct = (order.productId && order.productId.toLowerCase() === productId.toLowerCase()) ||
-                             (order.serviceName && order.serviceName.toLowerCase() === productId.toLowerCase());
-        if (!matchProduct) return false;
+        // Extract all product IDs related to this saved order
+        const orderProductIds = [];
+        if (order.items && Array.isArray(order.items)) {
+          orderProductIds.push(...order.items.map(it => String(it.productId).toLowerCase()));
+        }
+        if (order.productId) {
+          orderProductIds.push(String(order.productId).toLowerCase());
+        }
+        if (order.serviceName) {
+          orderProductIds.push(String(order.serviceName).toLowerCase());
+        }
+
+        // Check if any of our requested services overlap with this order's products
+        const hasOverlapProduct = resolvedItems.some(it => {
+          const idLower = String(it.productId).toLowerCase();
+          const nameLower = String(it.serviceName).toLowerCase();
+          return orderProductIds.includes(idLower) || orderProductIds.includes(nameLower);
+        });
+        if (!hasOverlapProduct) return false;
 
         // Match time slot (exact or overlapping)
         const orderSlotRange = parseTimeRange(order.timeSlot);
@@ -4942,41 +5023,12 @@ const handlePostBooking = async (req, res) => {
         return res.status(400).json({ error: msg });
       }
 
-      console.log(`[Capacity] ${sameSlotOrders.length}/${MAX_ORDERS_PER_SLOT_PINCODE} orders for ${productId} on ${date} @ ${timeSlot} in pincode ${userPincode}`);
+      console.log(`[Capacity] ${sameSlotOrders.length}/${MAX_ORDERS_PER_SLOT_PINCODE} orders for multiple items on ${date} @ ${timeSlot} in pincode ${userPincode}`);
     }
     // ────────────────────────────────────────────────────────────────────────────
 
-    console.log(`User ${user.phone} validated booking slot ${timeSlot} on ${date} for product ${productId}`);
+    console.log(`User ${user.phone} validated booking slot ${timeSlot} on ${date} for multiple items`);
 
-    
-    // Resolve dynamic service details
-    let resolvedProduct = await resolveServiceDetails(productId);
-    
-    // If resolveServiceDetails returned the "Tap Repair" fallback but the user
-    // actually booked a different service, use the client-provided data instead.
-    // The Flutter app now sends serviceName and price in the request body.
-    if (!resolvedProduct) {
-      if (clientServiceName) {
-        resolvedProduct = {
-          productId: productId,
-          serviceName: clientServiceName,
-          title: clientServiceName,
-          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 499,
-          description: `${clientServiceName} service`,
-          image: ""
-        };
-      } else {
-        resolvedProduct = {
-          productId: productId,
-          serviceName: productId,
-          title: productId,
-          price: clientPrice !== null && clientPrice > 0 ? clientPrice : 499,
-          description: "Service booking"
-        };
-      }
-    }
-
-    const pendingOrders = [];
     const statusParam = req.body.status || req.query.status || (req.body.booking && req.body.booking.status);
     const useAmc = statusParam === "AMC" || req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && String(req.body.payment.paymentMethod).toLowerCase() === "amc");
 
@@ -4996,25 +5048,26 @@ const handlePostBooking = async (req, res) => {
       id: orderId,
       userPhone: user.phone,
       userId: user.phone,
-      serviceName: resolvedProduct.serviceName,
-      price: useAmc ? 0.00 : resolvedProduct.price,
+      serviceName: resolvedItems.map(x => x.serviceName).join(", "),
+      price: useAmc ? 0.00 : totalPrice,
       date: date,
       status: useAmc ? "AMC" : "Draft",
       bookingStatus: "draft",
       partnerName: null,
       partnerDistance: null,
-      productId: resolvedProduct.productId,
-      description: resolvedProduct.description,
+      productId: resolvedItems[0].productId,
+      description: resolvedItems[0].description,
       timeSlot: timeSlot,
       address: resolvedAddr,
       payment: {
         paymentMethod: useAmc ? "AMC" : "Wallet",
-        amountPaid: useAmc ? 0.00 : resolvedProduct.price
+        amountPaid: useAmc ? 0.00 : totalPrice
       },
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      items: resolvedItems
     };
     draftOrders.set(user.phone, order);
-    console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone}`);
+    console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone} with ${resolvedItems.length} items`);
 
     // Always persist to DB so server restarts don't lose the draft (both created and updated drafts)
     try {
@@ -5028,7 +5081,12 @@ const handlePostBooking = async (req, res) => {
     res.json({
       success: true,
       message: "Booking details validated and registered",
-      booking: { productId, date, timeSlot }
+      booking: {
+        productId: resolvedItems[0].productId,
+        date,
+        timeSlot,
+        items: resolvedItems
+      }
     });
   } catch (err) {
     console.error("Booking validation failed:", err);
@@ -5166,13 +5224,36 @@ const handlePostCheckout = async (req, res) => {
   date = normalizeDate(date);
   timeSlot = normalizeTimeSlot(timeSlot);
   
+  let user = null;
+  try {
+    user = await getAuthenticatedUser(req);
+  } catch (err) {
+    // Ignore, handled below
+  }
+
+  if (!productId && user) {
+    let existingOrder = draftOrders.get(user.phone);
+    if (!existingOrder) {
+      try {
+        const userOrders = await DbLayer.getOrdersByUserPhone(user.phone);
+        const dbDraft = userOrders.find(o =>
+          (o.bookingStatus === 'draft' || o.status === 'Draft')
+        );
+        if (dbDraft) {
+          existingOrder = dbDraft;
+        }
+      } catch (e) {}
+    }
+    if (existingOrder) {
+      productId = existingOrder.productId;
+    }
+  }
+
   if (!productId) {
     return res.status(400).json({ error: "productId is required in checkout body" });
   }
   
   try {
-    // User validation: strictly retrieve from verified authentication token (verify otp token)
-    const user = await getAuthenticatedUser(req);
     if (!user) {
       return res.status(401).json({ error: "Unauthorized: Missing or invalid authentication token" });
     }
@@ -5274,12 +5355,43 @@ const handlePostCheckout = async (req, res) => {
       amountPaid = Number(existingOrder.payment.amountPaid) || 0;
     }
 
+    // AMC coupon discount logic
+    const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
+    let activeAmcId = null; // declared here so it's accessible in finalOrder below
+    let foundPrice = 499;
+    if (existingOrder && existingOrder.price !== undefined && existingOrder.price !== null) {
+      foundPrice = Number(existingOrder.price);
+    } else if (foundService && foundService.price !== undefined && foundService.price !== null && !isNaN(foundService.price)) {
+      foundPrice = Number(foundService.price);
+    }
+    let finalPrice = amountPaid > 0 ? amountPaid : foundPrice;
+
+    if (useAmc) {
+      const category = getCanonicalCategoryName(foundService.category || getServiceCategory(foundService.title));
+      const activeAmc = await DbLayer.getAmcSubscriptionByCategory(phone, category);
+      if (!activeAmc) {
+        return res.status(400).json({ error: `No active AMC subscription found for category ${category}` });
+      }
+
+      const completedCount = await DbLayer.countAmcBookingsCompleted(activeAmc.amcId);
+      if (completedCount >= 12) {
+        return res.status(400).json({ error: "You have already completed all 12 free services for this AMC subscription" });
+      }
+
+      const currentMonthCount = await DbLayer.countAmcBookingsInCurrentMonth(activeAmc.amcId);
+      if (currentMonthCount >= 1) {
+        return res.status(400).json({ error: "You have already booked your 1 free AMC service for this month. You can book your next free AMC service next month." });
+      }
+
+      activeAmcId = activeAmc.amcId;
+      paymentMethod = "AMC";
+      finalPrice = 0.00;
+    }
+
     // Call Razorpay API to create a real Order ID if payment method is "Online"
     let razorpayOrderId = null;
     if (existingOrder && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
-      // Only reuse existing Razorpay Order ID if it belongs to the same product and has the same price
-      if (existingOrder.productId === foundService.productId && 
-          Number(existingOrder.price) === Number(foundService.price)) {
+      if (Number(existingOrder.price) === Number(finalPrice)) {
         razorpayOrderId = existingOrder.razorpayOrderId;
       }
     }
@@ -5287,7 +5399,7 @@ const handlePostCheckout = async (req, res) => {
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
-      const advanceOnlineAmount = amountPaid > 0 ? amountPaid : Number(foundService.price);
+      const advanceOnlineAmount = amountPaid > 0 ? amountPaid : finalPrice;
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
@@ -5336,39 +5448,6 @@ const handlePostCheckout = async (req, res) => {
       }
     }
 
-    // AMC coupon discount logic
-    const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
-    let activeAmcId = null; // declared here so it's accessible in finalOrder below
-    let foundPrice = 499;
-    if (foundService && foundService.price !== undefined && foundService.price !== null && !isNaN(foundService.price)) {
-      foundPrice = Number(foundService.price);
-    }
-    let finalPrice = amountPaid > 0 ? amountPaid : foundPrice;
-
-    if (useAmc) {
-      const category = getCanonicalCategoryName(foundService.category || getServiceCategory(foundService.title));
-      const activeAmc = await DbLayer.getAmcSubscriptionByCategory(phone, category);
-      if (!activeAmc) {
-        return res.status(400).json({ error: `No active AMC subscription found for category ${category}` });
-      }
-
-      const completedCount = await DbLayer.countAmcBookingsCompleted(activeAmc.amcId);
-      if (completedCount >= 12) {
-        return res.status(400).json({ error: "You have already completed all 12 free services for this AMC subscription" });
-      }
-
-      const currentMonthCount = await DbLayer.countAmcBookingsInCurrentMonth(activeAmc.amcId);
-      if (currentMonthCount >= 1) {
-        return res.status(400).json({ error: "You have already booked your 1 free AMC service for this month. You can book your next free AMC service next month." });
-      }
-
-      activeAmcId = activeAmc.amcId;
-      paymentMethod = "AMC";
-      allowedWalletDeduction = 0;
-      amountPaid = 0;
-      finalPrice = 0.00;
-    }
-
     const resolvedDate = date || (existingOrder ? existingOrder.date : null) || new Date().toISOString().split('T')[0];
     const resolvedTimeSlot = timeSlot || (existingOrder ? existingOrder.timeSlot : null) || (await getDynamicDateAndSlot()).timeSlot;
     const resolvedAddressField = resolvedAddress || (existingOrder ? existingOrder.address : null);
@@ -5398,15 +5477,15 @@ const handlePostCheckout = async (req, res) => {
       id: orderId,
       userPhone: phone,
       userId: phone,
-      serviceName: foundService.title,
+      serviceName: existingOrder ? existingOrder.serviceName : foundService.title,
       price: finalPrice,
       date: resolvedDate,
       status: useAmc ? "AMC" : resolvedStatus,
       bookingStatus: resolvedBookingStatus,
       partnerName: null,
       partnerDistance: null,
-      productId: foundService.productId,
-      description: foundService.description,
+      productId: existingOrder ? existingOrder.productId : foundService.productId,
+      description: existingOrder ? existingOrder.description : foundService.description,
       timeSlot: resolvedTimeSlot,
       address: resolvedAddressField,
       payment: { 
@@ -5418,7 +5497,15 @@ const handlePostCheckout = async (req, res) => {
       createdAt: Date.now(),
       amcId: activeAmcId,
       advancePayment: finalAdvancePayment,
-      remainingAmount: finalRemainingAmount
+      remainingAmount: finalRemainingAmount,
+      items: (existingOrder && existingOrder.items && existingOrder.items.length > 0) ? existingOrder.items : [{
+        productId: foundService.productId,
+        serviceName: foundService.title,
+        price: foundService.price,
+        quantity: 1,
+        description: foundService.description || "",
+        image: foundService.image || ""
+      }]
     };
     
     if (isOnlinePayment) {
@@ -6570,12 +6657,23 @@ const handleGetCheckout = async (req, res) => {
     const localizedProduct = localizeService(rawProductObj, req.lang);
     const localizedServicesList = (resolvedServices || []).map(s => localizeService(s, req.lang));
 
+    // Resolve and localize items array
+    const rawItemsList = (order.items && order.items.length > 0) ? order.items : [rawProductObj];
+    const localizedItems = rawItemsList.map(item => {
+      const localizedItem = localizeService(item, req.lang);
+      return {
+        ...localizedItem,
+        quantity: item.quantity || 1
+      };
+    });
+
     res.json({
       success: true,
       orderId: order.id,
       userId: order.userPhone,
       user: sanitizeUserObj(targetUser),
       product: localizedProduct,
+      items: localizedItems,
       address: sanitizeAddressObj(order.address, req.lang),
       payment: {
         paymentMethod: currentMethod,
@@ -6649,7 +6747,43 @@ app.get('/api/orders', async (req, res) => {
           }
         } catch (e) { /* ignore, use English name */ }
       }
-      return { ...o, serviceName: localizedServiceName, description: localizedDescription };
+
+      // Also localize items
+      const itemsList = o.items || [];
+      const localizedItems = await Promise.all(itemsList.map(async item => {
+        let localizedItemName = item.serviceName;
+        let localizedItemDesc = item.description;
+        if (req.lang && req.lang !== 'en' && item.serviceName && mysqlPool) {
+          try {
+            const [svcRows] = await mysqlPool.query(
+              `SELECT title, title_${req.lang}, description_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
+              [String(item.serviceName).toLowerCase()]
+            );
+            if (svcRows && svcRows[0]) {
+              if (svcRows[0][`title_${req.lang}`]) {
+                localizedItemName = svcRows[0][`title_${req.lang}`];
+              }
+              if (svcRows[0][`description_${req.lang}`]) {
+                localizedItemDesc = svcRows[0][`description_${req.lang}`];
+              }
+            }
+          } catch (e) {}
+        }
+        return {
+          ...item,
+          serviceName: localizedItemName,
+          title: localizedItemName,
+          description: localizedItemDesc,
+          quantity: item.quantity || 1
+        };
+      }));
+
+      return { 
+        ...o, 
+        serviceName: localizedServiceName, 
+        description: localizedDescription,
+        items: localizedItems.length > 0 ? localizedItems : null
+      };
     }));
 
     // Enriched list mapping
@@ -6665,7 +6799,8 @@ app.get('/api/orders', async (req, res) => {
       remainingAmount: o.remainingAmount !== undefined ? Number(o.remainingAmount) : 0.00,
       platformCharge: o.platformCharge !== undefined ? Number(o.platformCharge) : 0.00,
       totalAmount: o.status === "AMC" ? 0.00 : Number(o.price || 0),
-      total: o.remainingAmount !== undefined ? Number(o.remainingAmount) : 0.00
+      total: o.remainingAmount !== undefined ? Number(o.remainingAmount) : 0.00,
+      items: o.items
     }));
 
     const orderlist = {
@@ -6717,6 +6852,33 @@ app.get('/api/orders/:id', async (req, res) => {
           }
         }
       } catch (e) { /* ignore */ }
+    }
+
+    if (order.items && Array.isArray(order.items)) {
+      order.items = await Promise.all(order.items.map(async item => {
+        const localizedItem = localizeService(item, req.lang);
+        if (req.lang && req.lang !== 'en' && item.serviceName && mysqlPool) {
+          try {
+            const [svcRows] = await mysqlPool.query(
+              `SELECT title_${req.lang}, description_${req.lang} FROM node_services WHERE LOWER(title) = ? LIMIT 1`,
+              [String(item.serviceName).toLowerCase()]
+            );
+            if (svcRows && svcRows[0]) {
+              if (svcRows[0][`title_${req.lang}`]) {
+                localizedItem.serviceName = svcRows[0][`title_${req.lang}`];
+                localizedItem.title = svcRows[0][`title_${req.lang}`];
+              }
+              if (svcRows[0][`description_${req.lang}`]) {
+                localizedItem.description = svcRows[0][`description_${req.lang}`];
+              }
+            }
+          } catch (e) {}
+        }
+        return {
+          ...localizedItem,
+          quantity: item.quantity || 1
+        };
+      }));
     }
 
     const localizedOrder = localizeService(order, req.lang);
