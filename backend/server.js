@@ -185,8 +185,6 @@ async function initMySqlDb() {
       connectionLimit: 10,
       queueLimit: 0,
       connectTimeout: 60000,        // 60s timeout for initial connection
-      acquireTimeout: 60000,        // 60s to acquire connection from pool
-      timeout: 60000,               // 60s query timeout
       enableKeepAlive: true,        // Keep connections alive (prevents ETIMEDOUT)
       keepAliveInitialDelay: 10000, // Send keepalive after 10s of idle
     });
