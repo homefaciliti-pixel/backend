@@ -183,7 +183,12 @@ async function initMySqlDb() {
       port: parseInt(port),
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      connectTimeout: 60000,        // 60s timeout for initial connection
+      acquireTimeout: 60000,        // 60s to acquire connection from pool
+      timeout: 60000,               // 60s query timeout
+      enableKeepAlive: true,        // Keep connections alive (prevents ETIMEDOUT)
+      keepAliveInitialDelay: 10000, // Send keepalive after 10s of idle
     });
 
     const conn = await mysqlPool.getConnection();
@@ -506,6 +511,22 @@ async function initMySqlDb() {
     mysqlPool = null;
     return false;
   }
+}
+
+// Retry wrapper for MySQL initialization (handles ETIMEDOUT on Render.com cold start)
+async function initMySqlDbWithRetry(maxRetries = 5) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`MySQL connection attempt ${attempt}/${maxRetries}...`);
+    const success = await initMySqlDb();
+    if (success) return true;
+    if (attempt < maxRetries) {
+      const delay = Math.min(5000 * attempt, 60000); // 5s, 10s, 20s, 40s, 60s
+      console.log(`Retrying MySQL connection in ${delay / 1000}s...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  console.error(`MySQL connection failed after ${maxRetries} attempts. Running in JSON fallback mode.`);
+  return false;
 }
 
 const MySqlDbLayer = {
@@ -1326,7 +1347,7 @@ const DbLayer = {
 // ----------------------------------------
 
 (async () => {
-  const mysqlSuccess = await initMySqlDb();
+  const mysqlSuccess = await initMySqlDbWithRetry();
   if (!mysqlSuccess) {
     dbMode = "json";
     initJsonDb();
