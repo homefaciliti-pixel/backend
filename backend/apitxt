@@ -1195,4 +1195,65 @@ GET /api/orders/:id
 - Note: Returns order details with top-level `status` and unified response.
 
 
+---------------------------------------------------------
+15. Cart Management APIs
+---------------------------------------------------------
+
+All Cart APIs require the 'Authorization: Bearer <jwt_token>' header.
+
+GET /api/cart
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "items": [
+      {
+        "productId": "professional Plumber",
+        "quantity": 2,
+        "title": "Professional Plumber",
+        "name": "Professional Plumber",
+        "price": 499,
+        "description": "Professional Plumber Home Service",
+        "image": "https://backend-1-ux3b.onrender.com/uploads/services/plumber.png",
+        "category": "Plumber",
+        "categoryId": "1"
+      }
+    ]
+  }
+
+POST /api/cart/add
+- Headers: Authorization: Bearer <jwt_token>
+- Body (JSON): { "productId": "professional Plumber", "quantity": 1 }  // quantity defaults to 1 if omitted
+- Response: {
+    "success": true,
+    "message": "Item added to cart successfully",
+    "items": [ ...updated cart items... ]
+  }
+
+POST /api/cart/update
+- Headers: Authorization: Bearer <jwt_token>
+- Body (JSON): { "productId": "professional Plumber", "quantity": 2 }  // setting quantity to 0 or negative removes the item
+- Response: {
+    "success": true,
+    "message": "Cart updated successfully",
+    "items": [ ...updated cart items... ]
+  }
+
+DELETE /api/cart/:productId
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "message": "Item removed from cart successfully",
+    "items": [ ...updated cart items... ]
+  }
+
+DELETE /api/cart
+- Headers: Authorization: Bearer <jwt_token>
+- Response: {
+    "success": true,
+    "message": "Cart cleared successfully",
+    "items": []
+  }
+
+
+
 

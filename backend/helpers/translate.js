@@ -5,6 +5,34 @@ let translationCache = {};
 
 const defaultTranslations = [
   {
+    "translation_key": "cart_item_added",
+    "en": "Item added to cart successfully",
+    "hi": "आइटम को कार्ट में सफलतापूर्वक जोड़ा गया",
+    "mr": "कार्टमध्ये आयटम यशस्वीरित्या जोडला गेला",
+    "gu": "કાર્ટમાં આઇટમ સફળતાપૂર્વક ઉમેરવામાં આવી"
+  },
+  {
+    "translation_key": "cart_updated",
+    "en": "Cart updated successfully",
+    "hi": "कार्ट सफलतापूर्वक अपडेट किया गया",
+    "mr": "कार्ट यशस्वीरित्या अद्यतनित केले",
+    "gu": "કાર્ટ સફળતાપૂર્વક અપડેટ થયું"
+  },
+  {
+    "translation_key": "cart_item_removed",
+    "en": "Item removed from cart successfully",
+    "hi": "आइटम को कार्ट से सफलतापूर्वक हटा दिया गया",
+    "mr": "कार्टमधून आयटम यशस्वीरित्या काढला गेला",
+    "gu": "કાર્ટમાંથી આઇટમ સફળતાપૂર્વક દૂર કરવામાં આવી"
+  },
+  {
+    "translation_key": "cart_cleared",
+    "en": "Cart cleared successfully",
+    "hi": "कार्ट सफलतापूर्वक खाली कर दिया गया",
+    "mr": "कार्ट यशस्वीरित्या रिकामे केले",
+    "gu": "કાર્ટ સફળતાપૂર્વક ખાલી કરવામાં આવ્યું"
+  },
+  {
     "translation_key": "login_success",
     "en": "Login successful",
     "hi": "लॉगिन सफल",

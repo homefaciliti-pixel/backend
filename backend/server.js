@@ -438,6 +438,22 @@ async function initMySqlDb() {
       // Column might already exist
     }
 
+    try {
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS node_cart (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          userPhone VARCHAR(20) NOT NULL,
+          productId VARCHAR(100) NOT NULL,
+          quantity INT NOT NULL DEFAULT 1,
+          createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_user_product (userPhone, productId)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+    } catch (err) {
+      console.log("Could not create node_cart table:", err.message);
+    }
+
     // Sync database slots table with 11 hourly slots
     const targetSlots = STATIC_BOOKING_SLOTS.map(s => s.time);
     try {
@@ -912,12 +928,46 @@ const MySqlDbLayer = {
       `UPDATE node_app_version SET ${fields.join(", ")} WHERE platform = ?`,
       params
     );
+  },
+
+  async getCart(phone) {
+    const [rows] = await mysqlPool.query("SELECT * FROM node_cart WHERE userPhone = ?", [phone]);
+    return rows;
+  },
+
+  async addToCart(phone, productId, quantity) {
+    await mysqlPool.query(
+      "INSERT INTO node_cart (userPhone, productId, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)",
+      [phone, productId, quantity]
+    );
+    return this.getCart(phone);
+  },
+
+  async updateCartItem(phone, productId, quantity) {
+    if (quantity <= 0) {
+      return this.removeFromCart(phone, productId);
+    }
+    await mysqlPool.query(
+      "INSERT INTO node_cart (userPhone, productId, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)",
+      [phone, productId, quantity]
+    );
+    return this.getCart(phone);
+  },
+
+  async removeFromCart(phone, productId) {
+    await mysqlPool.query("DELETE FROM node_cart WHERE userPhone = ? AND productId = ?", [phone, productId]);
+    return this.getCart(phone);
+  },
+
+  async clearCart(phone) {
+    await mysqlPool.query("DELETE FROM node_cart WHERE userPhone = ?", [phone]);
+    return [];
   }
 };
 
 function initJsonDb() {
   if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES, addresses: [], contacts: [] }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES, addresses: [], contacts: [], cart: [] }, null, 2));
   } else {
     try {
       const content = fs.readFileSync(DB_FILE, 'utf8');
@@ -957,6 +1007,10 @@ function initJsonDb() {
           android: { latestVersion: "1.0.2", minSupportedVersion: "1.0.2", forceUpdate: true },
           ios: { latestVersion: "1.0.3", minSupportedVersion: "1.0.3", forceUpdate: true }
         };
+        changed = true;
+      }
+      if (!parsed.cart) {
+        parsed.cart = [];
         changed = true;
       }
       if (changed) {
@@ -1289,6 +1343,57 @@ const JsonDbLayer = {
     this.writeData(data);
     return newCard;
   },
+
+  async getCart(phone) {
+    const data = this.readData();
+    data.cart = data.cart || [];
+    return data.cart.filter(item => item.userPhone === phone);
+  },
+
+  async addToCart(phone, productId, quantity) {
+    const data = this.readData();
+    data.cart = data.cart || [];
+    const existing = data.cart.find(item => item.userPhone === phone && item.productId === productId);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      data.cart.push({ userPhone: phone, productId, quantity });
+    }
+    this.writeData(data);
+    return this.getCart(phone);
+  },
+
+  async updateCartItem(phone, productId, quantity) {
+    if (quantity <= 0) {
+      return this.removeFromCart(phone, productId);
+    }
+    const data = this.readData();
+    data.cart = data.cart || [];
+    const existing = data.cart.find(item => item.userPhone === phone && item.productId === productId);
+    if (existing) {
+      existing.quantity = quantity;
+    } else {
+      data.cart.push({ userPhone: phone, productId, quantity });
+    }
+    this.writeData(data);
+    return this.getCart(phone);
+  },
+
+  async removeFromCart(phone, productId) {
+    const data = this.readData();
+    data.cart = data.cart || [];
+    data.cart = data.cart.filter(item => !(item.userPhone === phone && item.productId === productId));
+    this.writeData(data);
+    return this.getCart(phone);
+  },
+
+  async clearCart(phone) {
+    const data = this.readData();
+    data.cart = data.cart || [];
+    data.cart = data.cart.filter(item => item.userPhone !== phone);
+    this.writeData(data);
+    return [];
+  }
 };
 
 // ----------------------------------------
@@ -1337,7 +1442,12 @@ const DbLayer = {
   async getAmcSubscriptionByCategory(phone, category) { return this.getLayer().getAmcSubscriptionByCategory(phone, category); },
   async updateAmcSubscription(amcId, updates) { return this.getLayer().updateAmcSubscription(amcId, updates); },
   async getSavedCards(phone) { return this.getLayer().getSavedCards(phone); },
-  async createSavedCard(card) { return this.getLayer().createSavedCard(card); }
+  async createSavedCard(card) { return this.getLayer().createSavedCard(card); },
+  async getCart(phone) { return this.getLayer().getCart(phone); },
+  async addToCart(phone, productId, quantity) { return this.getLayer().addToCart(phone, productId, quantity); },
+  async updateCartItem(phone, productId, quantity) { return this.getLayer().updateCartItem(phone, productId, quantity); },
+  async removeFromCart(phone, productId) { return this.getLayer().removeFromCart(phone, productId); },
+  async clearCart(phone) { return this.getLayer().clearCart(phone); }
 };
 
 // ----------------------------------------
@@ -11012,6 +11122,137 @@ app.get('/api/localities', async (req, res) => {
     localities: fallbackLocalities,
     message: "Localities retrieved successfully (JSON fallback)"
   });
+});
+
+// =========================================
+// CART API ENDPOINTS
+// =========================================
+
+// Helper to format cart items
+const enrichCartItems = async (cartItems, lang, serverBaseUrl) => {
+  const enriched = [];
+  for (const item of cartItems) {
+    const serviceDetails = await resolveServiceDetails(item.productId);
+    const resolvedUrlService = resolveServiceUrls([serviceDetails], serverBaseUrl)[0];
+    const localized = localizeService(resolvedUrlService, lang);
+    enriched.push({
+      productId: item.productId,
+      quantity: item.quantity,
+      title: localized.title,
+      name: localized.name,
+      price: localized.price,
+      description: localized.description,
+      image: localized.image,
+      category: localized.category,
+      categoryId: localized.categoryId
+    });
+  }
+  return enriched;
+};
+
+// GET /api/cart - Get all cart items
+app.get('/api/cart', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const cartItems = await DbLayer.getCart(user.phone);
+    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+    const enriched = await enrichCartItems(cartItems, req.lang, serverBaseUrl);
+    res.json({ success: true, items: enriched });
+  } catch (err) {
+    console.error("Get cart failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /api/cart/add - Add item to cart
+app.post('/api/cart/add', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { productId, quantity } = req.body;
+    if (!productId) {
+      return res.status(400).json({ error: "productId is required" });
+    }
+    const qty = parseInt(quantity) || 1;
+    
+    // Verify product exists
+    await resolveServiceDetails(productId);
+    
+    const cartItems = await DbLayer.addToCart(user.phone, productId, qty);
+    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+    const enriched = await enrichCartItems(cartItems, req.lang, serverBaseUrl);
+    res.json({ success: true, message: translate("cart_item_added", req.lang) || "Item added to cart", items: enriched });
+  } catch (err) {
+    console.error("Add to cart failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /api/cart/update - Update item quantity in cart
+app.post('/api/cart/update', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { productId, quantity } = req.body;
+    if (!productId) {
+      return res.status(400).json({ error: "productId is required" });
+    }
+    if (quantity === undefined) {
+      return res.status(400).json({ error: "quantity is required" });
+    }
+    const qty = parseInt(quantity);
+    
+    const cartItems = await DbLayer.updateCartItem(user.phone, productId, qty);
+    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+    const enriched = await enrichCartItems(cartItems, req.lang, serverBaseUrl);
+    res.json({ success: true, message: translate("cart_updated", req.lang) || "Cart updated successfully", items: enriched });
+  } catch (err) {
+    console.error("Update cart failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// DELETE /api/cart - Clear cart
+app.delete('/api/cart', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    await DbLayer.clearCart(user.phone);
+    res.json({ success: true, message: translate("cart_cleared", req.lang) || "Cart cleared successfully", items: [] });
+  } catch (err) {
+    console.error("Clear cart failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// DELETE /api/cart/:productId - Remove item from cart
+app.delete('/api/cart/:productId', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const productId = req.params.productId;
+    if (!productId) {
+      return res.status(400).json({ error: "productId is required" });
+    }
+    const cartItems = await DbLayer.removeFromCart(user.phone, productId);
+    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+    const enriched = await enrichCartItems(cartItems, req.lang, serverBaseUrl);
+    res.json({ success: true, message: translate("cart_item_removed", req.lang) || "Item removed from cart", items: enriched });
+  } catch (err) {
+    console.error("Remove from cart failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 // --- APP VERSION ENDPOINTS ---
