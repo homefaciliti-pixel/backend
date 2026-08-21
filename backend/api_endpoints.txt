@@ -1255,5 +1255,37 @@ DELETE /api/cart
   }
 
 
+---------------------------------------------------------
+16. SMS Messaging & Booking Notifications APIs
+---------------------------------------------------------
+
+1. POST /api/send-custom-sms - Send Custom SMS
+- Headers: Authorization: Bearer <jwt_token>
+- Body (JSON): {
+    "phone": "99953391",          // Recipient phone number (format with or without +91 prefix)
+    "message": "Hello Customer!", // Exact message text matching DLT templates
+    "templateId": "1207..."       // Optional: Custom DLT template ID override
+  }
+- Response: {
+    "success": true,
+    "message": "Custom SMS sent successfully",
+    "response": "..."             // Raw gateway hub status response
+  }
+
+2. Automated Booking Status SMS Notifications:
+The backend automatically sends status update SMS messages to the customer's phone number on booking database actions (insert/update):
+- Placed / Confirmed: When a booking changes from draft to pending (searching/accepted).
+- Partner Assigned: When a partner accepts the order (status changes from searching to accepted).
+- Completed: When the order transitions to completed.
+- Cancelled: When the order is cancelled.
+
+Environment variables for custom DLT parameters in .env:
+- SMS_TEMPLATE_PLACED_ID / SMS_TEMPLATE_PLACED_TEXT
+- SMS_TEMPLATE_ACCEPTED_ID / SMS_TEMPLATE_ACCEPTED_TEXT
+- SMS_TEMPLATE_COMPLETED_ID / SMS_TEMPLATE_COMPLETED_TEXT
+- SMS_TEMPLATE_CANCELLED_ID / SMS_TEMPLATE_CANCELLED_TEXT
+
+
+
 
 

@@ -128,6 +128,100 @@ const debugLogs = [];
 
 // (Removed Mongoose/MongoDB Schemas, Models and MongoDbLayer)
 
+// Centralized SMS helper using SMS Gateway Hub
+const sendSMS = async (phone, messageText, templateId) => {
+  const smsApiKey = process.env.SMS_API_KEY || 'b395HRZTRUGZThPOeRSnVg';
+  const senderId = process.env.SMS_SENDER_ID || 'HMFCLI';
+  const entityId = process.env.SMS_ENTITY_ID || '1201173444411453897';
+  const dltTemplateId = templateId || process.env.SMS_DLT_TEMPLATE_ID || '1207173589889308632';
+
+  // Format phone number: SMS Gateway Hub expects 91 prefix for Indian numbers without '+'
+  let formattedPhone = phone.trim();
+  if (formattedPhone.startsWith('+')) {
+    formattedPhone = formattedPhone.replace('+', '');
+  }
+  if (formattedPhone.length === 10) {
+    formattedPhone = '91' + formattedPhone;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      APIKey: smsApiKey,
+      senderid: senderId,
+      channel: '2',           // 2 = Transactional (required for DLT OTP)
+      DCS: '0',
+      flashsms: '0',
+      number: formattedPhone,
+      text: messageText,
+      EntityId: entityId,
+      dlttemplateid: dltTemplateId,
+      route: '2'
+    });
+    const url = `https://www.smsgatewayhub.com/api/mt/SendSMS?${params.toString()}`;
+    lastSmsDebug = {
+      timestamp: new Date().toISOString(),
+      url: url.replace(smsApiKey, '***'),
+      response: null,
+      error: null
+    };
+    console.log('[SMS] Sending request to:', url.replace(smsApiKey, '***'));
+    const response = await fetch(url, { method: 'GET' });
+    const rawText = await response.text();
+    console.log('[SMS] Gateway Hub response:', rawText);
+    lastSmsDebug.response = rawText;
+    return { success: true, response: rawText };
+  } catch (err) {
+    console.error('[SMS] Send failed:', err.message);
+    lastSmsDebug.error = err.message;
+    return { success: false, error: err.message };
+  }
+};
+
+// Booking Status SMS Trigger dispatcher
+const handleBookingStatusSmsTrigger = async (order, oldStatus, newStatus) => {
+  const phone = order.userPhone;
+  const orderId = order.id;
+  const serviceName = order.serviceName || order.productId || "Service";
+
+  const oldS = (oldStatus || '').toLowerCase();
+  const newS = (newStatus || '').toLowerCase();
+
+  if (oldS === newS) return; // No change
+
+  // Case 1: Booking Placed / Confirmed
+  if ((oldS === '' || oldS === 'draft') && (newS === 'searching' || newS === 'accepted')) {
+    const templateId = process.env.SMS_TEMPLATE_PLACED_ID || '1207173589889308632';
+    const templateText = process.env.SMS_TEMPLATE_PLACED_TEXT || `Your booking for {serviceName} is confirmed with order ID #{orderId}. Thank You, Super Home`;
+    const message = templateText.replace(/{orderId}/g, orderId).replace(/{serviceName}/g, serviceName).replace(/{#var#}/g, orderId);
+    await sendSMS(phone, message, templateId);
+  }
+
+  // Case 2: Partner Assigned
+  if (oldS === 'searching' && newS === 'accepted') {
+    const partnerName = order.partnerName || "Our Expert Partner";
+    const templateId = process.env.SMS_TEMPLATE_ACCEPTED_ID || '1207173589889308632';
+    const templateText = process.env.SMS_TEMPLATE_ACCEPTED_TEXT || `Expert partner {partnerName} has been assigned to your order #{orderId}. Thank You, Super Home`;
+    const message = templateText.replace(/{orderId}/g, orderId).replace(/{partnerName}/g, partnerName).replace(/{#var#}/g, partnerName);
+    await sendSMS(phone, message, templateId);
+  }
+
+  // Case 3: Work Completed
+  if (newS === 'completed') {
+    const templateId = process.env.SMS_TEMPLATE_COMPLETED_ID || '1207173589889308632';
+    const templateText = process.env.SMS_TEMPLATE_COMPLETED_TEXT || `Your service for order #{orderId} has been successfully completed. Thank You, Super Home`;
+    const message = templateText.replace(/{orderId}/g, orderId).replace(/{#var#}/g, orderId);
+    await sendSMS(phone, message, templateId);
+  }
+
+  // Case 4: Booking Cancelled
+  if (newS === 'cancelled') {
+    const templateId = process.env.SMS_TEMPLATE_CANCELLED_ID || '1207173589889308632';
+    const templateText = process.env.SMS_TEMPLATE_CANCELLED_TEXT || `Your booking order #{orderId} has been cancelled. Thank You, Super Home`;
+    const message = templateText.replace(/{orderId}/g, orderId).replace(/{#var#}/g, orderId);
+    await sendSMS(phone, message, templateId);
+  }
+};
+
 // ----------------------------------------
 // DATABASE ABSTRACTED DATA LAYER (JSON File Database fallback)
 // ----------------------------------------
@@ -1420,8 +1514,29 @@ const DbLayer = {
   async getOrderByRazorpayOrderId(rzpOrderId) { return this.getLayer().getOrderByRazorpayOrderId(rzpOrderId); },
   async getOrdersByUserPhone(phone) { return this.getLayer().getOrdersByUserPhone(phone); },
   async getAllOrders() { return this.getLayer().getAllOrders(); },
-  async createOrder(order) { return this.getLayer().createOrder(order); },
-  async updateOrder(id, updates) { return this.getLayer().updateOrder(id, updates); },
+  async createOrder(order) {
+    const newOrder = await this.getLayer().createOrder(order);
+    if (newOrder && newOrder.bookingStatus !== 'draft' && newOrder.bookingStatus !== 'Draft') {
+      try {
+        await handleBookingStatusSmsTrigger(newOrder, null, newOrder.bookingStatus);
+      } catch (smsErr) {
+        console.error("[SMS Trigger] Error sending booking status SMS:", smsErr.message);
+      }
+    }
+    return newOrder;
+  },
+  async updateOrder(id, updates) {
+    const prevOrder = await this.getLayer().getOrderById(id);
+    const updatedOrder = await this.getLayer().updateOrder(id, updates);
+    if (updatedOrder && prevOrder) {
+      try {
+        await handleBookingStatusSmsTrigger(updatedOrder, prevOrder.bookingStatus, updatedOrder.bookingStatus);
+      } catch (smsErr) {
+        console.error("[SMS Trigger] Error sending booking status SMS:", smsErr.message);
+      }
+    }
+    return updatedOrder;
+  },
   async getLastOrderId() { return this.getLayer().getLastOrderId(); },
   async countOrders() { return this.getLayer().countOrders(); },
   async getReferralApplied(phone) { return this.getLayer().getReferralApplied(phone); },
@@ -1858,70 +1973,28 @@ app.post('/api/auth/send-otp', async (req, res) => {
   // Store OTP in-memory with 5 minutes expiry
   activeOTPs.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
   
-  const smsApiKey = process.env.SMS_API_KEY || 'b395HRZTRUGZThPOeRSnVg';
-  const senderId = process.env.SMS_SENDER_ID || 'HMFCLI';
-  const entityId = process.env.SMS_ENTITY_ID || '1201173444411453897';
   const dltTemplateId = process.env.SMS_DLT_TEMPLATE_ID || '1207173589889308632';
-  const smsRoute = process.env.SMS_ROUTE || '2';
   const rawTemplate = process.env.SMS_TEMPLATE_TEXT || 'Your OTP for registering on Superhome is: {#var#}. This code is valid for the next 10 minutes. Thank You, Super Home';
   
   let messageText = rawTemplate.replace('{otp}', otp).replace('{#var#}', otp);
-
-  // Force correct DLT template text if using the default template ID to prevent carrier block
   if (dltTemplateId === '1207173589889308632') {
     messageText = `Your OTP for registering on Superhome is: ${otp}. This code is valid for the next 10 minutes. Thank You, Super Home`;
   }
 
-  // Format phone number: SMS Gateway Hub expects 91 prefix for Indian numbers without '+'
-  let formattedPhone = phone.trim();
-  if (formattedPhone.startsWith('+')) {
-    formattedPhone = formattedPhone.replace('+', '');
-  }
-  if (formattedPhone.length === 10) {
-    formattedPhone = '91' + formattedPhone;
-  }
+  const result = await sendSMS(phone, messageText, dltTemplateId);
+  let smsSent = result.success;
+  let smsError = result.error;
 
-  let smsSent = false;
-  let smsError = null;
-
-  try {
-    // Build GET URL for SMSGatewayHub (more reliable than JSON POST)
-    const params = new URLSearchParams({
-      APIKey: smsApiKey,
-      senderid: senderId,
-      channel: '2',           // 2 = Transactional (required for DLT OTP)
-      DCS: '0',
-      flashsms: '0',
-      number: formattedPhone,
-      text: messageText,
-      EntityId: entityId,
-      dlttemplateid: dltTemplateId,
-      route: '2'
-    });
-    const url = `https://www.smsgatewayhub.com/api/mt/SendSMS?${params.toString()}`;
-    lastSmsDebug = {
-      timestamp: new Date().toISOString(),
-      url: url.replace(smsApiKey, '***'),
-      response: null,
-      error: null
-    };
-    console.log('[SMS] Sending to:', url.replace(smsApiKey, '***'));
-    const response = await fetch(url, { method: 'GET' });
-    const rawText = await response.text();
-    console.log('[SMS] Raw response:', rawText);
-    lastSmsDebug.response = rawText;
+  if (result.success) {
     let data;
-    try { data = JSON.parse(rawText); } catch(_) { data = { rawText }; }
+    try { data = JSON.parse(result.response); } catch(_) { data = { rawText: result.response }; }
     if (data && (data.ErrorCode === '000' || data.ErrorCode === '0' || data.ErrorMessage === 'Success')) {
       smsSent = true;
     } else {
+      smsSent = false;
       smsError = data.ErrorMessage || JSON.stringify(data);
       lastSmsDebug.error = smsError;
     }
-  } catch (err) {
-    smsError = err.message;
-    lastSmsDebug.error = err.message;
-    console.error('[SMS] Exception:', err);
   }
 
   if (smsSent) {
@@ -1932,7 +2005,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
       otp: otp 
     });
   } else {
-    console.warn(`[SMS] Failed to send SMS: ${smsError}. Payload details (excl. Key) -> senderid: "${senderId}", number: "${formattedPhone}", route: "${smsRoute}", text: "${messageText}", EntityId: "${entityId}", dlttemplateid: "${dltTemplateId}"`);
+    console.warn(`[SMS] Failed to send SMS: ${smsError}. Phone: "${phone}", text: "${messageText}", dlttemplateid: "${dltTemplateId}"`);
     res.json({ 
       success: true, 
       message: translate("otp_sent", req.lang),
@@ -11307,6 +11380,33 @@ app.post('/api/app-version', async (req, res) => {
     });
   } catch (err) {
     console.error("Failed to update app version config:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /api/send-custom-sms - Send a custom SMS via SMS Gateway Hub
+app.post('/api/send-custom-sms', async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { phone, message, templateId } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: "phone is required" });
+    }
+    if (!message) {
+      return res.status(400).json({ error: "message is required" });
+    }
+
+    const result = await sendSMS(phone, message, templateId);
+    if (result.success) {
+      res.json({ success: true, message: "Custom SMS sent successfully", response: result.response });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (err) {
+    console.error("Send custom SMS failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
