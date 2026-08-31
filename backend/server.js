@@ -9,6 +9,48 @@ const multer = require('multer');
 const { translate } = require('./helpers/translate');
 const { localizeCategory, localizeService, localizeAddress, runContentI18nMigration } = require('./helpers/contentI18n');
 
+const getLocalCategoryAssetUrl = (name, serverBaseUrl) => {
+  const norm = (name || '').toLowerCase().trim();
+  let file = 'plumber.png'; // default fallback
+  
+  if (norm.includes('plumb')) file = 'plumber.png';
+  else if (norm.includes('electric')) file = 'electrician.png';
+  else if (norm === 'salon') file = 'salon_and_spa.png';
+  else if (norm.includes('salon') || norm.includes('spa') || norm.includes('hair')) file = 'salon_and_spa.png';
+  else if (norm.includes('clean')) file = 'cleaning.png';
+  else if (norm.includes('arch')) file = 'architecture.png';
+  else if (norm.includes('carpen') || norm.includes('wood')) file = 'carpenter.png';
+  else if (norm.includes('car') || norm.includes('wash')) file = 'car_washing.png';
+  else if (norm.includes('mechanic') || norm.includes('repairing')) file = 'mechanic.png';
+  else if (norm.includes('ac') || norm.includes('air')) file = 'ac_repair.png';
+  else if (norm.includes('paint')) file = 'painter.png';
+  else if (norm.includes('bike') || norm.includes('motor')) file = 'bike_services.png';
+  else if (norm.includes('driver')) file = 'driver.png';
+  else if (norm.includes('photo')) file = 'photographer.png';
+  else if (norm.includes('doctor') || norm.includes('doc')) file = 'doctors.png';
+  else if (norm.includes('compound') || norm.includes('nurse')) file = 'compounder.png';
+  else if (norm.includes('halwai') || norm.includes('catering') || norm.includes('cater')) file = 'halwai.png';
+  else if (norm.includes('contract')) file = 'contractor.png';
+  else if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) file = 'pandit_ji.png';
+  
+  return `${serverBaseUrl}/assets/categories/${file}`;
+};
+
+const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
+  const norm = (title || '').toLowerCase().trim();
+  let file = 'refer_earn_banner.png';
+  
+  if (norm.includes('ac') || norm.includes('foam')) {
+    file = 'ac_services_banner.png';
+  } else if (norm.includes('clean') || norm.includes('home') || norm.includes('annual')) {
+    file = 'amc_services_banner.png';
+  } else {
+    file = 'refer_earn_banner.png';
+  }
+  
+  return `${serverBaseUrl}/assets/banners/${file}`;
+};
+
 // Multer storage config for AMC document uploads
 const amcStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -2278,13 +2320,7 @@ app.get('/api/categories', async (req, res) => {
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
     const categories = dbCategories.map(c => {
-      let img = c.image;
-      if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-        img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
-      } else if (img && img.startsWith('/assets/')) {
-        img = `${serverBaseUrl}${img}`;
-      }
-
+      const img = getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
       const localizedObj = localizeCategory(c, req.lang);
 
       return {
@@ -2358,10 +2394,7 @@ app.get('/api/banners', async (req, res) => {
       const [rows] = await mysqlPool.query("SELECT * FROM node_banners ORDER BY id ASC");
       if (rows && rows.length > 0) {
         dbBanners = rows.map(r => {
-          let img = r.image || "";
-          if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-            img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
-          }
+          const img = getLocalBannerAssetUrl(r.title || '', serverBaseUrl);
 
           return {
             id: String(r.id),
@@ -2384,7 +2417,17 @@ app.get('/api/banners', async (req, res) => {
       try {
         const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
         if (data && data.banners && data.banners.length > 0) {
-          dbBanners = data.banners;
+          dbBanners = data.banners.map(b => {
+            const img = getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+            return {
+              ...b,
+              image: img,
+              bannerImage: img,
+              imageUrl: img,
+              photo: img,
+              url: img
+            };
+          });
         }
       } catch (jsonErr) {
         console.warn("[DynamicBanners] JSON fallback read failed:", jsonErr.message);
