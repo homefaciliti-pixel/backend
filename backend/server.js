@@ -2444,6 +2444,10 @@ const BANNERS_DATA = [
 // Dropdown: Get Banners
 app.get('/api/banners', async (req, res) => {
   let dbBanners = [];
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
   try {
     if (mysqlReady) {
