@@ -1835,9 +1835,36 @@ function generateReferralCode(name) {
   return `${cleanName}${timestampPart}`;
 }
 
-// ----------------------------------------
-// API ENDPOINTS
-// ----------------------------------------
+// Debug endpoint for database seed verification
+app.get('/api/debug/db', (req, res) => {
+  const seedFile = path.join(__dirname, 'database_seed.json');
+  const seedExists = fs.existsSync(seedFile);
+  let seedContent = null;
+  if (seedExists) {
+    try {
+      seedContent = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
+    } catch (e) {
+      seedContent = { error: e.message };
+    }
+  }
+  
+  let dbContent = null;
+  if (fs.existsSync(DB_FILE)) {
+    try {
+      dbContent = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    } catch (e) {
+      dbContent = { error: e.message };
+    }
+  }
+
+  res.json({
+    seedExists,
+    seedFile,
+    DB_FILE,
+    hasSeedBanners: seedContent ? (seedContent.banners ? seedContent.banners.length : 'no banners key') : 'no seed content',
+    dbBannersCount: dbContent ? (dbContent.banners ? dbContent.banners.length : 'no banners key') : 'no db content',
+  });
+});
 
 // Root welcome & status endpoint
 app.get('/', async (req, res) => {
