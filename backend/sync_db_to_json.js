@@ -163,6 +163,10 @@ async function run() {
 
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
     console.log("Successfully wrote updated data to database.json.");
+
+    const seedFile = path.join(__dirname, 'database_seed.json');
+    fs.writeFileSync(seedFile, JSON.stringify(db, null, 2), 'utf8');
+    console.log("Successfully wrote updated data to database_seed.json.");
     process.exit(0);
   } catch (err) {
     console.error("Error during database sync:", err);

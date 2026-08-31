@@ -1105,8 +1105,19 @@ const MySqlDbLayer = {
 };
 
 function initJsonDb() {
+  const seedFile = path.join(__dirname, 'database_seed.json');
+  let seedData = null;
+  if (fs.existsSync(seedFile)) {
+    try {
+      seedData = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
+    } catch (e) {
+      console.warn("Failed to parse database_seed.json:", e.message);
+    }
+  }
+
   if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES, addresses: [], contacts: [], cart: [] }, null, 2));
+    const initialDb = seedData || { users: {}, orders: [], referralsApplied: {}, categories: DEFAULT_CATEGORIES, addresses: [], contacts: [], cart: [], services: [], banners: [] };
+    fs.writeFileSync(DB_FILE, JSON.stringify(initialDb, null, 2), 'utf8');
   } else {
     try {
       const content = fs.readFileSync(DB_FILE, 'utf8');
@@ -1120,25 +1131,41 @@ function initJsonDb() {
         parsed.contacts = [];
         changed = true;
       }
-      if (!parsed.categories) {
-        parsed.categories = DEFAULT_CATEGORIES;
-        changed = true;
+      
+      if (seedData) {
+        if (seedData.categories && seedData.categories.length > 0) {
+          parsed.categories = seedData.categories;
+          changed = true;
+        }
+        if (seedData.services && seedData.services.length > 0) {
+          parsed.services = seedData.services;
+          changed = true;
+        }
+        if (seedData.banners && seedData.banners.length > 0) {
+          parsed.banners = seedData.banners;
+          changed = true;
+        }
       } else {
-        // Migration: Update names and images if they are outdated in JSON db
-        parsed.categories = parsed.categories.map(c => {
-          if (c.name === "Cleaning Services" || c.name === "clening" || c.id === "clening") {
-            c.name = "Cleaning";
-            c.id = "cleaning";
-            c.image = "/assets/categories/cleaning.png";
-            changed = true;
-          }
-          const defaultMatch = DEFAULT_CATEGORIES.find(dc => dc.id === c.id);
-          if (defaultMatch && c.image !== defaultMatch.image) {
-            c.image = defaultMatch.image;
-            changed = true;
-          }
-          return c;
-        });
+        if (!parsed.categories) {
+          parsed.categories = DEFAULT_CATEGORIES;
+          changed = true;
+        } else {
+          // Migration: Update names and images if they are outdated in JSON db
+          parsed.categories = parsed.categories.map(c => {
+            if (c.name === "Cleaning Services" || c.name === "clening" || c.id === "clening") {
+              c.name = "Cleaning";
+              c.id = "cleaning";
+              c.image = "/assets/categories/cleaning.png";
+              changed = true;
+            }
+            const defaultMatch = DEFAULT_CATEGORIES.find(dc => dc.id === c.id);
+            if (defaultMatch && c.image !== defaultMatch.image) {
+              c.image = defaultMatch.image;
+              changed = true;
+            }
+            return c;
+          });
+        }
       }
 
       if (!parsed.appVersion) {
@@ -1163,7 +1190,9 @@ function initJsonDb() {
       if (changed) {
         fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Failed to parse or update DB file:", e.message);
+    }
   }
 }
 
