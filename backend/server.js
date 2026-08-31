@@ -1110,6 +1110,14 @@ function initJsonDb() {
         parsed.cart = [];
         changed = true;
       }
+      if (!parsed.services) {
+        parsed.services = [];
+        changed = true;
+      }
+      if (!parsed.banners) {
+        parsed.banners = [];
+        changed = true;
+      }
       if (changed) {
         fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2));
       }
@@ -2371,6 +2379,16 @@ app.get('/api/banners', async (req, res) => {
           };
         });
       }
+    } else {
+      // JSON fallback: load from database.json
+      try {
+        const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+        if (data && data.banners && data.banners.length > 0) {
+          dbBanners = data.banners;
+        }
+      } catch (jsonErr) {
+        console.warn("[DynamicBanners] JSON fallback read failed:", jsonErr.message);
+      }
     }
   } catch (err) {
     console.warn("[DynamicBanners] DB query failed:", err.message);
@@ -2706,15 +2724,43 @@ app.get('/api/services', async (req, res) => {
     }
   }
 
-  // FALLBACK: Static
+  // FALLBACK: Load from database.json if available
   let list = [];
-  if (category) {
-    const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
-      key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
-    );
-    list = shuffleArray(matchedStaticCategory ? SERVICES_DATA[matchedStaticCategory] : []);
-  } else {
-    list = shuffleArray(Object.values(SERVICES_DATA).flat());
+  let loadedFromDb = false;
+  try {
+    const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+    if (data && data.services && data.services.length > 0) {
+      list = data.services;
+      loadedFromDb = true;
+      
+      // Filter by category
+      if (category) {
+        const cats = data.categories || [];
+        const matchedCat = cats.find(c => 
+          c.id.toString() === category.toString() || 
+          c.name.toLowerCase() === category.toLowerCase() || 
+          c.id.toString() === cleanCategory
+        );
+        if (matchedCat) {
+          list = list.filter(s => s.category.toString() === matchedCat.id.toString());
+        } else {
+          list = list.filter(s => s.category.toString() === category.toString());
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to load fallback services from JSON file:", err.message);
+  }
+
+  if (!loadedFromDb) {
+    if (category) {
+      const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
+        key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
+      );
+      list = shuffleArray(matchedStaticCategory ? SERVICES_DATA[matchedStaticCategory] : []);
+    } else {
+      list = shuffleArray(Object.values(SERVICES_DATA).flat());
+    }
   }
 
   if (search) {
@@ -4613,6 +4659,22 @@ const getServiceCategoryDbOrStatic = async (productId) => {
       console.warn("[getServiceCategoryDbOrStatic] Failed to query DB:", err.message);
     }
   }
+  // Try to find category in database.json
+  try {
+    const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+    if (data && data.services && data.services.length > 0) {
+      const matched = data.services.find(s => s.title.toLowerCase() === productId.toLowerCase() || s.id.toString() === productId.toString());
+      if (matched && matched.category) {
+        const cats = data.categories || [];
+        const catObj = cats.find(c => c.id.toString() === matched.category.toString());
+        if (catObj) {
+          return getCanonicalCategoryName(catObj.name) || null;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[getServiceCategoryDbOrStatic] JSON fallback read failed:", err.message);
+  }
   for (const [catName, services] of Object.entries(SERVICES_DATA)) {
     const match = services.some(s => s.title.toLowerCase() === productId.toLowerCase());
     if (match) return getCanonicalCategoryName(catName);
@@ -6217,6 +6279,47 @@ const resolveServiceDetails = async (productId) => {
     } catch (err) {
       console.warn("[resolveServiceDetails] DB query failed, falling back static:", err.message);
     }
+  }
+
+  // Try matching in database.json
+  try {
+    const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+    if (data && data.services && data.services.length > 0) {
+      const exactMatch = data.services.find(s => 
+        s.title.toLowerCase() === String(productId).toLowerCase() || 
+        s.id.toString() === productId.toString()
+      );
+      if (exactMatch) {
+        return {
+          productId: exactMatch.title,
+          serviceName: exactMatch.title,
+          title: exactMatch.title,
+          price: Number(exactMatch.price),
+          description: exactMatch.description,
+          image: exactMatch.image,
+          category: exactMatch.category,
+          categoryId: exactMatch.categoryId || exactMatch.category
+        };
+      }
+
+      const looseMatch = data.services.find(s => 
+        normalizeString(s.title) === normProduct
+      );
+      if (looseMatch) {
+        return {
+          productId: looseMatch.title,
+          serviceName: looseMatch.title,
+          title: looseMatch.title,
+          price: Number(looseMatch.price),
+          description: looseMatch.description,
+          image: looseMatch.image,
+          category: looseMatch.category,
+          categoryId: looseMatch.categoryId || looseMatch.category
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[resolveServiceDetails] JSON fallback read failed:", err.message);
   }
 
   for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
