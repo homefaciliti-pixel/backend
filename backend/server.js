@@ -55,6 +55,7 @@ function parseOrderNumbers(row) {
 }
 
 let mysqlPool = null;
+let mysqlReady = false; // true only after verified successful connection
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -613,10 +614,12 @@ async function initMySqlDb() {
     conn.release();
     console.log("MySQL database setup complete. Running in MySQL mode.");
     dbMode = "mysql";
+    mysqlReady = true;
     return true;
   } catch (err) {
     console.error("Failed to connect to MySQL on startup. Falling back:", err.message);
     mysqlPool = null;
+    mysqlReady = false;
     return false;
   }
 }
@@ -1497,7 +1500,7 @@ let dbMode = "mysql";
 
 const DbLayer = {
   getLayer() {
-    if (dbMode === "mysql" && mysqlPool !== null) {
+    if (dbMode === "mysql" && mysqlReady) {
       return MySqlDbLayer;
     }
     dbMode = "json";
@@ -1573,16 +1576,19 @@ const DbLayer = {
   const mysqlSuccess = await initMySqlDbWithRetry();
   if (!mysqlSuccess) {
     dbMode = "json";
+    mysqlReady = false;
     initJsonDb();
   }
+  // Only pass pool to translation engine if DB is actually ready
+  const poolForExtras = mysqlReady ? mysqlPool : null;
   try {
     const { initTranslationEngine } = require('./helpers/translate');
-    await initTranslationEngine(mysqlPool);
+    await initTranslationEngine(poolForExtras);
   } catch (err) {
     console.error("Failed to initialize translation engine in startup IIFE:", err);
   }
   try {
-    await runContentI18nMigration(mysqlPool);
+    await runContentI18nMigration(poolForExtras);
   } catch (err) {
     console.error("Failed to run content i18n migration:", err);
   }
@@ -1757,8 +1763,15 @@ function generateReferralCode(name) {
 // Root welcome & status endpoint
 app.get('/', async (req, res) => {
   try {
-    const userCount = await DbLayer.countUsers();
-    const orderCount = await DbLayer.countOrders();
+    // Only query DB for stats if actually connected, otherwise show 0
+    let userCount = 0;
+    let orderCount = 0;
+    try {
+      userCount = await DbLayer.countUsers();
+      orderCount = await DbLayer.countOrders();
+    } catch (statErr) {
+      console.warn("[RootRoute] Could not fetch stats (DB unavailable):", statErr.message);
+    }
     
     const activeLayer = DbLayer.getLayer();
     const dbStatus = activeLayer === MySqlDbLayer 
@@ -2333,7 +2346,7 @@ app.get('/api/banners', async (req, res) => {
   let dbBanners = [];
 
   try {
-    if (mysqlPool !== null) {
+    if (mysqlReady) {
       const [rows] = await mysqlPool.query("SELECT * FROM node_banners ORDER BY id ASC");
       if (rows && rows.length > 0) {
         dbBanners = rows.map(r => {
@@ -2398,7 +2411,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const statusParam = req.query.status || req.body.status;
   const isAmcMode = statusParam === "AMC";
 
-  if (mysqlPool !== null) {
+  if (mysqlReady) {
     try {
       const [catRows] = await mysqlPool.query(
         "SELECT * FROM node_categories WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
@@ -2634,7 +2647,7 @@ app.get('/api/services', async (req, res) => {
 
   const cleanCategory = category ? category.toLowerCase().replace(/[\s\-_]/g, '') : "";
 
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       let queryStr = "SELECT * FROM node_services WHERE status IN (0, 1)";
       const queryParams = [];
@@ -2735,7 +2748,7 @@ app.get('/api/services/trending', async (req, res) => {
     highlights: []
   };
 
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       // 1. Fetch dynamic details for "AC Foam Jet Service" if it exists in the database
       const [acRows] = await mysqlPool.query("SELECT * FROM node_services WHERE title = 'AC Foam Jet Service' LIMIT 1");
@@ -2790,7 +2803,7 @@ const handleServiceDetail = async (req, res) => {
   let hasActiveAmc = false;
   let detectedCategory = null;
 
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
       const [srvRows] = await mysqlPool.query(
@@ -2896,7 +2909,7 @@ app.get('/api/search', async (req, res) => {
 
   const lowerTerm = searchTerm.toLowerCase();
 
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       // 1. Search categories in DB
       const [catRows] = await mysqlPool.query(
@@ -4581,7 +4594,7 @@ app.post('/api/amc/plan-property-details', (req, res) => {
 // Helper to resolve service category from DB or static catalog
 const getServiceCategoryDbOrStatic = async (productId) => {
   if (!productId) return null;
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       const [srvRows] = await mysqlPool.query(
         "SELECT category_id FROM node_services WHERE LOWER(title) = ? OR LOWER(title_hi) = ? OR id = ?",
@@ -5774,7 +5787,7 @@ const STATIC_BOOKING_SLOTS = [
 ];
 
 async function getBookingSlots() {
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       const [rows] = await mysqlPool.query("SELECT * FROM slots ORDER BY id ASC");
       if (rows && rows.length > 0) {
@@ -6138,7 +6151,7 @@ const resolveServiceDetails = async (productId) => {
 
   const normProduct = normalizeString(productId);
 
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       // STEP 1: Try EXACT title match first (case-insensitive)
       // This is the safest match - prevents wrong service substitution
@@ -6670,7 +6683,7 @@ const handleGetCheckout = async (req, res) => {
 
     // Retrieve available services in the same category
     let services = [];
-    if (dbMode === "mysql" && mysqlPool !== null) {
+    if (dbMode === "mysql" && mysqlReady) {
       try {
         const [srvRows] = await mysqlPool.query("SELECT category_id FROM node_services WHERE LOWER(title) = ? OR LOWER(title_hi) = ? OR id = ?", [order.serviceName.toLowerCase(), order.serviceName.toLowerCase(), isNaN(order.productId) ? -1 : parseInt(order.productId)]);
         if (srvRows.length > 0) {
@@ -11035,7 +11048,7 @@ const STATES_CITIES = {
 
 // Dropdown: Get States
 app.get('/api/states', async (req, res) => {
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       const [rows] = await mysqlPool.query("SELECT name FROM states WHERE status = 1 AND deleted_at IS NULL");
       const [nodeRows] = await mysqlPool.query("SELECT name FROM node_states WHERE status = 1");
@@ -11066,7 +11079,7 @@ app.get('/api/states', async (req, res) => {
 app.get('/api/cities', async (req, res) => {
   const { state } = req.query;
   
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       let query = "SELECT c.name FROM cities c WHERE c.status = 1 AND c.deleted_at IS NULL";
       const params = [];
@@ -11135,7 +11148,7 @@ app.get('/api/cities', async (req, res) => {
 app.get('/api/localities', async (req, res) => {
   const { city, state } = req.query;
   
-  if (dbMode === "mysql" && mysqlPool !== null) {
+  if (dbMode === "mysql" && mysqlReady) {
     try {
       let query = "SELECT l.name FROM localities l WHERE l.status = 1 AND l.deleted_at IS NULL";
       const params = [];
