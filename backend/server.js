@@ -2376,7 +2376,13 @@ app.get('/api/categories', async (req, res) => {
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
     const categories = dbCategories.map(c => {
-      const img = getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
+      let img = c.image;
+      if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+        img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+      } else if (img && img.startsWith('/assets/')) {
+        img = `${serverBaseUrl}${img}`;
+      }
+
       const localizedObj = localizeCategory(c, req.lang);
 
       return {
@@ -2454,7 +2460,10 @@ app.get('/api/banners', async (req, res) => {
       const [rows] = await mysqlPool.query("SELECT * FROM node_banners ORDER BY id ASC");
       if (rows && rows.length > 0) {
         dbBanners = rows.map(r => {
-          const img = getLocalBannerAssetUrl(r.title || '', serverBaseUrl);
+          let img = r.image || "";
+          if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+            img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+          }
 
           return {
             id: String(r.id),
@@ -2478,7 +2487,10 @@ app.get('/api/banners', async (req, res) => {
         const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
         if (data && data.banners && data.banners.length > 0) {
           dbBanners = data.banners.map(b => {
-            const img = getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+            let img = b.image || "";
+            if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
+              img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+            }
             return {
               ...b,
               image: img,
