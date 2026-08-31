@@ -2490,29 +2490,60 @@ app.get('/api/categories/:category/services', async (req, res) => {
     }
   }
 
-  // Case-insensitive match against known categories in SERVICES_DATA
-  const matchedCategory = Object.keys(SERVICES_DATA).find(
-    key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
-  );
+  // FALLBACK: Load from database.json if available
+  let list = [];
+  let loadedFromDb = false;
+  let matchedCatName = category;
 
-  if (!matchedCategory) {
-    return res.status(404).json({
-      success: false,
-      error: `Category '${category}' not found`,
-      availableCategories: CATEGORIES_DATA
-    });
+  try {
+    const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+    if (data && data.categories) {
+      // Find category by ID or title in database.json
+      const cats = data.categories || [];
+      const catObj = cats.find(c => 
+        c.id.toString() === category.toString() || 
+        c.name.toLowerCase() === category.toLowerCase() ||
+        c.id.toString() === cleanCategory
+      );
+      if (catObj) {
+        matchedCatName = catObj.name;
+        if (data.services && data.services.length > 0) {
+          list = data.services.filter(s => s.category.toString() === catObj.id.toString());
+          loadedFromDb = true;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to load category services from JSON database fallback:", err.message);
   }
 
-  let services = shuffleArray(SERVICES_DATA[matchedCategory] || []);
+  if (!loadedFromDb) {
+    // Case-insensitive match against known categories in SERVICES_DATA
+    const cleanMatchedCat = matchedCatName.toLowerCase().replace(/[\s\-_]/g, '');
+    const matchedCategoryKey = Object.keys(SERVICES_DATA).find(
+      key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanMatchedCat ||
+             key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
+    );
+
+    if (!matchedCategoryKey) {
+      return res.status(404).json({
+        success: false,
+        error: `Category '${category}' not found`,
+        availableCategories: CATEGORIES_DATA
+      });
+    }
+
+    list = shuffleArray(SERVICES_DATA[matchedCategoryKey] || []);
+  }
 
   if (search) {
     const query = search.toString().toLowerCase();
-    services = services.filter(
+    list = list.filter(
       s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query)
     );
   }
 
-  const finalServices = resolveServiceUrls(services, serverBaseUrl).map(s => {
+  const finalServices = resolveServiceUrls(list, serverBaseUrl).map(s => {
     if (isAmcMode) {
       return { ...s, price: 0, status: "AMC" };
     }
@@ -2520,7 +2551,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   });
 
   const localizedFinalServices = finalServices.map(s => localizeService(s, req.lang));
-  const catLocalized = localizeCategory({ name: matchedCategory, title: matchedCategory }, req.lang);
+  const catLocalized = localizeCategory({ id: category, name: matchedCatName, title: matchedCatName }, req.lang);
 
   res.json({
     success: true,
