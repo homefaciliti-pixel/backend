@@ -2913,12 +2913,37 @@ const handleServiceDetail = async (req, res) => {
   let foundService = null;
   let foundCategory = null;
 
-  for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
-    const match = services.find(s => s.title.toLowerCase() === title.toLowerCase());
-    if (match) {
-      foundService = match;
-      foundCategory = categoryName;
-      break;
+  // Try loading from database.json first
+  try {
+    const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+    if (data && data.services && data.services.length > 0) {
+      const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
+      const match = data.services.find(s => 
+        s.title.toLowerCase() === title.toLowerCase() || 
+        s.id.toString() === title.toString() ||
+        s.title.toLowerCase().replace(/[\s\-_]/g, '') === cleanTitle
+      );
+      if (match) {
+        foundService = match;
+        // Resolve category name from ID
+        const cats = data.categories || [];
+        const catObj = cats.find(c => c.id.toString() === match.category.toString());
+        foundCategory = catObj ? catObj.name : match.category;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to load service detail from JSON fallback:", err.message);
+  }
+
+  // Fallback to static SERVICES_DATA if not found in database.json
+  if (!foundService) {
+    for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
+      const match = services.find(s => s.title.toLowerCase() === title.toLowerCase());
+      if (match) {
+        foundService = match;
+        foundCategory = categoryName;
+        break;
+      }
     }
   }
 
@@ -2936,19 +2961,20 @@ const handleServiceDetail = async (req, res) => {
 
   // Add rich mock metadata for details
   const enrichedService = {
-    productId: foundService.title,
+    productId: foundService.title || foundService.productId,
     title: foundService.title,
-    price: hasActiveAmc ? 0 : foundService.price,
+    price: hasActiveAmc ? 0 : Number(foundService.price),
     status: hasActiveAmc ? "AMC" : "Regular",
-    description: foundService.description,
+    description: foundService.description || foundService.productDescription || "",
     image: resolvedImage,
     category: foundCategory,
-    duration: foundService.title.toLowerCase().includes("cleaning") || foundService.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
-    rating: foundService.rating !== undefined ? foundService.rating : 4.8,
-    reviewsCount: foundService.reviewsCount !== undefined ? foundService.reviewsCount : 124,
-    discount: foundService.discount !== undefined ? foundService.discount : 0,
-    cutPrice: foundService.cutPrice !== undefined ? foundService.cutPrice : foundService.price,
-    highlights: [
+    categoryId: foundService.categoryId || foundService.category,
+    duration: foundService.duration || (foundService.title.toLowerCase().includes("cleaning") || foundService.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours"),
+    rating: foundService.rating !== undefined ? parseFloat(foundService.rating) : 4.8,
+    reviewsCount: foundService.reviewsCount !== undefined ? parseInt(foundService.reviewsCount) : 124,
+    discount: foundService.discount !== undefined ? parseFloat(foundService.discount) : 0,
+    cutPrice: foundService.cutPrice !== undefined ? parseFloat(foundService.cutPrice) : Number(foundService.price),
+    highlights: foundService.highlights || [
       "Includes background-checked & certified partner",
       "30-day post-service warranty cover included",
       "Equipped with premium professional-grade tools",
