@@ -173,29 +173,87 @@ app.use('/uploads', (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
-  // 4. Complete MySQL Database (25/08/2026 Uploads) Exact Pattern Matcher
+  // 4. Complete Categories & Services Database Timestamp & Keyword Pattern Matcher
   const norm = relPath.toLowerCase();
 
-  // All 25 Exact MySQL Category Timestamps from 25/08/2026
-  if (norm.includes('1786436206314') || norm.includes('plumb')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'plumber.png'));
-  if (norm.includes('1786436786199') || norm.includes('electr')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'electrician.png'));
-  if (norm.includes('1786435950565') || norm.includes('1786442488680') || norm.includes('salon') || norm.includes('spa') || norm.includes('beauty')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'salon_and_spa.png'));
-  if (norm.includes('1786435733935') || norm.includes('1786450312316') || norm.includes('clean') || norm.includes('pest') || norm.includes('sofa') || norm.includes('washroom')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'cleaning.png'));
-  if (norm.includes('1786446437586') || norm.includes('1786450010056') || norm.includes('arch') || norm.includes('interior')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'architecture.png'));
-  if (norm.includes('1786446696715') || norm.includes('1786452895272') || norm.includes('carpen') || norm.includes('iron') || norm.includes('wood')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'carpenter.png'));
-  if (norm.includes('1786447188981') || norm.includes('car') || norm.includes('wash')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'car_washing.png'));
-  if (norm.includes('1786447506154') || norm.includes('1786451422502') || norm.includes('mechanic') || norm.includes('repair')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
-  if (norm.includes('1786443552623') || norm.includes('ac_repair') || norm.includes('ac_service')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'ac_repair.png'));
-  if (norm.includes('1786443775719') || norm.includes('1786451938166') || norm.includes('1786452243309') || norm.includes('advocate') || norm.includes('tax') || norm.includes('contract')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'contractor.png'));
-  if (norm.includes('1786444894705') || norm.includes('compound') || norm.includes('nurse')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'compounder.png'));
-  if (norm.includes('1786448684632') || norm.includes('halwai') || norm.includes('cater')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'halwai.png'));
-  if (norm.includes('1786449239057') || norm.includes('driver')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'driver.png'));
-  if (norm.includes('1786449409020') || norm.includes('doctor') || norm.includes('doc')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'doctors.png'));
-  if (norm.includes('1786450771532') || norm.includes('photo')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'photographer.png'));
-  if (norm.includes('1786451019343') || norm.includes('paint')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'painter.png'));
-  if (norm.includes('1786451601583') || norm.includes('solar')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'electrician.png'));
-  if (norm.includes('1786452463146') || norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'pandit_ji.png'));
-  if (norm.includes('bike') || norm.includes('motor')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'bike_services.png'));
+  // Hair / Beauty / Salon / Spa / Makeup Services
+  if (norm.includes('1782392839781') || norm.includes('1786435950565') || norm.includes('1786442488680') || norm.includes('hair') || norm.includes('salon') || norm.includes('spa') || norm.includes('beauty') || norm.includes('facial') || norm.includes('makeup')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'salon_and_spa.png'));
+  }
+  // Laptop / Computer / Tech Services
+  if (norm.includes('1782376518277') || norm.includes('laptop') || norm.includes('computer') || norm.includes('pc') || norm.includes('tech')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
+  }
+  // Kitchen / House Architecture / Interior Services
+  if (norm.includes('1786531757374') || norm.includes('1782369044663') || norm.includes('1786446437586') || norm.includes('1786450010056') || norm.includes('kitchen') || norm.includes('architect') || norm.includes('interior') || norm.includes('draft')) {
+    const srvDraft = path.join(__dirname, 'assets', 'services', 'design_draft.png');
+    if (fs.existsSync(srvDraft)) return res.sendFile(srvDraft);
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'architecture.png'));
+  }
+  // Electrician / House Wiring / Solar Services
+  if (norm.includes('1782368297524') || norm.includes('1786436786199') || norm.includes('1786451601583') || norm.includes('wire') || norm.includes('electr') || norm.includes('solar') || norm.includes('fan') || norm.includes('light')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'electrician.png'));
+  }
+  // Professional Painter Services
+  if (norm.includes('1782377666340') || norm.includes('1786451019343') || norm.includes('paint') || norm.includes('color') || norm.includes('wall')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'painter.png'));
+  }
+  // Washing Machine / Fridge / Appliance Repair Services
+  if (norm.includes('1782368322085') || norm.includes('1782376542816') || norm.includes('1786447506154') || norm.includes('1786451422502') || norm.includes('wash') || norm.includes('fridge') || norm.includes('refrigerat') || norm.includes('appliance') || norm.includes('engine') || norm.includes('mechanic') || norm.includes('repair')) {
+    const srvEng = path.join(__dirname, 'assets', 'services', 'engine_tuning.png');
+    if (fs.existsSync(srvEng)) return res.sendFile(srvEng);
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
+  }
+  // AC Repair & Service
+  if (norm.includes('1782370871985') || norm.includes('1786443552623') || norm.includes('ac') || norm.includes('cool')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'ac_repair.png'));
+  }
+  // Plumber Services
+  if (norm.includes('1782367898826') || norm.includes('1786436206314') || norm.includes('plumb') || norm.includes('pipe') || norm.includes('leak') || norm.includes('tap')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'plumber.png'));
+  }
+  // Car Washing & Auto Services
+  if (norm.includes('1786447188981') || norm.includes('car') || norm.includes('auto')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'car_washing.png'));
+  }
+  // Cleaning & Pest Control Services
+  if (norm.includes('1786435733935') || norm.includes('1786450312316') || norm.includes('clean') || norm.includes('pest') || norm.includes('sofa') || norm.includes('washroom')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'cleaning.png'));
+  }
+  // Carpenter & Iron Works Services
+  if (norm.includes('1786446696715') || norm.includes('1786452895272') || norm.includes('carpen') || norm.includes('iron') || norm.includes('wood')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'carpenter.png'));
+  }
+  // Doctor & Nurse & Compounder Services
+  if (norm.includes('1786444894705') || norm.includes('1786449409020') || norm.includes('doctor') || norm.includes('compound') || norm.includes('health')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'doctors.png'));
+  }
+  // Driver Services
+  if (norm.includes('1786449239057') || norm.includes('driver')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'driver.png'));
+  }
+  // Cater & Halwai Services
+  if (norm.includes('1786448684632') || norm.includes('cater') || norm.includes('halwai') || norm.includes('food')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'halwai.png'));
+  }
+  // Pandit Ji / Pooja Services
+  if (norm.includes('1786452463146') || norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) {
+    const srvPooja = path.join(__dirname, 'assets', 'services', 'pooja_service.png');
+    if (fs.existsSync(srvPooja)) return res.sendFile(srvPooja);
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'pandit_ji.png'));
+  }
+  // Photographer Services
+  if (norm.includes('1786450771532') || norm.includes('photo')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'photographer.png'));
+  }
+  // Contractor / Advocate / Tax Consultancy Services
+  if (norm.includes('1786443775719') || norm.includes('1786451938166') || norm.includes('1786452243309') || norm.includes('advocate') || norm.includes('tax') || norm.includes('contract')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'contractor.png'));
+  }
+  // Bike Services
+  if (norm.includes('bike') || norm.includes('motor')) {
+    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'bike_services.png'));
+  }
 
   // Banner Matches (Direct HTTP 200 OK Banner PNG files)
   if (norm.includes('1787722971478') || (norm.includes('banner') && norm.includes('ac'))) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png'));
