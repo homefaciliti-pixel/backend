@@ -1058,6 +1058,71 @@ const MySqlDbLayer = {
     };
   },
 
+  async updateCategory(id, categoryData) {
+    const { name, title, image, status } = categoryData;
+    const catTitle = title || name || "";
+    await mysqlPool.query(
+      "UPDATE node_categories SET title = IFNULL(?, title), image = IFNULL(?, image), status = IFNULL(?, status) WHERE id = ?",
+      [catTitle || null, image || null, status !== undefined ? status : 1, id]
+    );
+    return { id: String(id), name: catTitle, image: image || "" };
+  },
+
+  async deleteCategory(id) {
+    await mysqlPool.query("DELETE FROM node_categories WHERE id = ?", [id]);
+    return true;
+  },
+
+  async addBanner(bannerData) {
+    const { title, image, bannerImage, category, badge, subtitle, buttonText } = bannerData;
+    const bannerImg = image || bannerImage || "";
+    const [res] = await mysqlPool.query(
+      "INSERT INTO node_banners (title, image, category, badge, subtitle, buttonText) VALUES (?, ?, ?, ?, ?, ?)",
+      [title || "", bannerImg, category || "", badge || "", subtitle || "", buttonText || "Book Now"]
+    );
+    return { id: String(res.insertId), ...bannerData, image: bannerImg };
+  },
+
+  async updateBanner(id, bannerData) {
+    const { title, image, bannerImage, category, badge, subtitle, buttonText } = bannerData;
+    const bannerImg = image || bannerImage || "";
+    await mysqlPool.query(
+      "UPDATE node_banners SET title = IFNULL(?, title), image = IFNULL(?, image), category = IFNULL(?, category), badge = IFNULL(?, badge), subtitle = IFNULL(?, subtitle), buttonText = IFNULL(?, buttonText) WHERE id = ?",
+      [title || null, bannerImg || null, category || null, badge || null, subtitle || null, buttonText || null, id]
+    );
+    return { id: String(id), ...bannerData };
+  },
+
+  async deleteBanner(id) {
+    await mysqlPool.query("DELETE FROM node_banners WHERE id = ?", [id]);
+    return true;
+  },
+
+  async addService(serviceData) {
+    const { title, name, category, category_id, price, description, image } = serviceData;
+    const srvTitle = title || name || "";
+    const [res] = await mysqlPool.query(
+      "INSERT INTO node_services (title, category_id, price, description, image, status) VALUES (?, ?, ?, ?, ?, 1)",
+      [srvTitle, category_id || 1, price || 0, description || "", image || ""]
+    );
+    return { id: String(res.insertId), title: srvTitle, price, image };
+  },
+
+  async updateService(id, serviceData) {
+    const { title, name, price, description, image, status } = serviceData;
+    const srvTitle = title || name || null;
+    await mysqlPool.query(
+      "UPDATE node_services SET title = IFNULL(?, title), price = IFNULL(?, price), description = IFNULL(?, description), image = IFNULL(?, image), status = IFNULL(?, status) WHERE id = ?",
+      [srvTitle, price || null, description || null, image || null, status !== undefined ? status : 1, id]
+    );
+    return { id: String(id), ...serviceData };
+  },
+
+  async deleteService(id) {
+    await mysqlPool.query("DELETE FROM node_services WHERE id = ?", [id]);
+    return true;
+  },
+
   async getAddressesByUserPhone(phone) {
     const [rows] = await mysqlPool.query("SELECT * FROM node_addresses_v2 WHERE userPhone IN (?)", [getPhoneVariants(phone)]);
     return rows.map(r => {
@@ -1481,6 +1546,92 @@ const JsonDbLayer = {
     return newCat;
   },
 
+  async updateCategory(id, categoryData) {
+    const data = this.readData();
+    if (!data.categories) data.categories = [];
+    const idx = data.categories.findIndex(c => String(c.id) === String(id) || (c.name && c.name.toLowerCase() === (categoryData.name || '').toLowerCase()));
+    if (idx !== -1) {
+      data.categories[idx] = { ...data.categories[idx], ...categoryData, id: String(id) };
+    } else {
+      data.categories.push({ id: String(id), ...categoryData });
+    }
+    this.writeData(data);
+    return categoryData;
+  },
+
+  async deleteCategory(id) {
+    const data = this.readData();
+    if (data.categories) {
+      data.categories = data.categories.filter(c => String(c.id) !== String(id));
+      this.writeData(data);
+    }
+    return true;
+  },
+
+  async addBanner(bannerData) {
+    const data = this.readData();
+    if (!data.banners) data.banners = [];
+    const newId = bannerData.id || String(Date.now());
+    const newBanner = { ...bannerData, id: String(newId) };
+    data.banners.push(newBanner);
+    this.writeData(data);
+    return newBanner;
+  },
+
+  async updateBanner(id, bannerData) {
+    const data = this.readData();
+    if (!data.banners) data.banners = [];
+    const idx = data.banners.findIndex(b => String(b.id) === String(id));
+    if (idx !== -1) {
+      data.banners[idx] = { ...data.banners[idx], ...bannerData, id: String(id) };
+    } else {
+      data.banners.push({ id: String(id), ...bannerData });
+    }
+    this.writeData(data);
+    return bannerData;
+  },
+
+  async deleteBanner(id) {
+    const data = this.readData();
+    if (data.banners) {
+      data.banners = data.banners.filter(b => String(b.id) !== String(id));
+      this.writeData(data);
+    }
+    return true;
+  },
+
+  async addService(serviceData) {
+    const data = this.readData();
+    if (!data.services) data.services = [];
+    const newId = serviceData.id || Date.now();
+    const newSrv = { ...serviceData, id: newId, title: serviceData.title || serviceData.name || "" };
+    data.services.push(newSrv);
+    this.writeData(data);
+    return newSrv;
+  },
+
+  async updateService(id, serviceData) {
+    const data = this.readData();
+    if (!data.services) data.services = [];
+    const idx = data.services.findIndex(s => String(s.id) === String(id) || (s.title && s.title.toLowerCase() === (serviceData.title || '').toLowerCase()));
+    if (idx !== -1) {
+      data.services[idx] = { ...data.services[idx], ...serviceData, id: id };
+    } else {
+      data.services.push({ id: id, ...serviceData });
+    }
+    this.writeData(data);
+    return serviceData;
+  },
+
+  async deleteService(id) {
+    const data = this.readData();
+    if (data.services) {
+      data.services = data.services.filter(s => String(s.id) !== String(id));
+      this.writeData(data);
+    }
+    return true;
+  },
+
   // --- ADDRESS METHODS ---
   async getAddressesByUserPhone(phone) {
     const data = this.readData();
@@ -1704,6 +1855,14 @@ const DbLayer = {
   async createReferralApplied(referralApplied) { return executeDbMethod('createReferralApplied', referralApplied); },
   async getCategories() { return executeDbMethod('getCategories'); },
   async addCategory(categoryData) { return executeDbMethod('addCategory', categoryData); },
+  async updateCategory(id, categoryData) { return executeDbMethod('updateCategory', id, categoryData); },
+  async deleteCategory(id) { return executeDbMethod('deleteCategory', id); },
+  async addBanner(bannerData) { return executeDbMethod('addBanner', bannerData); },
+  async updateBanner(id, bannerData) { return executeDbMethod('updateBanner', id, bannerData); },
+  async deleteBanner(id) { return executeDbMethod('deleteBanner', id); },
+  async addService(serviceData) { return executeDbMethod('addService', serviceData); },
+  async updateService(id, serviceData) { return executeDbMethod('updateService', id, serviceData); },
+  async deleteService(id) { return executeDbMethod('deleteService', id); },
   async getAddressesByUserPhone(phone) { return executeDbMethod('getAddressesByUserPhone', phone); },
   async createAddress(address) { return executeDbMethod('createAddress', address); },
   async getAppVersion() { return executeDbMethod('getAppVersion'); },
@@ -2444,6 +2603,152 @@ app.post('/api/contact', async (req, res) => {
     res.json({ success: true, message: translate("contact_sent", req.lang), contact });
   } catch (err) {
     console.error("Contact API failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Generic Admin Panel Image Upload Endpoint
+const generalUploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `${uniqueSuffix}${ext}`);
+  }
+});
+const generalUpload = multer({ storage: generalUploadStorage });
+
+app.post(['/api/upload', '/upload'], generalUpload.any(), (req, res) => {
+  const file = req.files && req.files.length > 0 ? req.files[0] : req.file;
+  if (!file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+  const fileUrl = `${serverBaseUrl}/uploads/${file.filename}`;
+
+  console.log(`[Upload] Image uploaded successfully: ${file.filename} (field: ${file.fieldname})`);
+  res.json({
+    success: true,
+    url: fileUrl,
+    image: fileUrl,
+    imageUrl: fileUrl,
+    filename: file.filename
+  });
+});
+
+// Category Admin Routes
+app.post('/api/categories', async (req, res) => {
+  const { name, title, id, image } = req.body;
+  const categoryName = title || name;
+  if (!categoryName) {
+    return res.status(400).json({ error: "Category name is required" });
+  }
+  try {
+    const category = await DbLayer.addCategory({ name: categoryName, title: categoryName, id, image });
+    console.log(`[Admin] Category created/updated: ${categoryName}`);
+    res.json({ success: true, category, data: category, message: "Category created successfully" });
+  } catch (err) {
+    console.error("Add category failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.put('/api/categories/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const category = await DbLayer.updateCategory(id, req.body);
+    console.log(`[Admin] Category ${id} updated:`, req.body.name || req.body.title);
+    res.json({ success: true, category, data: category, message: "Category updated successfully" });
+  } catch (err) {
+    console.error("Update category failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.delete('/api/categories/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await DbLayer.deleteCategory(id);
+    res.json({ success: true, message: "Category deleted successfully" });
+  } catch (err) {
+    console.error("Delete category failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Banner Admin Routes
+app.post('/api/banners', async (req, res) => {
+  try {
+    const banner = await DbLayer.addBanner(req.body);
+    console.log(`[Admin] Banner created:`, req.body.title);
+    res.json({ success: true, banner, data: banner, message: "Banner created successfully" });
+  } catch (err) {
+    console.error("Add banner failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.put('/api/banners/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const banner = await DbLayer.updateBanner(id, req.body);
+    console.log(`[Admin] Banner ${id} updated:`, req.body.title);
+    res.json({ success: true, banner, data: banner, message: "Banner updated successfully" });
+  } catch (err) {
+    console.error("Update banner failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.delete('/api/banners/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await DbLayer.deleteBanner(id);
+    res.json({ success: true, message: "Banner deleted successfully" });
+  } catch (err) {
+    console.error("Delete banner failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Service Admin Routes
+app.post('/api/services', async (req, res) => {
+  try {
+    const service = await DbLayer.addService(req.body);
+    console.log(`[Admin] Service created:`, req.body.title || req.body.name);
+    res.json({ success: true, service, data: service, message: "Service created successfully" });
+  } catch (err) {
+    console.error("Add service failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.put('/api/services/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const service = await DbLayer.updateService(id, req.body);
+    console.log(`[Admin] Service ${id} updated:`, req.body.title || req.body.name);
+    res.json({ success: true, service, data: service, message: "Service updated successfully" });
+  } catch (err) {
+    console.error("Update service failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.delete('/api/services/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await DbLayer.deleteService(id);
+    res.json({ success: true, message: "Service deleted successfully" });
+  } catch (err) {
+    console.error("Delete service failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
