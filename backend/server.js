@@ -151,30 +151,60 @@ app.use('/uploads', (req, res, next) => {
   const relPath = req.path.replace(/^\/+/, '');
   if (!relPath) return next();
 
+  // 1. Check if uploaded file exists in backend/uploads/
   const uploadsPath = path.join(__dirname, 'uploads', relPath);
   if (fs.existsSync(uploadsPath) && fs.statSync(uploadsPath).size > 0) {
     return res.sendFile(uploadsPath);
   }
+
+  // 2. Check if uploaded file exists in backend/assets/uploads/
   const assetsUploadsPath = path.join(__dirname, 'assets', 'uploads', relPath);
   if (fs.existsSync(assetsUploadsPath) && fs.statSync(assetsUploadsPath).size > 0) {
     return res.sendFile(assetsUploadsPath);
   }
+
+  // 3. Direct match in assets/categories/, assets/banners/, or assets/services/
   const catPath = path.join(__dirname, 'assets', 'categories', relPath);
-  if (fs.existsSync(catPath)) {
-    return res.sendFile(catPath);
-  }
+  if (fs.existsSync(catPath)) return res.sendFile(catPath);
+
   const bannerPath = path.join(__dirname, 'assets', 'banners', relPath);
-  if (fs.existsSync(bannerPath)) {
-    return res.sendFile(bannerPath);
-  }
+  if (fs.existsSync(bannerPath)) return res.sendFile(bannerPath);
+
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
-  if (fs.existsSync(srvPath)) {
-    return res.sendFile(srvPath);
-  }
-  // Ultimate fallback image if requested file doesn't exist on disk
-  const fallbackPath = path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png');
-  if (fs.existsSync(fallbackPath)) {
-    return res.sendFile(fallbackPath);
+  if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
+
+  // 4. Filename Smart Pattern Matcher
+  const norm = relPath.toLowerCase();
+
+  // Category Icon Matches (Square PNG icons)
+  if (norm.includes('1786436206314') || norm.includes('plumb')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'plumber.png'));
+  if (norm.includes('1786436786199') || norm.includes('electr')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'electrician.png'));
+  if (norm.includes('1786435950565') || norm.includes('salon') || norm.includes('spa') || norm.includes('beauty')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'salon_and_spa.png'));
+  if (norm.includes('1786435733935') || norm.includes('clean') || norm.includes('sofa') || norm.includes('washroom')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'cleaning.png'));
+  if (norm.includes('1786446437586') || norm.includes('arch')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'architecture.png'));
+  if (norm.includes('bike') || norm.includes('motor')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'bike_services.png'));
+  if (norm.includes('carpen') || norm.includes('wood')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'carpenter.png'));
+  if (norm.includes('car') || norm.includes('wash')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'car_washing.png'));
+  if (norm.includes('compound') || norm.includes('nurse')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'compounder.png'));
+  if (norm.includes('contract')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'contractor.png'));
+  if (norm.includes('doctor') || norm.includes('doc')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'doctors.png'));
+  if (norm.includes('driver')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'driver.png'));
+  if (norm.includes('halwai') || norm.includes('cater')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'halwai.png'));
+  if (norm.includes('mechanic') || norm.includes('repairing')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
+  if (norm.includes('paint')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'painter.png'));
+  if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'pandit_ji.png'));
+  if (norm.includes('photo')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'photographer.png'));
+  if (norm.includes('ac_repair') || norm.includes('ac_service')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'ac_repair.png'));
+
+  // Banner Matches (1200x800 Banners)
+  if (norm.includes('1787722971478') || (norm.includes('banner') && norm.includes('ac'))) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png'));
+  if (norm.includes('1787722479893') || norm.includes('amc') || norm.includes('home')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'amc_services_banner.png'));
+  if (norm.includes('refer') || norm.includes('earn')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'refer_earn_banner.png'));
+
+  // Default Fallback
+  const fallbackCat = path.join(__dirname, 'assets', 'categories', 'plumber.png');
+  if (fs.existsSync(fallbackCat)) {
+    return res.sendFile(fallbackCat);
   }
   next();
 });
