@@ -2795,9 +2795,10 @@ app.get('/api/categories', async (req, res) => {
 
       return {
         ...c,
-        id: localizedObj.id,
-        name: localizedObj.name,
-        image: img
+        id: String(localizedObj.id || c.id || ''),
+        name: String(localizedObj.name || c.name || c.title || ''),
+        title: String(localizedObj.name || c.title || c.name || ''),
+        image: String(img || '')
       };
     });
 

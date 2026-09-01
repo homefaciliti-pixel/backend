@@ -12,10 +12,10 @@ class BannerModel {
   });
   factory BannerModel.fromJson(Map<String, dynamic> json) {
     return BannerModel(
-      id: json['id'] ?? '',
-      image: json['image'] ?? '',
-      title: json['title'] ?? '',
-      category: json['category'] ?? '',
+      id: json['id']?.toString() ?? '',
+      image: (json['image'] ?? json['bannerImage'] ?? json['imageUrl'] ?? json['photo'] ?? json['url'])?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      category: json['category']?.toString() ?? '',
     );
   }
 
