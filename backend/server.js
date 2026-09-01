@@ -321,8 +321,8 @@ async function initMySqlDb() {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
-      connectTimeout: 60000,        // 60s timeout for initial connection
-      enableKeepAlive: true,        // Keep connections alive (prevents ETIMEDOUT)
+      connectTimeout: 5000,         // 5s timeout for fast failover on blocked/unreachable MySQL
+      enableKeepAlive: true,        // Keep connections alive
       keepAliveInitialDelay: 10000, // Send keepalive after 10s of idle
     });
 
@@ -666,19 +666,16 @@ async function initMySqlDb() {
   }
 }
 
-// Retry wrapper for MySQL initialization (handles ETIMEDOUT on Render.com cold start)
-async function initMySqlDbWithRetry(maxRetries = 5) {
+// Retry wrapper for MySQL initialization (fast 1-attempt check to prevent hanging Render cold start)
+async function initMySqlDbWithRetry(maxRetries = 1) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     console.log(`MySQL connection attempt ${attempt}/${maxRetries}...`);
     const success = await initMySqlDb();
     if (success) return true;
-    if (attempt < maxRetries) {
-      const delay = Math.min(5000 * attempt, 60000); // 5s, 10s, 20s, 40s, 60s
-      console.log(`Retrying MySQL connection in ${delay / 1000}s...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
   }
-  console.error(`MySQL connection failed after ${maxRetries} attempts. Running in JSON fallback mode.`);
+  console.error(`MySQL connection unreachable/timed out. Running in JSON database mode.`);
+  dbMode = "json";
+  mysqlReady = false;
   return false;
 }
 
@@ -1577,6 +1574,20 @@ const JsonDbLayer = {
 // ----------------------------------------
 let dbMode = "mysql";
 
+// Helper function to execute DB method with instant JSON failover on MySQL connection error
+async function executeDbMethod(methodName, ...args) {
+  if (dbMode === "mysql" && mysqlReady && MySqlDbLayer && typeof MySqlDbLayer[methodName] === 'function') {
+    try {
+      return await MySqlDbLayer[methodName](...args);
+    } catch (err) {
+      console.warn(`[DbLayer.${methodName}] MySQL query failed (${err.message}). Falling back to JSON database.`);
+      mysqlReady = false;
+      dbMode = "json";
+    }
+  }
+  return await JsonDbLayer[methodName](...args);
+}
+
 const DbLayer = {
   getLayer() {
     if (dbMode === "mysql" && mysqlReady) {
@@ -1585,19 +1596,19 @@ const DbLayer = {
     dbMode = "json";
     return JsonDbLayer;
   },
-  async getUserByPhone(phone) { return this.getLayer().getUserByPhone(phone); },
-  async getUserByReferralCode(code) { return this.getLayer().getUserByReferralCode(code); },
-  async createUser(user) { return this.getLayer().createUser(user); },
-  async updateUser(phone, updates) { return this.getLayer().updateUser(phone, updates); },
-  async deleteUser(phone) { return this.getLayer().deleteUser(phone); },
-  async createContact(contact) { return this.getLayer().createContact(contact); },
-  async countUsers() { return this.getLayer().countUsers(); },
-  async getOrderById(id) { return this.getLayer().getOrderById(id); },
-  async getOrderByRazorpayOrderId(rzpOrderId) { return this.getLayer().getOrderByRazorpayOrderId(rzpOrderId); },
-  async getOrdersByUserPhone(phone) { return this.getLayer().getOrdersByUserPhone(phone); },
-  async getAllOrders() { return this.getLayer().getAllOrders(); },
+  async getUserByPhone(phone) { return executeDbMethod('getUserByPhone', phone); },
+  async getUserByReferralCode(code) { return executeDbMethod('getUserByReferralCode', code); },
+  async createUser(user) { return executeDbMethod('createUser', user); },
+  async updateUser(phone, updates) { return executeDbMethod('updateUser', phone, updates); },
+  async deleteUser(phone) { return executeDbMethod('deleteUser', phone); },
+  async createContact(contact) { return executeDbMethod('createContact', contact); },
+  async countUsers() { return executeDbMethod('countUsers'); },
+  async getOrderById(id) { return executeDbMethod('getOrderById', id); },
+  async getOrderByRazorpayOrderId(rzpOrderId) { return executeDbMethod('getOrderByRazorpayOrderId', rzpOrderId); },
+  async getOrdersByUserPhone(phone) { return executeDbMethod('getOrdersByUserPhone', phone); },
+  async getAllOrders() { return executeDbMethod('getAllOrders'); },
   async createOrder(order) {
-    const newOrder = await this.getLayer().createOrder(order);
+    const newOrder = await executeDbMethod('createOrder', order);
     if (newOrder && newOrder.bookingStatus !== 'draft' && newOrder.bookingStatus !== 'Draft') {
       try {
         await handleBookingStatusSmsTrigger(newOrder, null, newOrder.bookingStatus);
@@ -1608,8 +1619,8 @@ const DbLayer = {
     return newOrder;
   },
   async updateOrder(id, updates) {
-    const prevOrder = await this.getLayer().getOrderById(id);
-    const updatedOrder = await this.getLayer().updateOrder(id, updates);
+    const prevOrder = await executeDbMethod('getOrderById', id);
+    const updatedOrder = await executeDbMethod('updateOrder', id, updates);
     if (updatedOrder && prevOrder) {
       try {
         await handleBookingStatusSmsTrigger(updatedOrder, prevOrder.bookingStatus, updatedOrder.bookingStatus);
@@ -1619,32 +1630,32 @@ const DbLayer = {
     }
     return updatedOrder;
   },
-  async getLastOrderId() { return this.getLayer().getLastOrderId(); },
-  async countOrders() { return this.getLayer().countOrders(); },
-  async getReferralApplied(phone) { return this.getLayer().getReferralApplied(phone); },
-  async createReferralApplied(referralApplied) { return this.getLayer().createReferralApplied(referralApplied); },
-  async getCategories() { return this.getLayer().getCategories(); },
-  async addCategory(categoryData) { return this.getLayer().addCategory(categoryData); },
-  async getAddressesByUserPhone(phone) { return this.getLayer().getAddressesByUserPhone(phone); },
-  async createAddress(address) { return this.getLayer().createAddress(address); },
-  async getAppVersion() { return this.getLayer().getAppVersion(); },
-  async updateAppVersion(platform, updates) { return this.getLayer().updateAppVersion(platform, updates); },
-  async getWalletTransactions(phone) { return this.getLayer().getWalletTransactions(phone); },
-  async createWalletTransaction(tx) { return this.getLayer().createWalletTransaction(tx); },
-  async getAmcSubscriptions(phone) { return this.getLayer().getAmcSubscriptions(phone); },
-  async createAmcSubscription(sub) { return this.getLayer().createAmcSubscription(sub); },
-  async getAmcSubscriptionById(amcId) { return this.getLayer().getAmcSubscriptionById(amcId); },
-  async countAmcBookingsCompleted(amcId) { return this.getLayer().countAmcBookingsCompleted(amcId); },
-  async countAmcBookingsInCurrentMonth(amcId) { return this.getLayer().countAmcBookingsInCurrentMonth(amcId); },
-  async getAmcSubscriptionByCategory(phone, category) { return this.getLayer().getAmcSubscriptionByCategory(phone, category); },
-  async updateAmcSubscription(amcId, updates) { return this.getLayer().updateAmcSubscription(amcId, updates); },
-  async getSavedCards(phone) { return this.getLayer().getSavedCards(phone); },
-  async createSavedCard(card) { return this.getLayer().createSavedCard(card); },
-  async getCart(phone) { return this.getLayer().getCart(phone); },
-  async addToCart(phone, productId, quantity) { return this.getLayer().addToCart(phone, productId, quantity); },
-  async updateCartItem(phone, productId, quantity) { return this.getLayer().updateCartItem(phone, productId, quantity); },
-  async removeFromCart(phone, productId) { return this.getLayer().removeFromCart(phone, productId); },
-  async clearCart(phone) { return this.getLayer().clearCart(phone); }
+  async getLastOrderId() { return executeDbMethod('getLastOrderId'); },
+  async countOrders() { return executeDbMethod('countOrders'); },
+  async getReferralApplied(phone) { return executeDbMethod('getReferralApplied', phone); },
+  async createReferralApplied(referralApplied) { return executeDbMethod('createReferralApplied', referralApplied); },
+  async getCategories() { return executeDbMethod('getCategories'); },
+  async addCategory(categoryData) { return executeDbMethod('addCategory', categoryData); },
+  async getAddressesByUserPhone(phone) { return executeDbMethod('getAddressesByUserPhone', phone); },
+  async createAddress(address) { return executeDbMethod('createAddress', address); },
+  async getAppVersion() { return executeDbMethod('getAppVersion'); },
+  async updateAppVersion(platform, updates) { return executeDbMethod('updateAppVersion', platform, updates); },
+  async getWalletTransactions(phone) { return executeDbMethod('getWalletTransactions', phone); },
+  async createWalletTransaction(tx) { return executeDbMethod('createWalletTransaction', tx); },
+  async getAmcSubscriptions(phone) { return executeDbMethod('getAmcSubscriptions', phone); },
+  async createAmcSubscription(sub) { return executeDbMethod('createAmcSubscription', sub); },
+  async getAmcSubscriptionById(amcId) { return executeDbMethod('getAmcSubscriptionById', amcId); },
+  async countAmcBookingsCompleted(amcId) { return executeDbMethod('countAmcBookingsCompleted', amcId); },
+  async countAmcBookingsInCurrentMonth(amcId) { return executeDbMethod('countAmcBookingsInCurrentMonth', amcId); },
+  async getAmcSubscriptionByCategory(phone, category) { return executeDbMethod('getAmcSubscriptionByCategory', phone, category); },
+  async updateAmcSubscription(amcId, updates) { return executeDbMethod('updateAmcSubscription', amcId, updates); },
+  async getSavedCards(phone) { return executeDbMethod('getSavedCards', phone); },
+  async createSavedCard(card) { return executeDbMethod('createSavedCard', card); },
+  async getCart(phone) { return executeDbMethod('getCart', phone); },
+  async addToCart(phone, productId, quantity) { return executeDbMethod('addToCart', phone, productId, quantity); },
+  async updateCartItem(phone, productId, quantity) { return executeDbMethod('updateCartItem', phone, productId, quantity); },
+  async removeFromCart(phone, productId) { return executeDbMethod('removeFromCart', phone, productId); },
+  async clearCart(phone) { return executeDbMethod('clearCart', phone); }
 };
 
 // ----------------------------------------
