@@ -173,36 +173,40 @@ app.use('/uploads', (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
-  // 4. Dynamic High-Resolution Photographic Asset Matches
+  // 4. Smart Pattern Matcher: Direct HTTP 200 OK File Responses (No 302 Redirects)
   const norm = relPath.toLowerCase();
 
-  // Category Icon Matches (Dynamic High-Resolution Photography)
-  if (norm.includes('1786436206314') || norm.includes('plumb')) return res.redirect('https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('1786436786199') || norm.includes('electr')) return res.redirect('https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('1786435950565') || norm.includes('salon') || norm.includes('spa') || norm.includes('beauty')) return res.redirect('https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('1786435733935') || norm.includes('clean') || norm.includes('sofa') || norm.includes('washroom')) return res.redirect('https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('1786446437586') || norm.includes('arch')) return res.redirect('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('bike') || norm.includes('motor')) return res.redirect('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('carpen') || norm.includes('wood')) return res.redirect('https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('car') || norm.includes('wash')) return res.redirect('https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('compound') || norm.includes('nurse')) return res.redirect('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('contract')) return res.redirect('https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('doctor') || norm.includes('doc')) return res.redirect('https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('driver')) return res.redirect('https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('halwai') || norm.includes('cater')) return res.redirect('https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('mechanic') || norm.includes('repairing')) return res.redirect('https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('paint')) return res.redirect('https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) return res.redirect('https://images.unsplash.com/photo-1609137144813-7d9921338f24?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('photo')) return res.redirect('https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=500&auto=format&fit=crop');
-  if (norm.includes('ac_repair') || norm.includes('ac_service')) return res.redirect('https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=500&auto=format&fit=crop');
+  // Category Icon Matches (Direct HTTP 200 OK PNG files)
+  if (norm.includes('1786436206314') || norm.includes('plumb')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'plumber.png'));
+  if (norm.includes('1786436786199') || norm.includes('electr')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'electrician.png'));
+  if (norm.includes('1786435950565') || norm.includes('salon') || norm.includes('spa') || norm.includes('beauty')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'salon_and_spa.png'));
+  if (norm.includes('1786435733935') || norm.includes('clean') || norm.includes('sofa') || norm.includes('washroom')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'cleaning.png'));
+  if (norm.includes('1786446437586') || norm.includes('arch')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'architecture.png'));
+  if (norm.includes('bike') || norm.includes('motor')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'bike_services.png'));
+  if (norm.includes('carpen') || norm.includes('wood')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'carpenter.png'));
+  if (norm.includes('car') || norm.includes('wash')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'car_washing.png'));
+  if (norm.includes('compound') || norm.includes('nurse')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'compounder.png'));
+  if (norm.includes('contract')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'contractor.png'));
+  if (norm.includes('doctor') || norm.includes('doc')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'doctors.png'));
+  if (norm.includes('driver')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'driver.png'));
+  if (norm.includes('halwai') || norm.includes('cater')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'halwai.png'));
+  if (norm.includes('mechanic') || norm.includes('repairing')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
+  if (norm.includes('paint')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'painter.png'));
+  if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'pandit_ji.png'));
+  if (norm.includes('photo')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'photographer.png'));
+  if (norm.includes('ac_repair') || norm.includes('ac_service')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'ac_repair.png'));
 
-  // Dynamic Banner Matches
-  if (norm.includes('1787722971478') || (norm.includes('banner') && norm.includes('ac'))) return res.redirect('https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=1200&auto=format&fit=crop');
-  if (norm.includes('1787722479893') || norm.includes('amc') || norm.includes('home')) return res.redirect('https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=1200&auto=format&fit=crop');
-  if (norm.includes('refer') || norm.includes('earn')) return res.redirect('https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1200&auto=format&fit=crop');
+  // Banner Matches (Direct HTTP 200 OK Banner PNG files)
+  if (norm.includes('1787722971478') || (norm.includes('banner') && norm.includes('ac'))) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png'));
+  if (norm.includes('1787722479893') || norm.includes('amc') || norm.includes('home')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'amc_services_banner.png'));
+  if (norm.includes('refer') || norm.includes('earn')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'refer_earn_banner.png'));
 
-  // Ultimate Dynamic Photographic Fallback
-  return res.redirect('https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=500&auto=format&fit=crop');
+  // Default Fallback
+  const fallbackCat = path.join(__dirname, 'assets', 'categories', 'plumber.png');
+  if (fs.existsSync(fallbackCat)) {
+    return res.sendFile(fallbackCat);
+  }
+  next();
 });
 
 function getCanonicalPhone(phone) {
