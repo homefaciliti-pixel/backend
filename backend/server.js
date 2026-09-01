@@ -173,28 +173,29 @@ app.use('/uploads', (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
-  // 4. Smart Pattern Matcher: Direct HTTP 200 OK File Responses (No 302 Redirects)
+  // 4. Complete MySQL Database (25/08/2026 Uploads) Exact Pattern Matcher
   const norm = relPath.toLowerCase();
 
-  // Category Icon Matches (Direct HTTP 200 OK PNG files)
+  // All 25 Exact MySQL Category Timestamps from 25/08/2026
   if (norm.includes('1786436206314') || norm.includes('plumb')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'plumber.png'));
   if (norm.includes('1786436786199') || norm.includes('electr')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'electrician.png'));
-  if (norm.includes('1786435950565') || norm.includes('salon') || norm.includes('spa') || norm.includes('beauty')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'salon_and_spa.png'));
-  if (norm.includes('1786435733935') || norm.includes('clean') || norm.includes('sofa') || norm.includes('washroom')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'cleaning.png'));
-  if (norm.includes('1786446437586') || norm.includes('arch')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'architecture.png'));
+  if (norm.includes('1786435950565') || norm.includes('1786442488680') || norm.includes('salon') || norm.includes('spa') || norm.includes('beauty')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'salon_and_spa.png'));
+  if (norm.includes('1786435733935') || norm.includes('1786450312316') || norm.includes('clean') || norm.includes('pest') || norm.includes('sofa') || norm.includes('washroom')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'cleaning.png'));
+  if (norm.includes('1786446437586') || norm.includes('1786450010056') || norm.includes('arch') || norm.includes('interior')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'architecture.png'));
+  if (norm.includes('1786446696715') || norm.includes('1786452895272') || norm.includes('carpen') || norm.includes('iron') || norm.includes('wood')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'carpenter.png'));
+  if (norm.includes('1786447188981') || norm.includes('car') || norm.includes('wash')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'car_washing.png'));
+  if (norm.includes('1786447506154') || norm.includes('1786451422502') || norm.includes('mechanic') || norm.includes('repair')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
+  if (norm.includes('1786443552623') || norm.includes('ac_repair') || norm.includes('ac_service')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'ac_repair.png'));
+  if (norm.includes('1786443775719') || norm.includes('1786451938166') || norm.includes('1786452243309') || norm.includes('advocate') || norm.includes('tax') || norm.includes('contract')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'contractor.png'));
+  if (norm.includes('1786444894705') || norm.includes('compound') || norm.includes('nurse')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'compounder.png'));
+  if (norm.includes('1786448684632') || norm.includes('halwai') || norm.includes('cater')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'halwai.png'));
+  if (norm.includes('1786449239057') || norm.includes('driver')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'driver.png'));
+  if (norm.includes('1786449409020') || norm.includes('doctor') || norm.includes('doc')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'doctors.png'));
+  if (norm.includes('1786450771532') || norm.includes('photo')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'photographer.png'));
+  if (norm.includes('1786451019343') || norm.includes('paint')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'painter.png'));
+  if (norm.includes('1786451601583') || norm.includes('solar')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'electrician.png'));
+  if (norm.includes('1786452463146') || norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'pandit_ji.png'));
   if (norm.includes('bike') || norm.includes('motor')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'bike_services.png'));
-  if (norm.includes('carpen') || norm.includes('wood')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'carpenter.png'));
-  if (norm.includes('car') || norm.includes('wash')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'car_washing.png'));
-  if (norm.includes('compound') || norm.includes('nurse')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'compounder.png'));
-  if (norm.includes('contract')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'contractor.png'));
-  if (norm.includes('doctor') || norm.includes('doc')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'doctors.png'));
-  if (norm.includes('driver')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'driver.png'));
-  if (norm.includes('halwai') || norm.includes('cater')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'halwai.png'));
-  if (norm.includes('mechanic') || norm.includes('repairing')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
-  if (norm.includes('paint')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'painter.png'));
-  if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'pandit_ji.png'));
-  if (norm.includes('photo')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'photographer.png'));
-  if (norm.includes('ac_repair') || norm.includes('ac_service')) return res.sendFile(path.join(__dirname, 'assets', 'categories', 'ac_repair.png'));
 
   // Banner Matches (Direct HTTP 200 OK Banner PNG files)
   if (norm.includes('1787722971478') || (norm.includes('banner') && norm.includes('ac'))) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png'));
