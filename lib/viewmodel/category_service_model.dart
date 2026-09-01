@@ -13,10 +13,12 @@ class CategoryServiceModel {
 
   factory CategoryServiceModel.fromJson(Map<String, dynamic> json) {
     return CategoryServiceModel(
-      title: json['title'] ?? '',
-      price: json['price'] ?? 0,
-      description: json['description'] ?? '',
-      image: json['image'] ?? '',
+      title: (json['title'] ?? json['name'])?.toString() ?? '',
+      price: json['price'] is num
+          ? (json['price'] as num).toInt()
+          : int.tryParse(json['price']?.toString() ?? '0') ?? 0,
+      description: json['description']?.toString() ?? '',
+      image: (json['image'] ?? json['serviceImage'] ?? json['photo'] ?? json['url'])?.toString() ?? '',
     );
   }
 }

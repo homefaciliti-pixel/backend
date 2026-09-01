@@ -3019,8 +3019,8 @@ app.get('/api/categories/:category/services', async (req, res) => {
 
       if (catRows.length > 0) {
         const cat = catRows[0];
-        let queryStr = "SELECT * FROM node_services WHERE category_id = ? AND status IN (0, 1)";
-        const queryParams = [cat.id];
+        let queryStr = "SELECT * FROM node_services WHERE (category_id = ? OR LOWER(category) = ? OR REPLACE(REPLACE(REPLACE(LOWER(category), ' ', ''), '-', ''), '_', '') = ?) AND status IN (0, 1)";
+        const queryParams = [cat.id, (cat.title || cat.name || '').toLowerCase(), cleanCategory];
 
         if (search) {
           queryStr += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ?)";
@@ -3083,14 +3083,26 @@ app.get('/api/categories/:category/services', async (req, res) => {
       const cats = data.categories || [];
       const catObj = cats.find(c => 
         c.id.toString() === category.toString() || 
-        c.name.toLowerCase() === category.toLowerCase() ||
+        (c.name && c.name.toLowerCase() === category.toLowerCase()) ||
+        (c.title && c.title.toLowerCase() === category.toLowerCase()) ||
+        (c.name && c.name.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory) ||
+        (c.title && c.title.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory) ||
         c.id.toString() === cleanCategory
       );
       if (catObj) {
-        matchedCatName = catObj.name;
+        matchedCatName = catObj.name || catObj.title || category;
         if (data.services && data.services.length > 0) {
-          list = data.services.filter(s => s.category.toString() === catObj.id.toString());
-          loadedFromDb = true;
+          const catIdStr = catObj.id.toString();
+          const catNameClean = matchedCatName.toLowerCase().replace(/[\s\-_]/g, '');
+          list = data.services.filter(s => {
+            if (!s || !s.category) return false;
+            const sCatStr = s.category.toString();
+            const sCatClean = sCatStr.toLowerCase().replace(/[\s\-_]/g, '');
+            return sCatStr === catIdStr || sCatClean === catNameClean || sCatClean === cleanCategory;
+          });
+          if (list.length > 0) {
+            loadedFromDb = true;
+          }
         }
       }
     }
