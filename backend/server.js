@@ -11,7 +11,7 @@ const { localizeCategory, localizeService, localizeAddress, runContentI18nMigrat
 
 const getLocalCategoryAssetUrl = (name, serverBaseUrl) => {
   const norm = (name || '').toLowerCase().trim();
-  let file = 'plumber.png'; // default fallback
+  let file = 'plumber.png';
   
   if (norm.includes('plumb')) file = 'plumber.png';
   else if (norm.includes('electric')) file = 'electrician.png';
@@ -49,6 +49,38 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
   }
   
   return `${serverBaseUrl}/assets/banners/${file}`;
+};
+
+const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
+  let img = c.image || "";
+  if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
+  if (img.startsWith('http://') || img.startsWith('https://')) {
+    if (img.includes('adminbackend-1-h03r.onrender.com')) {
+      img = img.replace('https://adminbackend-1-h03r.onrender.com', serverBaseUrl);
+    }
+    return img;
+  }
+  if (img.startsWith('/assets/')) {
+    return `${serverBaseUrl}${img}`;
+  }
+  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+};
+
+const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
+  let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
+  if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+  if (img.startsWith('http://') || img.startsWith('https://')) {
+    if (img.includes('adminbackend-1-h03r.onrender.com')) {
+      img = img.replace('https://adminbackend-1-h03r.onrender.com', serverBaseUrl);
+    }
+    return img;
+  }
+  if (img.startsWith('/assets/')) {
+    return `${serverBaseUrl}${img}`;
+  }
+  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+  return `${serverBaseUrl}/uploads/${cleanFilename}`;
 };
 
 // Multer storage config for AMC document uploads
@@ -113,7 +145,39 @@ app.use(languageMiddleware);
 app.use('/api', languageRouter);
 
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Smart static & fallback middleware for /uploads
+app.use('/uploads', (req, res, next) => {
+  const relPath = req.path.replace(/^\/+/, '');
+  if (!relPath) return next();
+
+  const uploadsPath = path.join(__dirname, 'uploads', relPath);
+  if (fs.existsSync(uploadsPath) && fs.statSync(uploadsPath).size > 0) {
+    return res.sendFile(uploadsPath);
+  }
+  const assetsUploadsPath = path.join(__dirname, 'assets', 'uploads', relPath);
+  if (fs.existsSync(assetsUploadsPath) && fs.statSync(assetsUploadsPath).size > 0) {
+    return res.sendFile(assetsUploadsPath);
+  }
+  const catPath = path.join(__dirname, 'assets', 'categories', relPath);
+  if (fs.existsSync(catPath)) {
+    return res.sendFile(catPath);
+  }
+  const bannerPath = path.join(__dirname, 'assets', 'banners', relPath);
+  if (fs.existsSync(bannerPath)) {
+    return res.sendFile(bannerPath);
+  }
+  const srvPath = path.join(__dirname, 'assets', 'services', relPath);
+  if (fs.existsSync(srvPath)) {
+    return res.sendFile(srvPath);
+  }
+  // Ultimate fallback image if requested file doesn't exist on disk
+  const fallbackPath = path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png');
+  if (fs.existsSync(fallbackPath)) {
+    return res.sendFile(fallbackPath);
+  }
+  next();
+});
 
 function getCanonicalPhone(phone) {
   if (!phone) return "";
@@ -960,7 +1024,9 @@ const MySqlDbLayer = {
     return rows.map(r => {
       let img = r.image || "";
       if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-        img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+        img = `https://backend-1-ux3b.onrender.com/uploads/${img.replace(/^uploads\//, '')}`;
+      } else if (img && img.includes('adminbackend-1-h03r.onrender.com')) {
+        img = img.replace('https://adminbackend-1-h03r.onrender.com', 'https://backend-1-ux3b.onrender.com');
       }
       return {
         ...r,
@@ -981,7 +1047,9 @@ const MySqlDbLayer = {
     if (!row) return null;
     let img = row.image || "";
     if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-      img = `https://adminbackend-1-h03r.onrender.com/uploads/${img}`;
+      img = `https://backend-1-ux3b.onrender.com/uploads/${img.replace(/^uploads\//, '')}`;
+    } else if (img && img.includes('adminbackend-1-h03r.onrender.com')) {
+      img = img.replace('https://adminbackend-1-h03r.onrender.com', 'https://backend-1-ux3b.onrender.com');
     }
     return {
       id: String(row.id),
@@ -2391,7 +2459,7 @@ app.get('/api/categories', async (req, res) => {
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
     const categories = dbCategories.map(c => {
-      const img = getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
+      const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
       const localizedObj = localizeCategory(c, req.lang);
 
       return {
@@ -2469,7 +2537,7 @@ app.get('/api/banners', async (req, res) => {
       const [rows] = await mysqlPool.query("SELECT * FROM node_banners ORDER BY id ASC");
       if (rows && rows.length > 0) {
         dbBanners = rows.map(r => {
-          const img = getLocalBannerAssetUrl(r.title || '', serverBaseUrl);
+          const img = resolveDynamicBannerImageUrl(r, serverBaseUrl);
 
           return {
             id: String(r.id),
@@ -2493,7 +2561,7 @@ app.get('/api/banners', async (req, res) => {
         const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
         if (data && data.banners && data.banners.length > 0) {
           dbBanners = data.banners.map(b => {
-            const img = getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+            const img = resolveDynamicBannerImageUrl(b, serverBaseUrl);
             return {
               ...b,
               image: img,
@@ -2778,23 +2846,22 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
 
 // Helper: Resolve relative service image URLs dynamically
 function resolveServiceUrls(services, serverBaseUrl) {
-  const adminBaseUrl = 'https://adminbackend-1-h03r.onrender.com';
-  const uploadBaseUrl = serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2')
-    ? 'https://homefaciliti.com'
-    : serverBaseUrl;
-
+  if (!Array.isArray(services)) return [];
   return services.map(s => {
-    let img = s.image;
+    let img = s.image || s.serviceImage || s.productImage || s.photo || "";
     if (img) {
-      if (img.startsWith('/assets/')) {
-        img = `${serverBaseUrl}${img}`;
-      } else if (!img.startsWith('http') && !img.startsWith('https')) {
-        if (!img.includes('/')) {
-          img = `${adminBaseUrl}/uploads/${img}`;
-        } else {
-          img = `${uploadBaseUrl}/uploads/services/${img}`;
+      if (img.startsWith('http://') || img.startsWith('https://')) {
+        if (img.includes('adminbackend-1-h03r.onrender.com')) {
+          img = img.replace('https://adminbackend-1-h03r.onrender.com', serverBaseUrl);
         }
+      } else if (img.startsWith('/assets/')) {
+        img = `${serverBaseUrl}${img}`;
+      } else {
+        const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+        img = `${serverBaseUrl}/uploads/${cleanFilename}`;
       }
+    } else {
+      img = getLocalCategoryAssetUrl(s.title || s.name || '', serverBaseUrl);
     }
     return {
       ...s,
