@@ -426,9 +426,11 @@ const defaultTranslations = [
 
 
 async function initTranslationEngine(mysqlPool) {
-  if (mysqlPool) {
-    setPool(mysqlPool);
+  if (!mysqlPool) {
+    console.log("No active MySQL pool provided for translation engine. Using in-memory static translations.");
+    return;
   }
+  setPool(mysqlPool);
   try {
     await Translation.createTable();
     // Always upsert so new keys are added to existing DBs on server restart

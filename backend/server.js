@@ -1671,16 +1671,20 @@ const DbLayer = {
   }
   // Only pass pool to translation engine if DB is actually ready
   const poolForExtras = mysqlReady ? mysqlPool : null;
-  try {
-    const { initTranslationEngine } = require('./helpers/translate');
-    await initTranslationEngine(poolForExtras);
-  } catch (err) {
-    console.error("Failed to initialize translation engine in startup IIFE:", err);
-  }
-  try {
-    await runContentI18nMigration(poolForExtras);
-  } catch (err) {
-    console.error("Failed to run content i18n migration:", err);
+  if (mysqlReady && poolForExtras) {
+    try {
+      const { initTranslationEngine } = require('./helpers/translate');
+      await initTranslationEngine(poolForExtras);
+    } catch (err) {
+      console.error("Failed to initialize translation engine in startup IIFE:", err.message);
+    }
+    try {
+      await runContentI18nMigration(poolForExtras);
+    } catch (err) {
+      console.error("Failed to run content i18n migration in startup IIFE:", err.message);
+    }
+  } else {
+    console.log("MySQL unavailable on startup. Skipping translation engine DB setup and running in pure JSON database mode.");
   }
 })();
 
