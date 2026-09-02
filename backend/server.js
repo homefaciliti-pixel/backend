@@ -3001,7 +3001,90 @@ app.get('/api/banners', async (req, res) => {
   });
 });
 
+// Trending Services Endpoint (Returns Category ID and Category Info)
+app.get('/api/services/trending', async (req, res) => {
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
+  let trendingList = [];
+
+  // 1. Try MySQL Database
+  if (mysqlReady) {
+    try {
+      const [rows] = await mysqlPool.query(
+        "SELECT s.*, c.title as cat_name FROM node_services s LEFT JOIN node_categories c ON s.category_id = c.id WHERE s.status IN (0, 1) ORDER BY s.id ASC LIMIT 20"
+      );
+      if (rows && rows.length > 0) {
+        trendingList = rows.map(r => {
+          const sanitized = sanitizeServiceDbObj(r, serverBaseUrl);
+          const catId = String(r.category_id || r.category || '1');
+          const catName = String(r.cat_name || r.categoryName || r.category || 'Plumber');
+          return {
+            ...sanitized,
+            categoryId: catId,
+            category_id: catId,
+            category: catId,
+            categoryName: catName
+          };
+        });
+      }
+    } catch (err) {
+      console.warn("[TrendingServices] MySQL query failed:", err.message);
+    }
+  }
+
+  // 2. JSON Database Fallback
+  if (trendingList.length === 0) {
+    try {
+      const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+      if (data && data.services && data.services.length > 0) {
+        const cats = data.categories || [];
+        const catMap = {};
+        cats.forEach(c => { catMap[String(c.id)] = c.name || c.title; });
+
+        trendingList = data.services.slice(0, 20).map(s => {
+          const catId = String(s.category || s.categoryId || '1');
+          const catName = String(s.categoryName || catMap[catId] || s.category || 'Service');
+          return {
+            ...s,
+            id: String(s.id),
+            serviceId: String(s.id),
+            title: String(s.title || s.name || ''),
+            name: String(s.name || s.title || ''),
+            price: Number(s.price || 0),
+            description: String(s.description || ''),
+            categoryId: catId,
+            category_id: catId,
+            category: catId,
+            categoryName: catName,
+            image: resolveDynamicCategoryImageUrl({ title: s.title, image: s.image }, serverBaseUrl)
+          };
+        });
+      }
+    } catch (jsonErr) {
+      console.warn("[TrendingServices] JSON fallback failed:", jsonErr.message);
+    }
+  }
+
+  const finalTrending = resolveServiceUrls(trendingList, serverBaseUrl).map(s => {
+    const catId = String(s.categoryId || s.category_id || s.category || '1');
+    return {
+      ...s,
+      categoryId: catId,
+      category_id: catId,
+      category: catId
+    };
+  });
+
+  res.json({
+    success: true,
+    total: finalTrending.length,
+    services: finalTrending,
+    data: finalTrending
+  });
+});
 
 // Categories: Get Services by Category name
 app.get('/api/categories/:category/services', async (req, res) => {
