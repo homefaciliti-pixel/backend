@@ -981,14 +981,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }
           
-                    if (trendingVM.services.isEmpty) {
-                      return const SizedBox(
-                        height: 190,
-                        child: Center(
-                          child: Text("No Trending Services"),
-                        ),
-                      );
-                    }
+
                     return SizedBox(
                       height: 260,
                       child: ListView.builder(
@@ -1434,14 +1427,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }
           
-                    if (trendingVM.services.isEmpty) {
-                      return const SizedBox(
-                        height: 190,
-                        child: Center(
-                          child: Text("No Trending Services"),
-                        ),
-                      );
-                    }
+
           
                     return SizedBox(
                       height: 260,

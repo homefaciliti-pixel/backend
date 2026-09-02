@@ -11,7 +11,7 @@ class TrendingServiceViewmodel extends ChangeNotifier {
 
   bool get loading => _loading;
 
-  List<TrendingServiceModel> _services = [];
+  List<TrendingServiceModel> _services = List.from(_fallbackTrending);
 
   List<TrendingServiceModel> get services => _services;
 
