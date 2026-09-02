@@ -13,26 +13,33 @@ class CategoryViewmodelApi extends ChangeNotifier {
   bool _categoryLoading = false;
   bool get categoryLoading => _categoryLoading;
 
-  // Hardcoded fallback categories (used when API fails)
+  // Fallback categories with live dynamic image URLs (used when network fails)
   static const List<Map<String, String>> _fallbackCategories = [
-    {"id": "ac_repair",    "name": "AC Repair",    "image": ""},
-    {"id": "plumber",      "name": "Plumber",       "image": ""},
-    {"id": "electrician",  "name": "Electrician",   "image": ""},
-    {"id": "cleaning",     "name": "Cleaning",      "image": ""},
-    {"id": "salon_and_spa","name": "Salon & Spa",   "image": ""},
-    {"id": "painter",      "name": "Painter",       "image": ""},
-    {"id": "carpenter",    "name": "Carpenter",     "image": ""},
-    {"id": "car_washing",  "name": "Car Washing",   "image": ""},
-    {"id": "bike_services","name": "Bike Services", "image": ""},
-    {"id": "mechanic",     "name": "Mechanic",      "image": ""},
-    {"id": "architecture", "name": "Architecture",  "image": ""},
-    {"id": "driver",       "name": "Driver",        "image": ""},
-    {"id": "photographer", "name": "Photographer",  "image": ""},
-    {"id": "doctors",      "name": "Doctors",       "image": ""},
-    {"id": "compounder",   "name": "Compounder",    "image": ""},
-    {"id": "pandit_ji",    "name": "Pandit Ji",     "image": ""},
-    {"id": "halwai",       "name": "Halwai",        "image": ""},
-    {"id": "contractor",   "name": "Contractor",    "image": ""},
+    {"id": "1", "name": "Plumber", "image": "https://backend-1-ux3b.onrender.com/uploads/1786436206314-361864978.png"},
+    {"id": "3", "name": "Electrician", "image": "https://backend-1-ux3b.onrender.com/uploads/1786436786199-75987165.png"},
+    {"id": "5", "name": "Salon", "image": "https://backend-1-ux3b.onrender.com/uploads/1786435950565-776214721.png"},
+    {"id": "7", "name": "Cleaning", "image": "https://backend-1-ux3b.onrender.com/uploads/1786435733935-912415731.png"},
+    {"id": "9", "name": "Architect", "image": "https://backend-1-ux3b.onrender.com/uploads/1786446437586-807912234.png"},
+    {"id": "11", "name": "Carpenter", "image": "https://backend-1-ux3b.onrender.com/uploads/1786446696715-463108420.png"},
+    {"id": "27", "name": "Car Washing", "image": "https://backend-1-ux3b.onrender.com/uploads/1786447188981-343393676.png"},
+    {"id": "29", "name": "Mechanic", "image": "https://backend-1-ux3b.onrender.com/uploads/1786447506154-356684980.png"},
+    {"id": "37", "name": "Spa", "image": "https://backend-1-ux3b.onrender.com/uploads/1786442488680-83135788.png"},
+    {"id": "38", "name": "AC Repair", "image": "https://backend-1-ux3b.onrender.com/uploads/1786443552623-508947240.png"},
+    {"id": "39", "name": "Advocate", "image": "https://backend-1-ux3b.onrender.com/uploads/1786443775719-379730475.png"},
+    {"id": "40", "name": "Compounder", "image": "https://backend-1-ux3b.onrender.com/uploads/1786444894705-730346514.png"},
+    {"id": "41", "name": "Cater's", "image": "https://backend-1-ux3b.onrender.com/uploads/1786448684632-62474491.png"},
+    {"id": "42", "name": "Driver", "image": "https://backend-1-ux3b.onrender.com/uploads/1786449239057-53965491.png"},
+    {"id": "43", "name": "Doctor", "image": "https://backend-1-ux3b.onrender.com/uploads/1786449409020-562460012.png"},
+    {"id": "45", "name": "Interior Design", "image": "https://backend-1-ux3b.onrender.com/uploads/1786450010056-25256815.png"},
+    {"id": "46", "name": "Pest Control", "image": "https://backend-1-ux3b.onrender.com/uploads/1786450312316-208090036.png"},
+    {"id": "48", "name": "Photographer", "image": "https://backend-1-ux3b.onrender.com/uploads/1786450771532-250894362.png"},
+    {"id": "49", "name": "Painter", "image": "https://backend-1-ux3b.onrender.com/uploads/1786451019343-476234084.png"},
+    {"id": "50", "name": "Repairing", "image": "https://backend-1-ux3b.onrender.com/uploads/1786451422502-681500744.png"},
+    {"id": "51", "name": "Solar", "image": "https://backend-1-ux3b.onrender.com/uploads/1786451601583-594352402.png"},
+    {"id": "52", "name": "Tax Consultancy", "image": "https://backend-1-ux3b.onrender.com/uploads/1786451938166-658350303.png"},
+    {"id": "57", "name": "Contractor", "image": "https://backend-1-ux3b.onrender.com/uploads/1786452243309-608248433.png"},
+    {"id": "58", "name": "Pandit Ji", "image": "https://backend-1-ux3b.onrender.com/uploads/1786452463146-744317717.png"},
+    {"id": "60", "name": "Iron Works", "image": "https://backend-1-ux3b.onrender.com/uploads/1786452895272-312153747.png"}
   ];
 
   Future<void> fetchCategories() async {
