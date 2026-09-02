@@ -15,37 +15,47 @@ class TrendingServiceViewmodel extends ChangeNotifier {
 
   List<TrendingServiceModel> get services => _services;
 
-  // Hardcoded fallback trending services
+  // Hardcoded fallback trending services with live backend image URLs
   static final List<TrendingServiceModel> _fallbackTrending = [
     TrendingServiceModel(
       title: "AC Foam Jet Service",
-      price: 0,
+      price: 499,
       description: "Deep clean your AC with professional foam jet technology.",
-      image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&auto=format&fit=crop&q=60",
+      image: "https://backend-1-ux3b.onrender.com/uploads/1782370871985-653299335.jpg",
+      categoryId: "38",
+      categoryName: "AC Repair",
     ),
     TrendingServiceModel(
-      title: "Home Deep Cleaning",
+      title: "2BHK Deep Cleaning",
       price: 999,
       description: "Complete home cleaning by professionals.",
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&auto=format&fit=crop&q=60",
+      image: "https://backend-1-ux3b.onrender.com/uploads/1782379281899-302488180.jpg",
+      categoryId: "7",
+      categoryName: "Cleaning",
     ),
     TrendingServiceModel(
-      title: "Electrician Service",
-      price: 199,
+      title: "House Wiring Electrician",
+      price: 699,
       description: "Expert electrician for all electrical needs.",
-      image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400&auto=format&fit=crop&q=60",
+      image: "https://backend-1-ux3b.onrender.com/uploads/1782368297524-943557893.jpg",
+      categoryId: "3",
+      categoryName: "Electrician",
     ),
     TrendingServiceModel(
-      title: "Plumbing Service",
-      price: 299,
+      title: "professional Plumber",
+      price: 499,
       description: "Fix leaks, pipes and all plumbing issues.",
-      image: "https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=400&auto=format&fit=crop&q=60",
+      image: "https://backend-1-ux3b.onrender.com/uploads/1782367898826-830124248.jpg",
+      categoryId: "1",
+      categoryName: "Plumber",
     ),
     TrendingServiceModel(
-      title: "Salon At Home",
-      price: 299,
+      title: "Women Haircut",
+      price: 249,
       description: "Professional salon services at your doorstep.",
-      image: "https://images.unsplash.com/photo-1600334129128-685c5582fd35?w=400&auto=format&fit=crop&q=60",
+      image: "https://backend-1-ux3b.onrender.com/uploads/1782392839781-267721012.jpg",
+      categoryId: "5",
+      categoryName: "Salon",
     ),
   ];
 
@@ -59,17 +69,16 @@ class TrendingServiceViewmodel extends ChangeNotifier {
         Uri.parse(
           'https://backend-1-ux3b.onrender.com/api/services/trending',
         ),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 45));
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data["success"] == true) {
-        final List<TrendingServiceModel> fetched = (data["services"] as List)
-            .map((e) => TrendingServiceModel.fromJson(e))
-            .toList();
-
-        if (fetched.isNotEmpty) {
-          _services = fetched;
+        final rawList = (data["services"] ?? data["data"]) as List?;
+        if (rawList != null && rawList.isNotEmpty) {
+          _services = rawList
+              .map((e) => TrendingServiceModel.fromJson(e as Map<String, dynamic>))
+              .toList();
         } else {
           _services = _fallbackTrending;
         }
