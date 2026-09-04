@@ -3103,7 +3103,11 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const { category } = req.params;
   const { search } = req.query;
 
-  const normCatStr = (s) => (s || '').toString().toLowerCase().replace(/&/g, 'and').replace(/[\s\-_']/g, '');
+  const normCatStr = (s) => (s || '').toString().toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/cater'?s?/g, 'halwai')
+    .replace(/[\s\-_']/g, '');
+
   const cleanCategory = normCatStr(category);
 
   const STATIC_CAT_ID_MAP = {
@@ -3139,6 +3143,9 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const statusParam = req.query.status || req.body.status;
   const isAmcMode = statusParam === "AMC";
 
+  let dbServices = [];
+
+  // 1. Check MySQL if available
   if (mysqlReady) {
     try {
       const [catRows] = await mysqlPool.query(
@@ -3158,57 +3165,20 @@ app.get('/api/categories/:category/services', async (req, res) => {
         }
 
         const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-        const dbServices = srvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
-
-        // Resolve matching static category services
-        const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
-          key => normCatStr(key) === cleanCategory || normCatStr(key) === normCatStr(mappedCatName)
-        );
-        let staticServices = matchedStaticCategory ? SERVICES_DATA[matchedStaticCategory] : [];
-
-        if (search) {
-          const query = search.toString().toLowerCase();
-          staticServices = staticServices.filter(
-            s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query)
-          );
-        }
-
-        // Merge DB services and static services, avoiding duplicate titles
-        const dbTitles = new Set(dbServices.map(s => s.title.toLowerCase()));
-        const uniqueStatic = staticServices.filter(s => !dbTitles.has(s.title.toLowerCase()));
-        const mergedServices = [...dbServices, ...uniqueStatic];
-
-        const finalServices = resolveServiceUrls(mergedServices, serverBaseUrl).map(s => {
-          if (isAmcMode) {
-            return { ...s, price: 0, status: "AMC" };
-          }
-          return s;
-        });
-
-        const localizedFinalServices = finalServices.map(s => localizeService(s, req.lang));
-        const catLocalized = localizeCategory({ id: cat.id, name: cat.title, title: cat.title }, req.lang);
-        return res.json({
-          success: true,
-          category: catLocalized.name || catLocalized.title,
-          status: isAmcMode ? "AMC" : "Regular",
-          total: localizedFinalServices.length,
-          services: localizedFinalServices
-        });
+        dbServices = srvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
       }
     } catch (err) {
-      console.warn("[DynamicServices] DB query failed, falling back to static:", err.message);
+      console.warn("[DynamicServices] DB query failed:", err.message);
     }
   }
 
-  // FALLBACK: Load from database.json if available
-  let list = [];
-  let loadedFromDb = false;
-  let matchedCatName = mappedCatName;
+  // 2. Check database.json
+  let jsonServices = [];
+  let matchedCatTitle = mappedCatName;
 
   try {
     const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
-    if (data && data.categories) {
-      // Find category by ID or title in database.json
+    if (data && data.categories && data.services) {
       const cats = data.categories || [];
       const catObj = cats.find(c => 
         c.id.toString() === category.toString() || 
@@ -3217,58 +3187,74 @@ app.get('/api/categories/:category/services', async (req, res) => {
         (c.name && normCatStr(c.name) === cleanCategory) ||
         (c.title && normCatStr(c.title) === cleanCategory) ||
         (c.name && normCatStr(c.name) === normCatStr(mappedCatName)) ||
+        (c.name && (normCatStr(c.name).includes(cleanCategory) || cleanCategory.includes(normCatStr(c.name)))) ||
         c.id.toString() === cleanCategory
       );
+
       if (catObj) {
-        matchedCatName = catObj.name || catObj.title || mappedCatName;
-        if (data.services && data.services.length > 0) {
-          const catIdStr = catObj.id.toString();
-          const catNameClean = normCatStr(matchedCatName);
-          list = data.services.filter(s => {
-            if (!s || !s.category) return false;
-            const sCatStr = s.category.toString();
-            const sCatClean = normCatStr(sCatStr);
-            return sCatStr === catIdStr || sCatClean === catNameClean || sCatClean === cleanCategory || sCatClean === normCatStr(mappedCatName);
-          });
-          if (list.length > 0) {
-            loadedFromDb = true;
-          }
-        }
+        matchedCatTitle = catObj.name || catObj.title || mappedCatName;
+        const catIdStr = catObj.id.toString();
+        const catNameClean = normCatStr(matchedCatTitle);
+        jsonServices = data.services.filter(s => {
+          if (!s || !s.category) return false;
+          const sCatStr = s.category.toString();
+          const sCatClean = normCatStr(sCatStr);
+          return sCatStr === catIdStr || sCatClean === catNameClean || sCatClean === cleanCategory || sCatClean === normCatStr(mappedCatName);
+        });
       }
     }
   } catch (err) {
     console.warn("Failed to load category services from JSON database fallback:", err.message);
   }
 
-  if (!loadedFromDb) {
-    // Case-insensitive match against known categories in SERVICES_DATA
-    const cleanMatchedCat = normCatStr(matchedCatName);
-    const matchedCategoryKey = Object.keys(SERVICES_DATA).find(
-      key => normCatStr(key) === cleanMatchedCat ||
-             normCatStr(key) === cleanCategory ||
-             normCatStr(key).includes(cleanCategory) ||
-             cleanCategory.includes(normCatStr(key))
-    );
-
-    if (!matchedCategoryKey) {
-      return res.status(404).json({
-        success: false,
-        error: `Category '${category}' not found`,
-        availableCategories: CATEGORIES_DATA
-      });
-    }
-
-    list = shuffleArray(SERVICES_DATA[matchedCategoryKey] || []);
-  }
+  // 3. Resolve static SERVICES_DATA
+  const cleanMatchedCat = normCatStr(matchedCatTitle);
+  const matchedCategoryKey = Object.keys(SERVICES_DATA).find(
+    key => normCatStr(key) === cleanMatchedCat ||
+           normCatStr(key) === cleanCategory ||
+           normCatStr(key).includes(cleanCategory) ||
+           cleanCategory.includes(normCatStr(key))
+  );
+  let staticServices = matchedCategoryKey ? SERVICES_DATA[matchedCategoryKey] : [];
 
   if (search) {
     const query = search.toString().toLowerCase();
-    list = list.filter(
+    staticServices = staticServices.filter(
       s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query)
+    );
+    jsonServices = jsonServices.filter(
+      s => (s.title || s.name || '').toLowerCase().includes(query) || (s.description || '').toLowerCase().includes(query)
     );
   }
 
-  const finalServices = resolveServiceUrls(list, serverBaseUrl).map(s => {
+  // 4. Merge DB, JSON, and Static services avoiding duplicate titles
+  const existingTitles = new Set(dbServices.map(s => (s.title || s.name || '').toLowerCase()));
+  
+  for (const js of jsonServices) {
+    const titleKey = (js.title || js.name || '').toLowerCase();
+    if (titleKey && !existingTitles.has(titleKey)) {
+      existingTitles.add(titleKey);
+      dbServices.push(js);
+    }
+  }
+
+  for (const st of staticServices) {
+    const titleKey = (st.title || st.name || '').toLowerCase();
+    if (titleKey && !existingTitles.has(titleKey)) {
+      existingTitles.add(titleKey);
+      dbServices.push(st);
+    }
+  }
+
+  if (dbServices.length === 0) {
+    return res.status(404).json({
+      success: false,
+      error: `Category '${category}' not found`,
+      availableCategories: CATEGORIES_DATA
+    });
+  }
+
+  const finalServices = resolveServiceUrls(dbServices, serverBaseUrl).map(s => {
     if (isAmcMode) {
       return { ...s, price: 0, status: "AMC" };
     }
@@ -3276,7 +3262,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   });
 
   const localizedFinalServices = finalServices.map(s => localizeService(s, req.lang));
-  const catLocalized = localizeCategory({ id: category, name: matchedCatName, title: matchedCatName }, req.lang);
+  const catLocalized = localizeCategory({ id: category, name: matchedCatTitle, title: matchedCatTitle }, req.lang);
 
   res.json({
     success: true,
