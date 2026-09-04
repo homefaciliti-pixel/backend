@@ -3369,24 +3369,85 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
   return serviceObj;
 };
 
+const getHdFallbackServiceImageUrl = (title, categoryName) => {
+  const t = (title || '').toLowerCase();
+  const c = (categoryName || '').toLowerCase();
+
+  if (t.includes('plumb') || t.includes('tap') || t.includes('pipe') || t.includes('drain') || t.includes('leak') || t.includes('basin') || t.includes('toilet') || t.includes('tank')) {
+    return "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('electric') || t.includes('wire') || t.includes('switch') || t.includes('fan') || t.includes('light') || t.includes('fuse') || t.includes('mcb') || t.includes('inverter') || t.includes('meter') || t.includes('wiring')) {
+    return "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('ac') || t.includes('air condition') || t.includes('cool') || t.includes('foam') || t.includes('gas charging') || t.includes('compressor')) {
+    return "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('car wash') || t.includes('car spa') || t.includes('car detail') || t.includes('foam wash') || t.includes('auto wash') || c.includes('car')) {
+    return "https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('clean') || t.includes('scrub') || t.includes('sofa') || t.includes('bathroom') || t.includes('kitchen') || t.includes('carpet') || t.includes('deep')) {
+    return "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('salon') || t.includes('hair') || t.includes('facial') || t.includes('makeup') || t.includes('waxing') || t.includes('manicure') || t.includes('pedicure') || t.includes('threading') || c.includes('salon')) {
+    return "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('spa') || t.includes('massage') || t.includes('therapy') || c.includes('spa')) {
+    return "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('paint') || t.includes('wall') || t.includes('texture') || t.includes('putty') || c.includes('paint')) {
+    return "https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('carpent') || t.includes('wood') || t.includes('furniture') || t.includes('door') || t.includes('window') || t.includes('lock') || c.includes('carpent')) {
+    return "https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('mechanic') || t.includes('bike') || t.includes('engine') || t.includes('brake') || t.includes('clutch') || t.includes('oil') || c.includes('mechanic')) {
+    return "https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('pest') || t.includes('termite') || t.includes('cockroach') || t.includes('bedbug') || c.includes('pest')) {
+    return "https://images.unsplash.com/photo-1615873968403-89e068629265?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('photo') || t.includes('camera') || t.includes('shoot') || t.includes('wedding') || c.includes('photo')) {
+    return "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('pandit') || t.includes('puja') || t.includes('pooja') || t.includes('hawan') || c.includes('pandit')) {
+    return "https://images.unsplash.com/photo-1609137144813-7d9921338f24?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('doctor') || t.includes('consultation') || t.includes('medical') || t.includes('health') || c.includes('doctor')) {
+    return "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('driver') || t.includes('ride') || t.includes('trip') || c.includes('driver')) {
+    return "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('solar') || t.includes('panel') || t.includes('sun') || c.includes('solar')) {
+    return "https://images.unsplash.com/photo-1509391365360-2e959784a276?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('architect') || t.includes('interior') || t.includes('design') || t.includes('space') || t.includes('commercial') || c.includes('architect')) {
+    return "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('contractor') || t.includes('renovation') || t.includes('building') || t.includes('civil') || c.includes('contractor')) {
+    return "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=500&auto=format&fit=crop";
+  }
+  if (t.includes('cater') || t.includes('halwai') || t.includes('food') || t.includes('chef') || c.includes('cater')) {
+    return "https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=500&auto=format&fit=crop";
+  }
+
+  return "https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=500&auto=format&fit=crop";
+};
+
 // Helper: Resolve relative service image URLs dynamically
 function resolveServiceUrls(services, serverBaseUrl) {
   if (!Array.isArray(services)) return [];
   return services.map(s => {
     let img = s.image || s.serviceImage || s.productImage || s.photo || "";
-    if (img) {
-      if (img.startsWith('http://') || img.startsWith('https://')) {
-        if (img.includes('adminbackend-1-h03r.onrender.com')) {
-          img = img.replace('https://adminbackend-1-h03r.onrender.com', serverBaseUrl);
-        }
-      } else if (img.startsWith('/assets/')) {
-        img = `${serverBaseUrl}${img}`;
-      } else {
-        const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-        img = `${serverBaseUrl}/uploads/${cleanFilename}`;
-      }
+    if (!img || img.includes('adminbackend-1-h03r') || img.endsWith('/uploads/1') || img === '1') {
+      img = getHdFallbackServiceImageUrl(s.title || s.name || '', s.category || '');
+    } else if (img.startsWith('http://') || img.startsWith('https://')) {
+      // Valid HTTP/HTTPS image URL
+    } else if (img.startsWith('/assets/')) {
+      img = `${serverBaseUrl}${img}`;
     } else {
-      img = getLocalCategoryAssetUrl(s.title || s.name || '', serverBaseUrl);
+      const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+      img = `${serverBaseUrl}/uploads/${cleanFilename}`;
     }
     return {
       ...s,
