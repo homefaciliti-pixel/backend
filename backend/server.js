@@ -61,7 +61,11 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
   const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  const localFile = path.join(__dirname, 'uploads', cleanFilename);
+  if (fs.existsSync(localFile) && fs.statSync(localFile).size > 0) {
+    return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  }
+  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
 };
 
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
@@ -74,7 +78,11 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
   const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  const localFile = path.join(__dirname, 'uploads', cleanFilename);
+  if (fs.existsSync(localFile) && fs.statSync(localFile).size > 0) {
+    return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  }
+  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
 };
 
 // Multer storage config for AMC document uploads
@@ -169,7 +177,10 @@ app.use('/uploads', (req, res, next) => {
     return res.sendFile(assetsUploadsPath);
   }
 
-  // 3. Direct match in assets/categories/, assets/banners/, or assets/services/
+  // 3. Fallback: Redirect to admin backend where admin panel uploads live!
+  return res.redirect(302, `https://adminbackend-1-h03r.onrender.com/uploads/${relPath}`);
+
+  // 4. Direct match in assets/categories/, assets/banners/, or assets/services/
   const catPath = path.join(__dirname, 'assets', 'categories', relPath);
   if (fs.existsSync(catPath)) return res.sendFile(catPath);
 
@@ -1127,9 +1138,7 @@ const MySqlDbLayer = {
     return rows.map(r => {
       let img = r.image || "";
       if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-        img = `https://backend-1-ux3b.onrender.com/uploads/${img.replace(/^uploads\//, '')}`;
-      } else if (img && img.includes('adminbackend-1-h03r.onrender.com')) {
-        img = img.replace('https://adminbackend-1-h03r.onrender.com', 'https://backend-1-ux3b.onrender.com');
+        img = `https://adminbackend-1-h03r.onrender.com/uploads/${img.replace(/^uploads\//, '')}`;
       }
       return {
         ...r,
@@ -1150,9 +1159,7 @@ const MySqlDbLayer = {
     if (!row) return null;
     let img = row.image || "";
     if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-      img = `https://backend-1-ux3b.onrender.com/uploads/${img.replace(/^uploads\//, '')}`;
-    } else if (img && img.includes('adminbackend-1-h03r.onrender.com')) {
-      img = img.replace('https://adminbackend-1-h03r.onrender.com', 'https://backend-1-ux3b.onrender.com');
+      img = `https://adminbackend-1-h03r.onrender.com/uploads/${img.replace(/^uploads\//, '')}`;
     }
     return {
       id: String(row.id),
