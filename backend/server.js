@@ -55,9 +55,6 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   let img = c.image || "";
   if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
   if (img.startsWith('http://') || img.startsWith('https://')) {
-    if (img.includes('adminbackend-1-h03r.onrender.com')) {
-      img = img.replace('https://adminbackend-1-h03r.onrender.com', serverBaseUrl);
-    }
     return img;
   }
   if (img.startsWith('/assets/')) {
@@ -71,9 +68,6 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
   if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
   if (img.startsWith('http://') || img.startsWith('https://')) {
-    if (img.includes('adminbackend-1-h03r.onrender.com')) {
-      img = img.replace('https://adminbackend-1-h03r.onrender.com', serverBaseUrl);
-    }
     return img;
   }
   if (img.startsWith('/assets/')) {
@@ -145,6 +139,18 @@ app.use(languageMiddleware);
 app.use('/api', languageRouter);
 
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+
+const readDataFromJsonDb = () => {
+  try {
+    const p = path.join(__dirname, 'database.json');
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf8'));
+    }
+  } catch (e) {
+    console.warn("Failed to read database.json:", e.message);
+  }
+  return null;
+};
 
 // Smart static & fallback middleware for /uploads
 app.use('/uploads', (req, res, next) => {
@@ -3177,7 +3183,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   let matchedCatTitle = mappedCatName;
 
   try {
-    const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+    const data = readDataFromJsonDb();
     if (data && data.categories && data.services) {
       const cats = data.categories || [];
       const catObj = cats.find(c => 
@@ -3686,7 +3692,7 @@ const handleServiceDetail = async (req, res) => {
 
   // Try loading from database.json first
   try {
-    const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
+    const data = readDataFromJsonDb();
     if (data && data.services && data.services.length > 0) {
       const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
       const match = data.services.find(s => 
