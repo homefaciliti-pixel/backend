@@ -41,7 +41,14 @@ class CategoriesGrid extends StatelessWidget {
           imageUrl: category['image'],
           onTap: (){
 
-            Navigator.push(context, MaterialPageRoute(builder:  (_)=> ServicesListScreen(categoryName: category["title"])));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ServicesListScreen(
+                  categoryName: (category["title"] ?? category["name"] ?? "").toString(),
+                ),
+              ),
+            );
           },
         );
       },

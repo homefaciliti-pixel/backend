@@ -3059,13 +3059,25 @@ app.get('/api/services/trending', async (req, res) => {
             category_id: catId,
             category: catId,
             categoryName: catName,
-            image: resolveDynamicCategoryImageUrl({ title: s.title, image: s.image }, serverBaseUrl)
+            image: s.image || "/uploads/1782367898826-830124248.jpg"
           };
         });
       }
     } catch (jsonErr) {
       console.warn("[TrendingServices] JSON fallback failed:", jsonErr.message);
     }
+  }
+
+  // 3. Guaranteed Static Fallback (Ensures backend NEVER returns 0 trending services)
+  if (trendingList.length === 0) {
+    trendingList = [
+      { id: "101", serviceId: "101", title: "AC Foam Jet Service", price: 499, description: "Professional foam jet deep cleaning for your AC", category: "38", categoryId: "38", category_id: "38", categoryName: "AC Repair", image: "/uploads/1782370871985-653299335.jpg" },
+      { id: "102", serviceId: "102", title: "2BHK Deep Cleaning", price: 999, description: "Complete home deep cleaning by verified professionals", category: "7", categoryId: "7", category_id: "7", categoryName: "Cleaning", image: "/uploads/1782379281899-302488180.jpg" },
+      { id: "103", serviceId: "103", title: "House Wiring Electrician", price: 699, description: "Expert electrician for all electrical installation & repair", category: "3", categoryId: "3", category_id: "3", categoryName: "Electrician", image: "/uploads/1782368297524-943557893.jpg" },
+      { id: "104", serviceId: "104", title: "professional Plumber", price: 499, description: "Fix pipe leakages, taps, and plumbing installations", category: "1", categoryId: "1", category_id: "1", categoryName: "Plumber", image: "/uploads/1782367898826-830124248.jpg" },
+      { id: "105", serviceId: "105", title: "Women Haircut", price: 249, description: "Professional salon services at your doorstep", category: "5", categoryId: "5", category_id: "5", categoryName: "Salon", image: "/uploads/1782392839781-267721012.jpg" },
+      { id: "106", serviceId: "106", title: "Basic Car Wash (Exterior Only)", price: 249, description: "Exterior car body wash with shampoo and tyre cleaning", category: "27", categoryId: "27", category_id: "27", categoryName: "Car Washing", image: "/uploads/1782369487901-215785215.jpg" }
+    ];
   }
 
   const finalTrending = resolveServiceUrls(trendingList, serverBaseUrl).map(s => {
@@ -3091,7 +3103,33 @@ app.get('/api/categories/:category/services', async (req, res) => {
   const { category } = req.params;
   const { search } = req.query;
 
-  const cleanCategory = category.toLowerCase().replace(/[\s\-_]/g, '');
+  const normCatStr = (s) => (s || '').toString().toLowerCase().replace(/&/g, 'and').replace(/[\s\-_']/g, '');
+  const cleanCategory = normCatStr(category);
+
+  const STATIC_CAT_ID_MAP = {
+    '1': 'Plumber',
+    '3': 'Electrician',
+    '5': 'Salon And Spa',
+    '7': 'Cleaning',
+    '9': 'Architecture',
+    '11': 'Carpenter',
+    '27': 'Car Washing',
+    '29': 'Mechanic',
+    '37': 'Salon And Spa',
+    '38': 'AcRepair',
+    '40': 'Compounder',
+    '41': 'Halwai',
+    '42': 'Driver',
+    '43': 'Doctors',
+    '46': 'Pest Control',
+    '48': 'Photographer',
+    '49': 'Painter',
+    '50': 'Repairing',
+    '57': 'Contractor',
+    '58': 'Pandit ji'
+  };
+
+  let mappedCatName = STATIC_CAT_ID_MAP[category.trim()] || category;
 
   const host = req.get('host');
   const protocol = req.protocol;
@@ -3104,8 +3142,8 @@ app.get('/api/categories/:category/services', async (req, res) => {
   if (mysqlReady) {
     try {
       const [catRows] = await mysqlPool.query(
-        "SELECT * FROM node_categories WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
-        [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category), cleanCategory]
+        "SELECT * FROM node_categories WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ? OR LOWER(title) = ?",
+        [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category), cleanCategory, mappedCatName.toLowerCase()]
       );
 
       if (catRows.length > 0) {
@@ -3124,7 +3162,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
 
         // Resolve matching static category services
         const matchedStaticCategory = Object.keys(SERVICES_DATA).find(
-          key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
+          key => normCatStr(key) === cleanCategory || normCatStr(key) === normCatStr(mappedCatName)
         );
         let staticServices = matchedStaticCategory ? SERVICES_DATA[matchedStaticCategory] : [];
 
@@ -3165,7 +3203,7 @@ app.get('/api/categories/:category/services', async (req, res) => {
   // FALLBACK: Load from database.json if available
   let list = [];
   let loadedFromDb = false;
-  let matchedCatName = category;
+  let matchedCatName = mappedCatName;
 
   try {
     const data = DbLayer.getLayer().readData ? DbLayer.getLayer().readData() : null;
@@ -3176,20 +3214,21 @@ app.get('/api/categories/:category/services', async (req, res) => {
         c.id.toString() === category.toString() || 
         (c.name && c.name.toLowerCase() === category.toLowerCase()) ||
         (c.title && c.title.toLowerCase() === category.toLowerCase()) ||
-        (c.name && c.name.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory) ||
-        (c.title && c.title.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory) ||
+        (c.name && normCatStr(c.name) === cleanCategory) ||
+        (c.title && normCatStr(c.title) === cleanCategory) ||
+        (c.name && normCatStr(c.name) === normCatStr(mappedCatName)) ||
         c.id.toString() === cleanCategory
       );
       if (catObj) {
-        matchedCatName = catObj.name || catObj.title || category;
+        matchedCatName = catObj.name || catObj.title || mappedCatName;
         if (data.services && data.services.length > 0) {
           const catIdStr = catObj.id.toString();
-          const catNameClean = matchedCatName.toLowerCase().replace(/[\s\-_]/g, '');
+          const catNameClean = normCatStr(matchedCatName);
           list = data.services.filter(s => {
             if (!s || !s.category) return false;
             const sCatStr = s.category.toString();
-            const sCatClean = sCatStr.toLowerCase().replace(/[\s\-_]/g, '');
-            return sCatStr === catIdStr || sCatClean === catNameClean || sCatClean === cleanCategory;
+            const sCatClean = normCatStr(sCatStr);
+            return sCatStr === catIdStr || sCatClean === catNameClean || sCatClean === cleanCategory || sCatClean === normCatStr(mappedCatName);
           });
           if (list.length > 0) {
             loadedFromDb = true;
@@ -3203,10 +3242,12 @@ app.get('/api/categories/:category/services', async (req, res) => {
 
   if (!loadedFromDb) {
     // Case-insensitive match against known categories in SERVICES_DATA
-    const cleanMatchedCat = matchedCatName.toLowerCase().replace(/[\s\-_]/g, '');
+    const cleanMatchedCat = normCatStr(matchedCatName);
     const matchedCategoryKey = Object.keys(SERVICES_DATA).find(
-      key => key.toLowerCase().replace(/[\s\-_]/g, '') === cleanMatchedCat ||
-             key.toLowerCase().replace(/[\s\-_]/g, '') === cleanCategory
+      key => normCatStr(key) === cleanMatchedCat ||
+             normCatStr(key) === cleanCategory ||
+             normCatStr(key).includes(cleanCategory) ||
+             cleanCategory.includes(normCatStr(key))
     );
 
     if (!matchedCategoryKey) {
