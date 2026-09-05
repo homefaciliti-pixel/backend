@@ -1289,3 +1289,131 @@ Environment variables for custom DLT parameters in .env:
 
 
 
+
+
+---------------------------------------------------------
+17. Complete Cart Management System APIs
+---------------------------------------------------------
+
+1. POST /api/cart/add - Add Service to Cart
+- Headers: Authorization: Bearer <jwt_token> (or x-user-id header)
+- Body (JSON): {
+    "serviceId": "12",          // Mandatory: Service ID or title
+    "quantity": 1,              // Optional: Default 1
+    "categoryId": "1",          // Optional: Category ID
+    "categoryName": "Plumber",  // Optional: Category Name
+    "options": {}               // Optional: Custom service options
+  }
+- Response: {
+    "success": true,
+    "message": "Service added to cart successfully",
+    "cart": {
+      "items": [
+        {
+          "serviceId": "12",
+          "id": "12",
+          "title": "Tap Repair",
+          "name": "Tap Repair",
+          "description": "Fixing leaking or dripping taps with genuine parts",
+          "price": 299,
+          "originalPrice": 399,
+          "cutPrice": 399,
+          "discount": "25% OFF",
+          "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop",
+          "imageUrl": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop",
+          "categoryId": "1",
+          "categoryName": "Plumber",
+          "quantity": 1,
+          "qty": 1,
+          "itemTotal": 299,
+          "duration": "30 mins",
+          "warranty": "30 Days Warranty",
+          "options": {}
+        }
+      ],
+      "totalItems": 1,
+      "totalQuantity": 1,
+      "subtotal": 299,
+      "discountTotal": 100,
+      "tax": 0,
+      "deliveryFee": 0,
+      "grandTotal": 299
+    }
+  }
+
+2. GET /api/cart - Get Complete Cart with All Enriched Service Details
+- Headers: Authorization: Bearer <jwt_token> (or userId query/header param)
+- Response: {
+    "success": true,
+    "message": "Cart retrieved successfully",
+    "cart": {
+      "items": [
+        {
+          "serviceId": "12",
+          "id": "12",
+          "title": "Tap Repair",
+          "name": "Tap Repair",
+          "description": "Fixing leaking or dripping taps with genuine parts",
+          "price": 299,
+          "originalPrice": 399,
+          "cutPrice": 399,
+          "discount": "25% OFF",
+          "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop",
+          "imageUrl": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop",
+          "categoryId": "1",
+          "categoryName": "Plumber",
+          "quantity": 1,
+          "qty": 1,
+          "itemTotal": 299,
+          "duration": "30 mins",
+          "warranty": "30 Days Warranty",
+          "options": {}
+        }
+      ],
+      "totalItems": 1,
+      "totalQuantity": 1,
+      "subtotal": 299,
+      "discountTotal": 100,
+      "tax": 0,
+      "deliveryFee": 0,
+      "grandTotal": 299
+    }
+  }
+
+3. PUT /api/cart/update-quantity - Increase / Decrease / Update Quantity
+- Headers: Authorization: Bearer <jwt_token> (or x-user-id header)
+- Body (JSON): {
+    "serviceId": "12",  // Mandatory: Service ID
+    "quantity": 3       // Mandatory: New quantity (if <= 0, item is removed)
+  }
+- Response: {
+    "success": true,
+    "message": "Cart quantity updated successfully",
+    "cart": { ... }
+  }
+
+4. DELETE /api/cart/remove/:serviceId - Remove Single Item from Cart
+- Headers: Authorization: Bearer <jwt_token> (or x-user-id header)
+- URL Param: serviceId (e.g. /api/cart/remove/12)
+- Response: {
+    "success": true,
+    "message": "Item removed from cart successfully",
+    "cart": { ... }
+  }
+
+5. DELETE /api/cart/clear - Clear Entire Cart
+- Headers: Authorization: Bearer <jwt_token> (or x-user-id header)
+- Response: {
+    "success": true,
+    "message": "Cart cleared successfully",
+    "cart": {
+      "items": [],
+      "totalItems": 0,
+      "totalQuantity": 0,
+      "subtotal": 0,
+      "discountTotal": 0,
+      "tax": 0,
+      "deliveryFee": 0,
+      "grandTotal": 0
+    }
+  }

@@ -7866,6 +7866,399 @@ app.get('/api/checkout-api', handleGetCheckout);
 app.get('/api/checkout/:userId', handleGetCheckout);
 app.get('/api/checkout-api/:userId', handleGetCheckout);
 
+// ==========================================
+// CART MANAGEMENT SYSTEM
+// ==========================================
+const memoryCart = new Map();
+
+async function getUserIdFromReq(req) {
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (user && (user.id || user.phone || user.user_id)) {
+      return String(user.id || user.phone || user.user_id);
+    }
+  } catch (e) {}
+
+  const fromHeader = req.headers['x-user-id'] || req.headers['x-user-phone'] || req.headers['userid'];
+  if (fromHeader) return String(fromHeader);
+
+  const fromQuery = req.query.userId || req.query.user_id || req.query.phone || req.query.id;
+  if (fromQuery) return String(fromQuery);
+
+  const fromBody = req.body.userId || req.body.user_id || req.body.phone || req.body.id;
+  if (fromBody) return String(fromBody);
+
+  return "guest_default";
+}
+
+async function getUserRawCartItems(userId) {
+  let items = [];
+
+  if (mysqlReady) {
+    try {
+      await mysqlPool.query(`
+        CREATE TABLE IF NOT EXISTS node_cart (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id VARCHAR(100) NOT NULL,
+          service_id VARCHAR(100) NOT NULL,
+          category_id VARCHAR(100) DEFAULT '',
+          category_name VARCHAR(255) DEFAULT '',
+          quantity INT DEFAULT 1,
+          options TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY user_service (user_id, service_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+
+      const [rows] = await mysqlPool.query(
+        "SELECT * FROM node_cart WHERE user_id = ?",
+        [userId]
+      );
+      if (rows && rows.length > 0) {
+        return rows.map(r => ({
+          serviceId: String(r.service_id),
+          quantity: parseInt(r.quantity || 1, 10),
+          categoryId: String(r.category_id || ''),
+          categoryName: String(r.category_name || ''),
+          options: r.options ? (typeof r.options === 'string' ? JSON.parse(r.options || '{}') : r.options) : {}
+        }));
+      }
+    } catch (e) {
+      console.warn("[Cart] MySQL query failed, falling back:", e.message);
+    }
+  }
+
+  try {
+    const dbData = readDataFromJsonDb();
+    if (dbData && dbData.cart) {
+      const userItems = dbData.cart.filter(item => String(item.userId || item.user_id) === String(userId));
+      if (userItems.length > 0) {
+        return userItems.map(item => ({
+          serviceId: String(item.serviceId || item.service_id),
+          quantity: parseInt(item.quantity || item.qty || 1, 10),
+          categoryId: String(item.categoryId || item.category_id || ''),
+          categoryName: String(item.categoryName || item.category_name || ''),
+          options: item.options || {}
+        }));
+      }
+    }
+  } catch (e) {}
+
+  if (memoryCart.has(userId)) {
+    const userMap = memoryCart.get(userId);
+    items = Array.from(userMap.values());
+  }
+
+  return items;
+}
+
+async function saveUserRawCartItems(userId, items) {
+  const userMap = new Map();
+  items.forEach(item => {
+    userMap.set(String(item.serviceId), item);
+  });
+  memoryCart.set(userId, userMap);
+
+  if (mysqlReady) {
+    try {
+      await mysqlPool.query("DELETE FROM node_cart WHERE user_id = ?", [userId]);
+      for (const item of items) {
+        await mysqlPool.query(
+          "INSERT INTO node_cart (user_id, service_id, category_id, category_name, quantity, options) VALUES (?, ?, ?, ?, ?, ?)",
+          [
+            userId,
+            String(item.serviceId),
+            String(item.categoryId || ''),
+            String(item.categoryName || ''),
+            parseInt(item.quantity || 1, 10),
+            JSON.stringify(item.options || {})
+          ]
+        );
+      }
+    } catch (e) {
+      console.warn("[Cart] MySQL save failed:", e.message);
+    }
+  }
+
+  try {
+    const dbPath = path.join(__dirname, 'database.json');
+    if (fs.existsSync(dbPath)) {
+      const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+      dbData.cart = (dbData.cart || []).filter(item => String(item.userId || item.user_id) !== String(userId));
+      items.forEach(item => {
+        dbData.cart.push({
+          userId: userId,
+          serviceId: String(item.serviceId),
+          categoryId: String(item.categoryId || ''),
+          categoryName: String(item.categoryName || ''),
+          quantity: parseInt(item.quantity || 1, 10),
+          options: item.options || {},
+          updatedAt: new Date().toISOString()
+        });
+      });
+      fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), 'utf8');
+    }
+  } catch (e) {
+    console.warn("[Cart] JSON save failed:", e.message);
+  }
+}
+
+async function resolveFullUserCart(userId, lang = 'en') {
+  const rawItems = await getUserRawCartItems(userId);
+  const host = 'https://backend-1-ux3b.onrender.com';
+  const serverBaseUrl = host;
+
+  let allServices = [];
+  if (mysqlReady) {
+    try {
+      const [rows] = await mysqlPool.query(
+        "SELECT s.*, c.title as cat_name FROM node_services s LEFT JOIN node_categories c ON s.category_id = c.id WHERE s.status IN (0, 1)"
+      );
+      if (rows && rows.length > 0) {
+        allServices = rows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
+      }
+    } catch (e) {}
+  }
+
+  if (allServices.length === 0) {
+    try {
+      const data = readDataFromJsonDb();
+      if (data && data.services) {
+        allServices = data.services;
+      }
+    } catch (e) {}
+  }
+
+  const enrichedItems = [];
+  let subtotal = 0;
+  let totalQuantity = 0;
+  let totalOriginalPrice = 0;
+
+  for (const raw of rawItems) {
+    const sId = String(raw.serviceId);
+    let matchedSvc = allServices.find(s => 
+      String(s.id) === sId || 
+      String(s.service_id) === sId || 
+      (s.title && s.title.toLowerCase() === sId.toLowerCase())
+    );
+
+    let title = raw.title || (matchedSvc ? (matchedSvc.title || matchedSvc.name) : "Service Item");
+    let description = matchedSvc ? (matchedSvc.description || matchedSvc.desc || "") : "";
+    let price = matchedSvc ? parseFloat(matchedSvc.price || matchedSvc.price_final || 0) : parseFloat(raw.price || 0);
+    let originalPrice = matchedSvc ? parseFloat(matchedSvc.original_price || matchedSvc.cut_price || (price * 1.25)) : (price * 1.25);
+    if (originalPrice < price) originalPrice = Math.round(price * 1.2);
+    
+    let discount = matchedSvc && matchedSvc.discount ? matchedSvc.discount : "20% OFF";
+    let image = matchedSvc ? resolveDynamicServiceImageUrl(matchedSvc, serverBaseUrl) : (raw.image || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=500&auto=format&fit=crop");
+    let catId = raw.categoryId || (matchedSvc ? String(matchedSvc.category_id || matchedSvc.category || "1") : "1");
+    let catName = raw.categoryName || (matchedSvc ? String(matchedSvc.cat_name || matchedSvc.categoryName || matchedSvc.category || "General") : "General");
+    let qty = parseInt(raw.quantity || 1, 10);
+    let itemTotal = price * qty;
+    let duration = matchedSvc && matchedSvc.duration ? matchedSvc.duration : "45 mins";
+    let warranty = matchedSvc && matchedSvc.warranty ? matchedSvc.warranty : "30 Days Warranty";
+
+    if (lang && lang !== 'en' && matchedSvc && mysqlReady) {
+      try {
+        const [trans] = await mysqlPool.query(
+          `SELECT title_${lang}, description_${lang} FROM node_services WHERE id = ? LIMIT 1`,
+          [matchedSvc.id]
+        );
+        if (trans && trans[0]) {
+          if (trans[0][`title_${lang}`]) title = trans[0][`title_${lang}`];
+          if (trans[0][`description_${lang}`]) description = trans[0][`description_${lang}`];
+        }
+      } catch (e) {}
+    }
+
+    subtotal += itemTotal;
+    totalQuantity += qty;
+    totalOriginalPrice += (originalPrice * qty);
+
+    enrichedItems.push({
+      serviceId: sId,
+      id: sId,
+      title: title,
+      name: title,
+      description: description,
+      price: Math.round(price),
+      originalPrice: Math.round(originalPrice),
+      cutPrice: Math.round(originalPrice),
+      discount: discount,
+      image: image,
+      imageUrl: image,
+      categoryId: catId,
+      categoryName: catName,
+      quantity: qty,
+      qty: qty,
+      itemTotal: Math.round(itemTotal),
+      duration: duration,
+      warranty: warranty,
+      options: raw.options || {}
+    });
+  }
+
+  const discountTotal = Math.max(0, Math.round(totalOriginalPrice - subtotal));
+
+  return {
+    items: enrichedItems,
+    totalItems: enrichedItems.length,
+    totalQuantity: totalQuantity,
+    subtotal: Math.round(subtotal),
+    discountTotal: discountTotal,
+    tax: 0,
+    deliveryFee: 0,
+    grandTotal: Math.round(subtotal)
+  };
+}
+
+// 1. POST /api/cart/add
+app.post('/api/cart/add', async (req, res) => {
+  try {
+    const userId = await getUserIdFromReq(req);
+    const serviceId = String(req.body.serviceId || req.body.service_id || req.body.id || '');
+    const quantity = parseInt(req.body.quantity || req.body.qty || 1, 10);
+    const categoryId = String(req.body.categoryId || req.body.category_id || '');
+    const categoryName = String(req.body.categoryName || req.body.category_name || '');
+    const options = req.body.options || {};
+
+    if (!serviceId) {
+      return res.status(400).json({ success: false, error: "serviceId is required" });
+    }
+
+    let items = await getUserRawCartItems(userId);
+    const existingIndex = items.findIndex(item => String(item.serviceId) === serviceId);
+
+    if (existingIndex >= 0) {
+      items[existingIndex].quantity += quantity;
+      if (categoryId) items[existingIndex].categoryId = categoryId;
+      if (categoryName) items[existingIndex].categoryName = categoryName;
+      if (Object.keys(options).length > 0) items[existingIndex].options = options;
+    } else {
+      items.push({
+        serviceId: serviceId,
+        quantity: quantity,
+        categoryId: categoryId,
+        categoryName: categoryName,
+        options: options
+      });
+    }
+
+    await saveUserRawCartItems(userId, items);
+    const fullCart = await resolveFullUserCart(userId, req.lang);
+
+    res.json({
+      success: true,
+      message: translate("cart_item_added", req.lang) || "Service added to cart successfully",
+      cart: fullCart
+    });
+  } catch (err) {
+    console.error("Add to cart failed:", err);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+});
+
+// 2. GET /api/cart
+app.get('/api/cart', async (req, res) => {
+  try {
+    const userId = await getUserIdFromReq(req);
+    const fullCart = await resolveFullUserCart(userId, req.lang);
+
+    res.json({
+      success: true,
+      message: translate("cart_retrieved", req.lang) || "Cart retrieved successfully",
+      cart: fullCart
+    });
+  } catch (err) {
+    console.error("Get cart failed:", err);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+});
+
+// 3. PUT /api/cart/update-quantity
+app.put('/api/cart/update-quantity', async (req, res) => {
+  try {
+    const userId = await getUserIdFromReq(req);
+    const serviceId = String(req.body.serviceId || req.body.service_id || req.body.id || '');
+    const newQty = parseInt(req.body.quantity !== undefined ? req.body.quantity : (req.body.qty !== undefined ? req.body.qty : 1), 10);
+
+    if (!serviceId) {
+      return res.status(400).json({ success: false, error: "serviceId is required" });
+    }
+
+    let items = await getUserRawCartItems(userId);
+
+    if (newQty <= 0) {
+      items = items.filter(item => String(item.serviceId) !== serviceId);
+    } else {
+      const existingIndex = items.findIndex(item => String(item.serviceId) === serviceId);
+      if (existingIndex >= 0) {
+        items[existingIndex].quantity = newQty;
+      } else {
+        items.push({ serviceId: serviceId, quantity: newQty });
+      }
+    }
+
+    await saveUserRawCartItems(userId, items);
+    const fullCart = await resolveFullUserCart(userId, req.lang);
+
+    res.json({
+      success: true,
+      message: translate("cart_updated", req.lang) || "Cart quantity updated successfully",
+      cart: fullCart
+    });
+  } catch (err) {
+    console.error("Update cart quantity failed:", err);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+});
+
+// 4. DELETE /api/cart/remove/:serviceId
+app.delete('/api/cart/remove/:serviceId', async (req, res) => {
+  try {
+    const userId = await getUserIdFromReq(req);
+    const serviceId = String(req.params.serviceId || '');
+
+    if (!serviceId) {
+      return res.status(400).json({ success: false, error: "serviceId is required" });
+    }
+
+    let items = await getUserRawCartItems(userId);
+    items = items.filter(item => String(item.serviceId) !== serviceId);
+
+    await saveUserRawCartItems(userId, items);
+    const fullCart = await resolveFullUserCart(userId, req.lang);
+
+    res.json({
+      success: true,
+      message: translate("cart_item_removed", req.lang) || "Item removed from cart successfully",
+      cart: fullCart
+    });
+  } catch (err) {
+    console.error("Remove cart item failed:", err);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+});
+
+// 5. DELETE /api/cart/clear
+app.delete('/api/cart/clear', async (req, res) => {
+  try {
+    const userId = await getUserIdFromReq(req);
+
+    await saveUserRawCartItems(userId, []);
+    const fullCart = await resolveFullUserCart(userId, req.lang);
+
+    res.json({
+      success: true,
+      message: translate("cart_cleared", req.lang) || "Cart cleared successfully",
+      cart: fullCart
+    });
+  } catch (err) {
+    console.error("Clear cart failed:", err);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+});
+
 // 14. Orders: Get All
 app.get('/api/orders', async (req, res) => {
   try {
