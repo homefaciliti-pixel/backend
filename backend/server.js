@@ -8009,6 +8009,12 @@ async function saveUserRawCartItems(userId, items) {
   }
 }
 
+function resolveDynamicServiceImageUrl(svc, serverBaseUrl) {
+  if (!svc) return "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=500&auto=format&fit=crop";
+  const resolved = resolveServiceUrls([svc], serverBaseUrl);
+  return (resolved && resolved[0] && resolved[0].image) ? resolved[0].image : (svc.image || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=500&auto=format&fit=crop");
+}
+
 async function resolveFullUserCart(userId, lang = 'en') {
   const rawItems = await getUserRawCartItems(userId);
   const host = 'https://backend-1-ux3b.onrender.com';
