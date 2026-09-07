@@ -7879,13 +7879,16 @@ async function getUserIdFromReq(req) {
     }
   } catch (e) {}
 
-  const fromHeader = req.headers['x-user-id'] || req.headers['x-user-phone'] || req.headers['userid'];
+  const headers = req ? (req.headers || {}) : {};
+  const fromHeader = headers['x-user-id'] || headers['x-user-phone'] || headers['userid'];
   if (fromHeader) return String(fromHeader);
 
-  const fromQuery = req.query.userId || req.query.user_id || req.query.phone || req.query.id;
+  const query = req ? (req.query || {}) : {};
+  const fromQuery = query.userId || query.user_id || query.phone || query.id;
   if (fromQuery) return String(fromQuery);
 
-  const fromBody = req.body.userId || req.body.user_id || req.body.phone || req.body.id;
+  const body = req ? (req.body || {}) : {};
+  const fromBody = body.userId || body.user_id || body.phone || body.id;
   if (fromBody) return String(fromBody);
 
   return "guest_default";
@@ -7971,7 +7974,7 @@ async function saveUserRawCartItems(userId, items) {
             String(item.serviceId),
             String(item.categoryId || ''),
             String(item.categoryName || ''),
-            parseInt(item.quantity || 1, 10),
+            item.quantity,
             JSON.stringify(item.options || {})
           ]
         );
@@ -7985,19 +7988,21 @@ async function saveUserRawCartItems(userId, items) {
     const dbPath = path.join(__dirname, 'database.json');
     if (fs.existsSync(dbPath)) {
       const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-      dbData.cart = (dbData.cart || []).filter(item => String(item.userId || item.user_id) !== String(userId));
-      items.forEach(item => {
-        dbData.cart.push({
-          userId: userId,
-          serviceId: String(item.serviceId),
-          categoryId: String(item.categoryId || ''),
-          categoryName: String(item.categoryName || ''),
-          quantity: parseInt(item.quantity || 1, 10),
-          options: item.options || {},
-          updatedAt: new Date().toISOString()
-        });
-      });
-      fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), 'utf8');
+      if (dbData) {
+        dbData.cart = (dbData.cart || []).filter(item => String(item.userId || item.user_id) !== String(userId));
+        for (const item of items) {
+          dbData.cart.push({
+            userId: userId,
+            serviceId: String(item.serviceId),
+            quantity: item.quantity,
+            categoryId: String(item.categoryId || ''),
+            categoryName: String(item.categoryName || ''),
+            options: item.options || {},
+            updatedAt: new Date().toISOString()
+          });
+        }
+        fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), 'utf8');
+      }
     }
   } catch (e) {
     console.warn("[Cart] JSON save failed:", e.message);
@@ -8116,11 +8121,12 @@ async function resolveFullUserCart(userId, lang = 'en') {
 app.post('/api/cart/add', async (req, res) => {
   try {
     const userId = await getUserIdFromReq(req);
-    const serviceId = String(req.body.serviceId || req.body.service_id || req.body.id || '');
-    const quantity = parseInt(req.body.quantity || req.body.qty || 1, 10);
-    const categoryId = String(req.body.categoryId || req.body.category_id || '');
-    const categoryName = String(req.body.categoryName || req.body.category_name || '');
-    const options = req.body.options || {};
+    const body = req.body || {};
+    const serviceId = String(body.serviceId || body.service_id || body.id || '');
+    const quantity = parseInt(body.quantity || body.qty || 1, 10);
+    const categoryId = String(body.categoryId || body.category_id || '');
+    const categoryName = String(body.categoryName || body.category_name || '');
+    const options = body.options || {};
 
     if (!serviceId) {
       return res.status(400).json({ success: false, error: "serviceId is required" });
@@ -8179,8 +8185,9 @@ app.get('/api/cart', async (req, res) => {
 app.put('/api/cart/update-quantity', async (req, res) => {
   try {
     const userId = await getUserIdFromReq(req);
-    const serviceId = String(req.body.serviceId || req.body.service_id || req.body.id || '');
-    const newQty = parseInt(req.body.quantity !== undefined ? req.body.quantity : (req.body.qty !== undefined ? req.body.qty : 1), 10);
+    const body = req.body || {};
+    const serviceId = String(body.serviceId || body.service_id || body.id || '');
+    const newQty = parseInt(body.quantity !== undefined ? body.quantity : (body.qty !== undefined ? body.qty : 1), 10);
 
     if (!serviceId) {
       return res.status(400).json({ success: false, error: "serviceId is required" });
@@ -8217,7 +8224,7 @@ app.put('/api/cart/update-quantity', async (req, res) => {
 app.delete('/api/cart/remove/:serviceId', async (req, res) => {
   try {
     const userId = await getUserIdFromReq(req);
-    const serviceId = String(req.params.serviceId || '');
+    const serviceId = String(req.params ? (req.params.serviceId || '') : '');
 
     if (!serviceId) {
       return res.status(400).json({ success: false, error: "serviceId is required" });

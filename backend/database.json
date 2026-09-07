@@ -16181,5 +16181,17 @@
       "subtitle": "",
       "buttonText": "Book Now"
     }
-  ]
+  ],
+  "appVersion": {
+    "android": {
+      "latestVersion": "1.0.2",
+      "minSupportedVersion": "1.0.2",
+      "forceUpdate": true
+    },
+    "ios": {
+      "latestVersion": "1.0.3",
+      "minSupportedVersion": "1.0.3",
+      "forceUpdate": true
+    }
+  }
 }
