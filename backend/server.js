@@ -6473,6 +6473,31 @@ const handlePostCheckout = async (req, res) => {
       amountPaid = Number(existingOrder.payment.amountPaid) || 0;
     }
 
+    // Check if items array was explicitly passed in body or query or in existing order or in cart
+    let inputItems = req.body.items || req.query.items;
+    if (typeof inputItems === 'string') {
+      try { inputItems = JSON.parse(inputItems); } catch (e) {}
+    }
+    if (!Array.isArray(inputItems) || inputItems.length === 0) {
+      if (existingOrder && Array.isArray(existingOrder.items) && existingOrder.items.length > 0) {
+        inputItems = existingOrder.items;
+      } else {
+        const userCart = await resolveFullUserCart(phone, req.lang).catch(() => null);
+        if (userCart && Array.isArray(userCart.items) && userCart.items.length > 0) {
+          inputItems = userCart.items;
+        }
+      }
+    }
+
+    let itemsTotalCalculated = 0;
+    if (Array.isArray(inputItems) && inputItems.length > 0) {
+      itemsTotalCalculated = inputItems.reduce((sum, item) => {
+        const p = Number(item.price || item.price_final || item.itemTotal || 0);
+        const q = Number(item.quantity || item.qty || 1);
+        return sum + (p * q);
+      }, 0);
+    }
+
     // AMC coupon discount logic
     const useAmc = req.body.useAmc === true || req.body.useAmc === "true" || (req.body.payment && (String(req.body.payment.paymentMethod).toLowerCase() === "amc")) || req.body.status === "AMC" || req.query.status === "AMC";
     let activeAmcId = null; // declared here so it's accessible in finalOrder below
@@ -6482,7 +6507,9 @@ const handlePostCheckout = async (req, res) => {
     } else if (foundService && foundService.price !== undefined && foundService.price !== null && !isNaN(foundService.price)) {
       foundPrice = Number(foundService.price);
     }
-    let finalPrice = amountPaid > 0 ? amountPaid : foundPrice;
+
+    let baseServicePrice = itemsTotalCalculated > 0 ? itemsTotalCalculated : (foundPrice > 0 ? foundPrice : 499);
+    let finalPrice = amountPaid > 0 ? amountPaid : baseServicePrice;
 
     if (useAmc) {
       const category = getCanonicalCategoryName(foundService.category || getServiceCategory(foundService.title));
@@ -6591,19 +6618,33 @@ const handlePostCheckout = async (req, res) => {
       finalRemainingAmount = finalPrice;
     }
 
+    const finalOrderItems = (Array.isArray(inputItems) && inputItems.length > 0) ? inputItems : [
+      {
+        productId: foundService.productId,
+        serviceName: foundService.title,
+        title: foundService.title,
+        price: foundService.price,
+        quantity: 1,
+        description: foundService.description || "",
+        image: foundService.image || ""
+      }
+    ];
+
+    const finalServiceName = finalOrderItems.map(i => i.title || i.serviceName || i.name || i.productId).join(", ");
+
     const finalOrder = {
       id: orderId,
       userPhone: phone,
       userId: phone,
-      serviceName: existingOrder ? existingOrder.serviceName : foundService.title,
+      serviceName: finalServiceName || (existingOrder ? existingOrder.serviceName : foundService.title),
       price: finalPrice,
       date: resolvedDate,
       status: useAmc ? "AMC" : resolvedStatus,
       bookingStatus: resolvedBookingStatus,
       partnerName: null,
       partnerDistance: null,
-      productId: existingOrder ? existingOrder.productId : foundService.productId,
-      description: existingOrder ? existingOrder.description : foundService.description,
+      productId: finalOrderItems[0].productId || (existingOrder ? existingOrder.productId : foundService.productId),
+      description: finalOrderItems[0].description || (existingOrder ? existingOrder.description : foundService.description),
       timeSlot: resolvedTimeSlot,
       address: resolvedAddressField,
       payment: { 
@@ -6616,26 +6657,21 @@ const handlePostCheckout = async (req, res) => {
       amcId: activeAmcId,
       advancePayment: finalAdvancePayment,
       remainingAmount: finalRemainingAmount,
-      items: (existingOrder && existingOrder.items && existingOrder.items.length > 0) ? existingOrder.items : [{
-        productId: foundService.productId,
-        serviceName: foundService.title,
-        price: foundService.price,
-        quantity: 1,
-        description: foundService.description || "",
-        image: foundService.image || ""
-      }]
+      items: finalOrderItems
     };
     
     if (isOnlinePayment) {
       // Do NOT write to the database yet. Keep it in the in-memory draft map.
       draftOrders.set(phone, finalOrder);
-      console.log(`[Checkout] Saved online draft order #${orderId} for phone ${phone} in-memory`);
+      console.log(`[Checkout] Saved online draft order #${orderId} for phone ${phone} in-memory with ${finalOrderItems.length} items (₹${finalPrice})`);
     } else {
       // Write the finalized order to the database (COD / Wallet / AMC)
       await DbLayer.createOrder(finalOrder);
       // Delete from in-memory draft map
       draftOrders.delete(phone);
-      console.log(`[Checkout] Placed offline/wallet/amc order #${orderId} for phone ${phone} to database`);
+      // Clear user cart after placing order
+      await saveUserRawCartItems(phone, []).catch(() => {});
+      console.log(`[Checkout] Placed offline/wallet/amc order #${orderId} for phone ${phone} to database with ${finalOrderItems.length} items (₹${finalPrice})`);
     }
     
     // Only simulate wallet balance deduction if paymentMethod is Wallet
@@ -6656,11 +6692,20 @@ const handlePostCheckout = async (req, res) => {
     
     console.log(`[Checkout] Refactored Order #${orderId} for phone ${phone}`);
     const localizedOrder = localizeService({ ...finalOrder, userId: phone }, req.lang);
+    const totalItemsCount = (finalOrder.items || []).length;
+    const totalQtyCount = (finalOrder.items || []).reduce((sum, item) => sum + (Number(item.quantity || item.qty || 1)), 0);
+
     res.json({
       success: true,
       orderId: orderId,
       userId: phone,
       order: localizedOrder,
+      items: localizedOrder.items || [],
+      totalAmount: finalPrice,
+      subtotal: finalPrice,
+      grandTotal: finalPrice,
+      totalItems: totalItemsCount,
+      totalQuantity: totalQtyCount,
       razorpayOrderId: razorpayOrderId,
       message: translate("checkout_success", req.lang)
     });
@@ -7749,10 +7794,38 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    // Check if user has active items in cart and sync them into draft order
+    const userCart = await resolveFullUserCart(targetPhone, req.lang).catch(() => null);
+    if (userCart && Array.isArray(userCart.items) && userCart.items.length > 0) {
+      if (!order || !order.items || order.items.length === 0 || order.bookingStatus === 'draft' || order.status === 'Draft') {
+        if (!order) {
+          order = {
+            id: Date.now(),
+            userPhone: targetPhone,
+            userId: targetPhone,
+            status: "Draft",
+            bookingStatus: "draft"
+          };
+        }
+        order.items = userCart.items;
+        order.price = userCart.grandTotal;
+        order.serviceName = userCart.items.map(i => i.title || i.name || i.serviceName).join(", ");
+      }
+    }
+
     const userBalance = Number(targetUser.walletBalance || 0);
     
-    // Dynamically calculate srvPrice using the original service price if not AMC
-    const originalPrice = (order && order.price !== undefined && order.price !== null) ? Number(order.price) : (resolvedProduct ? Number(resolvedProduct.price) : 299);
+    // Dynamically calculate srvPrice using the sum of all items in cart/order if not AMC
+    let computedItemsTotal = 0;
+    if (order && Array.isArray(order.items) && order.items.length > 0) {
+      computedItemsTotal = order.items.reduce((sum, item) => {
+        const itemPrice = Number(item.price || item.price_final || item.itemTotal || 0);
+        const itemQty = Number(item.quantity || item.qty || 1);
+        return sum + (itemPrice * itemQty);
+      }, 0);
+    }
+
+    const originalPrice = computedItemsTotal > 0 ? computedItemsTotal : ((order && order.price !== undefined && order.price !== null) ? Number(order.price) : (resolvedProduct ? Number(resolvedProduct.price) : 299));
     const srvPrice = isAmc ? 0 : originalPrice;
     
     // Fixed ₹100 wallet deduction: only if balance >= ₹100, else ₹0
@@ -7822,9 +7895,12 @@ const handleGetCheckout = async (req, res) => {
       const localizedItem = localizeService(item, req.lang);
       return {
         ...localizedItem,
-        quantity: item.quantity || 1
+        quantity: Number(item.quantity || item.qty || 1)
       };
     });
+
+    const totalItemsCount = localizedItems.length;
+    const totalQtyCount = localizedItems.reduce((acc, item) => acc + Number(item.quantity || 1), 0);
 
     res.json({
       success: true,
@@ -7847,6 +7923,10 @@ const handleGetCheckout = async (req, res) => {
       remainingAmount: finalRemaining,
       platformCharge: 0.00,
       totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
+      subtotal: isAmc ? 0.00 : srvPrice,
+      grandTotal: isAmc ? 0.00 : Math.max(0, srvPrice - allowedWallet),
+      totalItems: totalItemsCount,
+      totalQuantity: totalQtyCount,
       total: finalTotal,
       walletBalance: userBalance,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr, req.lang)),
