@@ -7296,6 +7296,9 @@ const handleGetCheckout = async (req, res) => {
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
   const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
+  // Ensure req.body is always an object (GET requests may not have a body)
+  if (!req.body || typeof req.body !== 'object') req.body = {};
+
   const idParam = req.params.userId || req.query.userId || req.query.phone || req.body.userId || req.body.phone || "me";
   // Read date, slot, and product/service from query, body, headers, or nested product object
   let queryDate = req.query.date || req.body.date || req.query.dates || req.body.dates || req.headers['x-date'];
@@ -8009,7 +8012,7 @@ const handleGetCheckout = async (req, res) => {
     });
   } catch (err) {
     console.error("Fetch checkout details failed:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: "Internal Server Error", message: err.message, stack: err.stack });
   }
 };
 app.get('/api/checkout', handleGetCheckout);
