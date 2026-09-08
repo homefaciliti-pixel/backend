@@ -7374,6 +7374,13 @@ const handleGetCheckout = async (req, res) => {
       if (memDraft) {
         pendingOrders.push(memDraft);
       }
+
+      // Helper to check if a service title is generic tap repair fallback
+      const isTapRepairFallback = (sName) => {
+        if (!sName) return true;
+        const lower = String(sName).toLowerCase().trim();
+        return lower === 'tap repair' || lower === 'tap / faucet repair & replacement' || /^service \d+$/i.test(lower);
+      };
       
       if (pendingOrders && pendingOrders.length > 0) {
         let chosenOrder = null;
@@ -7389,13 +7396,6 @@ const handleGetCheckout = async (req, res) => {
         }
         // Final fallback: most recent draft
         order = JSON.parse(JSON.stringify(chosenOrder || pendingOrders[0]));
-
-        // Helper to check if a service title is generic tap repair fallback
-        const isTapRepairFallback = (sName) => {
-          if (!sName) return true;
-          const lower = String(sName).toLowerCase().trim();
-          return lower === 'tap repair' || lower === 'tap / faucet repair & replacement' || /^service \d+$/i.test(lower);
-        };
 
         // CRITICAL: If queryProductId is provided and the draft has wrong/generic serviceName,
         // override with the actual service the user just booked.
