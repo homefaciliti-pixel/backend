@@ -7572,6 +7572,52 @@ const handleGetCheckout = async (req, res) => {
         console.log(`[GetCheckout] Created in-memory fallback order #${orderId} for order ID lookup`);
       }
     }
+
+    if (!order) {
+      const resolvedAddr = await resolveAddressForPhone(targetPhone).catch(() => null);
+      let resolvedProduct = queryProductId ? await resolveServiceDetails(queryProductId) : null;
+      if (!resolvedProduct) {
+        resolvedProduct = await resolveServiceDetails("professional Plumber") || {
+          productId: "1",
+          serviceName: "professional Plumber",
+          title: "professional Plumber",
+          price: 499,
+          description: "Professional Plumber Home Service"
+        };
+      }
+      const lastOrderId = await DbLayer.getLastOrderId().catch(() => 100);
+      let highestId = lastOrderId;
+      for (const draft of draftOrders.values()) {
+        if (draft.id > highestId) highestId = draft.id;
+      }
+      const newOrderId = highestId + 1;
+
+      order = {
+        id: newOrderId,
+        userPhone: targetPhone,
+        userId: targetPhone,
+        serviceName: resolvedProduct.serviceName || resolvedProduct.title,
+        price: resolvedProduct.price,
+        date: queryDate || (await getDynamicDateAndSlot()).date,
+        status: "Draft",
+        bookingStatus: "draft",
+        partnerName: null,
+        partnerDistance: null,
+        productId: resolvedProduct.productId || "1",
+        description: resolvedProduct.description || "",
+        timeSlot: querySlot || (await getDynamicDateAndSlot()).timeSlot,
+        address: resolvedAddr,
+        payment: {
+          paymentMethod: queryPaymentMethod || "Wallet",
+          amountPaid: resolvedProduct.price
+        },
+        createdAt: Date.now(),
+        items: []
+      };
+      draftOrders.set(targetPhone, order);
+      justCreated = true;
+      console.log(`[GetCheckout] Created fresh fallback draft order #${newOrderId} for user ${targetPhone}`);
+    }
     
     let needsUpdate = false;
     const updates = {};
