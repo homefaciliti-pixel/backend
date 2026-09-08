@@ -7825,6 +7825,19 @@ const handleGetCheckout = async (req, res) => {
       }
     }
 
+    if (!order) {
+      order = {
+        id: Date.now(),
+        userPhone: targetPhone,
+        userId: targetPhone,
+        serviceName: "Home Service",
+        price: 0,
+        status: "Draft",
+        bookingStatus: "draft",
+        items: []
+      };
+    }
+
     const userBalance = Number(targetUser.walletBalance || 0);
     
     // Dynamically calculate srvPrice using the sum of all items in cart/order if not AMC
