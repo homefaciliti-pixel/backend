@@ -6362,13 +6362,25 @@ const handlePostCheckout = async (req, res) => {
         }
       } catch (e) {}
     }
-    if (existingOrder) {
+    if (existingOrder && existingOrder.productId) {
       productId = existingOrder.productId;
+    } else {
+      const userCart = await resolveFullUserCart(user.phone).catch(() => null);
+      if (userCart && Array.isArray(userCart.items) && userCart.items.length > 0) {
+        productId = String(userCart.items[0].serviceId || userCart.items[0].id || userCart.items[0].title || "cart_services");
+      } else if (req.body.items && Array.isArray(req.body.items) && req.body.items.length > 0) {
+        productId = String(req.body.items[0].serviceId || req.body.items[0].id || req.body.items[0].title || "cart_services");
+      }
     }
   }
 
   if (!productId) {
-    return res.status(400).json({ error: "productId is required in checkout body" });
+    const userCart = await resolveFullUserCart(req.headers['x-user-id'] || 'guest').catch(() => null);
+    if (userCart && Array.isArray(userCart.items) && userCart.items.length > 0) {
+      productId = String(userCart.items[0].serviceId || userCart.items[0].id || userCart.items[0].title || "cart_services");
+    } else {
+      productId = "cart_services";
+    }
   }
   
   try {
