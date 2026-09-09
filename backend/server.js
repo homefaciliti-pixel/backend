@@ -193,6 +193,8 @@ app.use('/uploads', (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
+  const norm = relPath.toLowerCase();
+
   function sendCategoryFile(res, targetFilename) {
     const catDir = path.join(__dirname, 'assets', 'categories');
     const targetLower = targetFilename.toLowerCase();
