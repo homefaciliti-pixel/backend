@@ -68,7 +68,7 @@ class CategoryCard extends StatelessWidget {
                     ? Padding(
                         padding: const EdgeInsets.all(5),
                         child: Image.network(
-                          imageUrl!,
+                          Uri.encodeFull(imageUrl!),
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
                             // If image fails to load, show a colored icon

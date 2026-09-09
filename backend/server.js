@@ -11,33 +11,33 @@ const { localizeCategory, localizeService, localizeAddress, runContentI18nMigrat
 
 const getLocalCategoryAssetUrl = (name, serverBaseUrl) => {
   const norm = (name || '').toLowerCase().trim();
-  let file = 'Plumber.png';
+  let file = 'plumber_3d.png';
   
-  if (norm.includes('plumb')) file = 'Plumber.png';
-  else if (norm.includes('electric')) file = 'Electrician.png';
-  else if (norm === 'salon' || norm.includes('salon')) file = 'Salon.jpg';
-  else if (norm.includes('spa')) file = 'Spa.png';
-  else if (norm.includes('clean')) file = 'cleaning.jpg';
-  else if (norm.includes('architect') || norm.includes('arch')) file = 'Architecture.png';
-  else if (norm.includes('carpen') || norm.includes('wood')) file = 'Carpenter.jpg';
-  else if (norm.includes('car') || norm.includes('wash')) file = 'Car Washing.jpg';
-  else if (norm.includes('mechanic')) file = 'Mechanic.png';
-  else if (norm.includes('ac') || norm.includes('air')) file = 'Ac Repair.jpg';
-  else if (norm.includes('paint')) file = 'Painter.jpg';
-  else if (norm.includes('bike') || norm.includes('motor')) file = 'Bike services.jpg';
-  else if (norm.includes('driver')) file = 'Driver.jpg';
-  else if (norm.includes('photo')) file = 'PhotoGrapher.jpg';
-  else if (norm.includes('doctor') || norm.includes('doc')) file = 'Doctor.png';
-  else if (norm.includes('compound') || norm.includes('nurse')) file = 'Compounder.png';
-  else if (norm.includes('halwai') || norm.includes('cater')) file = "Cater's.jpg";
-  else if (norm.includes('contract')) file = 'Contractor.png';
-  else if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) file = 'Pandat ji.png';
-  else if (norm.includes('pest')) file = 'Pest control.jpg';
-  else if (norm.includes('solar')) file = 'Solar.png';
-  else if (norm.includes('tax')) file = 'Tax Consultancy.jpg';
-  else if (norm.includes('advocate') || norm.includes('legal')) file = 'Advocate.jpg';
-  else if (norm.includes('interior')) file = 'Interior Design.png';
-  else if (norm.includes('repair')) file = 'Repairing.jpg';
+  if (norm.includes('plumb')) file = 'plumber_3d.png';
+  else if (norm.includes('electric')) file = 'electrician_3d.png';
+  else if (norm === 'salon' || norm.includes('salon')) file = 'salon_3d.jpg';
+  else if (norm.includes('spa')) file = 'spa_3d.png';
+  else if (norm.includes('clean')) file = 'cleaning_3d.jpg';
+  else if (norm.includes('architect') || norm.includes('arch')) file = 'architecture_3d.png';
+  else if (norm.includes('carpen') || norm.includes('wood')) file = 'carpenter_3d.jpg';
+  else if (norm.includes('car') || norm.includes('wash')) file = 'car_washing_3d.jpg';
+  else if (norm.includes('mechanic')) file = 'mechanic_3d.png';
+  else if (norm.includes('ac') || norm.includes('air')) file = 'ac_repair_3d.jpg';
+  else if (norm.includes('paint')) file = 'painter_3d.jpg';
+  else if (norm.includes('bike') || norm.includes('motor')) file = 'bike_services_3d.jpg';
+  else if (norm.includes('driver')) file = 'driver_3d.jpg';
+  else if (norm.includes('photo')) file = 'photographer_3d.jpg';
+  else if (norm.includes('doctor') || norm.includes('doc')) file = 'doctor_3d.png';
+  else if (norm.includes('compound') || norm.includes('nurse')) file = 'compounder_3d.png';
+  else if (norm.includes('halwai') || norm.includes('cater')) file = 'caters_3d.jpg';
+  else if (norm.includes('contract')) file = 'contractor_3d.png';
+  else if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) file = 'pandat_ji_3d.png';
+  else if (norm.includes('pest')) file = 'pest_control_3d.jpg';
+  else if (norm.includes('solar')) file = 'solar_3d.png';
+  else if (norm.includes('tax')) file = 'tax_consultancy_3d.jpg';
+  else if (norm.includes('advocate') || norm.includes('legal')) file = 'advocate_3d.jpg';
+  else if (norm.includes('interior')) file = 'interior_design_3d.png';
+  else if (norm.includes('repair')) file = 'repairing_3d.jpg';
   
   return `${serverBaseUrl}/assets/categories/${file}`;
 };
@@ -210,99 +210,99 @@ app.use('/uploads', (req, res, next) => {
 
   // Car Washing
   if (norm.includes('1786447188981') || norm.includes('car') || norm.includes('wash') || norm.includes('auto') || norm.includes('detailing')) {
-    return sendCategoryFile(res, 'Car Washing.jpg');
+    return sendCategoryFile(res, 'car_washing_3d.jpg');
   }
   // Plumber
   if (norm.includes('1786436206314') || norm.includes('plumb') || norm.includes('tap') || norm.includes('pipe') || norm.includes('sink')) {
-    return sendCategoryFile(res, 'Plumber.png');
+    return sendCategoryFile(res, 'plumber_3d.png');
   }
   // Electrician
   if (norm.includes('1786436786199') || norm.includes('wire') || norm.includes('electr') || norm.includes('fan') || norm.includes('switch')) {
-    return sendCategoryFile(res, 'Electrician.png');
+    return sendCategoryFile(res, 'electrician_3d.png');
   }
   // Salon
   if (norm.includes('1786435950565') || norm.includes('salon') || norm.includes('hair') || norm.includes('beauty') || norm.includes('makeup')) {
-    return sendCategoryFile(res, 'Salon.jpg');
+    return sendCategoryFile(res, 'salon_3d.jpg');
   }
   // Spa
   if (norm.includes('1786442488680') || norm.includes('spa') || norm.includes('massage')) {
-    return sendCategoryFile(res, 'Spa.png');
+    return sendCategoryFile(res, 'spa_3d.png');
   }
   // Architecture / Interior
   if (norm.includes('1786446437586') || norm.includes('1786450010056') || norm.includes('architect') || norm.includes('interior') || norm.includes('draft')) {
-    return sendCategoryFile(res, 'Architecture.png');
+    return sendCategoryFile(res, 'architecture_3d.png');
   }
   // Carpenter
   if (norm.includes('1786446696715') || norm.includes('carpen') || norm.includes('wood') || norm.includes('furniture')) {
-    return sendCategoryFile(res, 'Carpenter.jpg');
+    return sendCategoryFile(res, 'carpenter_3d.jpg');
   }
   // Mechanic
   if (norm.includes('1786447506154') || norm.includes('mechanic') || norm.includes('engine') || norm.includes('motor')) {
-    return sendCategoryFile(res, 'Mechanic.png');
+    return sendCategoryFile(res, 'mechanic_3d.png');
   }
   // AC Repair
   if (norm.includes('1786443552623') || norm.includes('ac') || norm.includes('cool')) {
-    return sendCategoryFile(res, 'Ac Repair.jpg');
+    return sendCategoryFile(res, 'ac_repair_3d.jpg');
   }
   // Advocate
   if (norm.includes('1786443775719') || norm.includes('advocate') || norm.includes('legal') || norm.includes('lawyer')) {
-    return sendCategoryFile(res, 'Advocate.jpg');
+    return sendCategoryFile(res, 'advocate_3d.jpg');
   }
   // Compounder
   if (norm.includes('1786444894705') || norm.includes('compound') || norm.includes('nurse')) {
-    return sendCategoryFile(res, 'Compounder.png');
+    return sendCategoryFile(res, 'compounder_3d.png');
   }
   // Doctor
   if (norm.includes('1786449409020') || norm.includes('doctor') || norm.includes('health')) {
-    return sendCategoryFile(res, 'Doctor.png');
+    return sendCategoryFile(res, 'doctor_3d.png');
   }
   // Catering / Halwai
   if (norm.includes('1786448684632') || norm.includes('cater') || norm.includes('chef') || norm.includes('halwai')) {
-    return sendCategoryFile(res, "Cater's.jpg");
+    return sendCategoryFile(res, 'caters_3d.jpg');
   }
   // Driver
   if (norm.includes('1786449239057') || norm.includes('driver')) {
-    return sendCategoryFile(res, 'Driver.jpg');
+    return sendCategoryFile(res, 'driver_3d.jpg');
   }
   // Pest Control
   if (norm.includes('1786450312316') || norm.includes('pest')) {
-    return sendCategoryFile(res, 'Pest control.jpg');
+    return sendCategoryFile(res, 'pest_control_3d.jpg');
   }
   // Photographer
   if (norm.includes('1786450771532') || norm.includes('photo')) {
-    return sendCategoryFile(res, 'PhotoGrapher.jpg');
+    return sendCategoryFile(res, 'photographer_3d.jpg');
   }
   // Painter
   if (norm.includes('1786451019343') || norm.includes('paint') || norm.includes('color')) {
-    return sendCategoryFile(res, 'Painter.jpg');
+    return sendCategoryFile(res, 'painter_3d.jpg');
   }
   // Repairing
   if (norm.includes('1786451422502') || norm.includes('repair')) {
-    return sendCategoryFile(res, 'Repairing.jpg');
+    return sendCategoryFile(res, 'repairing_3d.jpg');
   }
   // Solar
   if (norm.includes('1786451601583') || norm.includes('solar') || norm.includes('panel')) {
-    return sendCategoryFile(res, 'Solar.png');
+    return sendCategoryFile(res, 'solar_3d.png');
   }
   // Tax Consultancy
   if (norm.includes('1786451938166') || norm.includes('tax')) {
-    return sendCategoryFile(res, 'Tax Consultancy.jpg');
+    return sendCategoryFile(res, 'tax_consultancy_3d.jpg');
   }
   // Contractor
   if (norm.includes('1786452243309') || norm.includes('contract')) {
-    return sendCategoryFile(res, 'Contractor.png');
+    return sendCategoryFile(res, 'contractor_3d.png');
   }
   // Pandit Ji
   if (norm.includes('1786452463146') || norm.includes('pandit') || norm.includes('pooja') || norm.includes('puja')) {
-    return sendCategoryFile(res, 'Pandat ji.png');
+    return sendCategoryFile(res, 'pandat_ji_3d.png');
   }
   // Cleaning
   if (norm.includes('1786435733935') || norm.includes('clean')) {
-    return sendCategoryFile(res, 'cleaning.jpg');
+    return sendCategoryFile(res, 'cleaning_3d.jpg');
   }
   // Iron Works / Welding
   if (norm.includes('1788515844051') || norm.includes('iron') || norm.includes('weld')) {
-    return sendCategoryFile(res, 'velding icon.png');
+    return sendCategoryFile(res, 'velding_icon_3d.png');
   }
 
   // Banner Matches (Direct HTTP 200 OK Banner PNG files)
