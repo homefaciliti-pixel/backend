@@ -54,6 +54,10 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   let img = c.image || "";
   if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
+  if (img.includes('adminbackend-1-h03r.onrender.com')) {
+    const filename = path.basename(img);
+    return `${serverBaseUrl}/uploads/${filename}`;
+  }
   if (img.startsWith('http://') || img.startsWith('https://')) {
     return img;
   }
@@ -61,16 +65,16 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
   const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  const localFile = path.join(__dirname, 'uploads', cleanFilename);
-  if (fs.existsSync(localFile) && fs.statSync(localFile).size > 0) {
-    return `${serverBaseUrl}/uploads/${cleanFilename}`;
-  }
-  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+  return `${serverBaseUrl}/uploads/${cleanFilename}`;
 };
 
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
   if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+  if (img.includes('adminbackend-1-h03r.onrender.com')) {
+    const filename = path.basename(img);
+    return `${serverBaseUrl}/uploads/${filename}`;
+  }
   if (img.startsWith('http://') || img.startsWith('https://')) {
     return img;
   }
@@ -78,11 +82,7 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
   const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  const localFile = path.join(__dirname, 'uploads', cleanFilename);
-  if (fs.existsSync(localFile) && fs.statSync(localFile).size > 0) {
-    return `${serverBaseUrl}/uploads/${cleanFilename}`;
-  }
-  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+  return `${serverBaseUrl}/uploads/${cleanFilename}`;
 };
 
 // Multer storage config for AMC document uploads
@@ -177,10 +177,7 @@ app.use('/uploads', (req, res, next) => {
     return res.sendFile(assetsUploadsPath);
   }
 
-  // 3. Fallback: Redirect to admin backend where admin panel uploads live!
-  return res.redirect(302, `https://adminbackend-1-h03r.onrender.com/uploads/${relPath}`);
-
-  // 4. Direct match in assets/categories/, assets/banners/, or assets/services/
+  // 3. Direct match in assets/categories/, assets/banners/, or assets/services/
   const catPath = path.join(__dirname, 'assets', 'categories', relPath);
   if (fs.existsSync(catPath)) return res.sendFile(catPath);
 
@@ -281,9 +278,9 @@ app.use('/uploads', (req, res, next) => {
   }
 
   // Banner Matches (Direct HTTP 200 OK Banner PNG files)
-  if (norm.includes('1787722971478') || (norm.includes('banner') && norm.includes('ac'))) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png'));
-  if (norm.includes('1787722479893') || norm.includes('amc') || norm.includes('home')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'amc_services_banner.png'));
-  if (norm.includes('refer') || norm.includes('earn')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'refer_earn_banner.png'));
+  if (norm.includes('1787722971478') || norm.includes('ganesh') || norm.includes('chaturthi') || (norm.includes('banner') && norm.includes('ac'))) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png'));
+  if (norm.includes('1787722479893') || norm.includes('amc') || norm.includes('home') || norm.includes('swayam')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'amc_services_banner.png'));
+  if (norm.includes('refer') || norm.includes('earn') || norm.includes('banner') || norm.includes('1788783070948')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'refer_earn_banner.png'));
 
   // Default Fallback
   const fallbackCat = path.join(__dirname, 'assets', 'categories', 'plumber.png');
