@@ -212,8 +212,6 @@ app.use('/uploads', (req, res, next) => {
   }
   // Kitchen / House Architecture / Interior (17823690, 17823691, 1786529, 1786530, 1786531, 1782551, 1786446437586, 1786450010056)
   if (norm.includes('17823690') || norm.includes('17823691') || norm.includes('1786529') || norm.includes('1786530') || norm.includes('1786531') || norm.includes('1782551') || norm.includes('1786446437586') || norm.includes('1786450010056') || norm.includes('kitchen') || norm.includes('architect') || norm.includes('interior') || norm.includes('draft') || norm.includes('tile') || norm.includes('marble')) {
-    const srvDraft = path.join(__dirname, 'assets', 'services', 'design_draft.png');
-    if (fs.existsSync(srvDraft)) return res.sendFile(srvDraft);
     return res.sendFile(path.join(__dirname, 'assets', 'categories', 'architecture.png'));
   }
   // Carpenter & Woodwork & Iron Works (17823691, 17823692, 17823693, 1782377574, 1786446696715, 1786452895272)
@@ -222,8 +220,6 @@ app.use('/uploads', (req, res, next) => {
   }
   // Mechanic & Bike & Engine Repairing (17823704, 17823705, 17823765, 17823766, 1786447506154, 1786451422502)
   if (norm.includes('17823704') || norm.includes('17823705') || norm.includes('17823765') || norm.includes('17823766') || norm.includes('1786447506154') || norm.includes('1786451422502') || norm.includes('mechanic') || norm.includes('bike') || norm.includes('motor') || norm.includes('engine') || norm.includes('laptop') || norm.includes('fridge') || norm.includes('tv') || norm.includes('camera') || norm.includes('repair')) {
-    const srvEng = path.join(__dirname, 'assets', 'services', 'engine_tuning.png');
-    if (fs.existsSync(srvEng)) return res.sendFile(srvEng);
     return res.sendFile(path.join(__dirname, 'assets', 'categories', 'mechanic.png'));
   }
   // AC Repair & Cooling (17823708, 17823709, 1786443552623)
@@ -260,8 +256,6 @@ app.use('/uploads', (req, res, next) => {
   }
   // Pandit Ji & Pooja Services (1782377494, 1782377514, 1786452463146)
   if (norm.includes('1782377494') || norm.includes('1782377514') || norm.includes('1786452463146') || norm.includes('pandit') || norm.includes('pooja') || norm.includes('puja')) {
-    const srvPooja = path.join(__dirname, 'assets', 'services', 'pooja_service.png');
-    if (fs.existsSync(srvPooja)) return res.sendFile(srvPooja);
     return res.sendFile(path.join(__dirname, 'assets', 'categories', 'pandit_ji.png'));
   }
   // Painter Services (17823776, 1786451019343)
