@@ -193,104 +193,114 @@ app.use('/uploads', (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
-  // 4. Complete Categories & Services Database Timestamp & Keyword Pattern Matcher (Numeric Prefixes Included)
-  const norm = relPath.toLowerCase();
+  function sendCategoryFile(res, targetFilename) {
+    const catDir = path.join(__dirname, 'assets', 'categories');
+    const targetLower = targetFilename.toLowerCase();
+    try {
+      const files = fs.readdirSync(catDir);
+      const match = files.find(f => f.toLowerCase() === targetLower);
+      if (match) {
+        return res.sendFile(path.join(catDir, match));
+      }
+    } catch (e) {}
+    return res.sendFile(path.join(catDir, 'Plumber.png'));
+  }
 
   // Car Washing
   if (norm.includes('1786447188981') || norm.includes('car') || norm.includes('wash') || norm.includes('auto') || norm.includes('detailing')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Car Washing.jpg'));
+    return sendCategoryFile(res, 'Car Washing.jpg');
   }
   // Plumber
   if (norm.includes('1786436206314') || norm.includes('plumb') || norm.includes('tap') || norm.includes('pipe') || norm.includes('sink')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Plumber.png'));
+    return sendCategoryFile(res, 'Plumber.png');
   }
   // Electrician
   if (norm.includes('1786436786199') || norm.includes('wire') || norm.includes('electr') || norm.includes('fan') || norm.includes('switch')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Electrician.png'));
+    return sendCategoryFile(res, 'Electrician.png');
   }
   // Salon
   if (norm.includes('1786435950565') || norm.includes('salon') || norm.includes('hair') || norm.includes('beauty') || norm.includes('makeup')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Salon.jpg'));
+    return sendCategoryFile(res, 'Salon.jpg');
   }
   // Spa
   if (norm.includes('1786442488680') || norm.includes('spa') || norm.includes('massage')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Spa.png'));
+    return sendCategoryFile(res, 'Spa.png');
   }
   // Architecture / Interior
   if (norm.includes('1786446437586') || norm.includes('1786450010056') || norm.includes('architect') || norm.includes('interior') || norm.includes('draft')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Architecture.png'));
+    return sendCategoryFile(res, 'Architecture.png');
   }
   // Carpenter
   if (norm.includes('1786446696715') || norm.includes('carpen') || norm.includes('wood') || norm.includes('furniture')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Carpenter.jpg'));
+    return sendCategoryFile(res, 'Carpenter.jpg');
   }
   // Mechanic
   if (norm.includes('1786447506154') || norm.includes('mechanic') || norm.includes('engine') || norm.includes('motor')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Mechanic.png'));
+    return sendCategoryFile(res, 'Mechanic.png');
   }
   // AC Repair
   if (norm.includes('1786443552623') || norm.includes('ac') || norm.includes('cool')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Ac Repair.jpg'));
+    return sendCategoryFile(res, 'Ac Repair.jpg');
   }
   // Advocate
   if (norm.includes('1786443775719') || norm.includes('advocate') || norm.includes('legal') || norm.includes('lawyer')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Advocate.jpg'));
+    return sendCategoryFile(res, 'Advocate.jpg');
   }
   // Compounder
   if (norm.includes('1786444894705') || norm.includes('compound') || norm.includes('nurse')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Compounder.png'));
+    return sendCategoryFile(res, 'Compounder.png');
   }
   // Doctor
   if (norm.includes('1786449409020') || norm.includes('doctor') || norm.includes('health')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Doctor.png'));
+    return sendCategoryFile(res, 'Doctor.png');
   }
   // Catering / Halwai
   if (norm.includes('1786448684632') || norm.includes('cater') || norm.includes('chef') || norm.includes('halwai')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', "Cater's.jpg"));
+    return sendCategoryFile(res, "Cater's.jpg");
   }
   // Driver
   if (norm.includes('1786449239057') || norm.includes('driver')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Driver.jpg'));
+    return sendCategoryFile(res, 'Driver.jpg');
   }
   // Pest Control
   if (norm.includes('1786450312316') || norm.includes('pest')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Pest control.jpg'));
+    return sendCategoryFile(res, 'Pest control.jpg');
   }
   // Photographer
   if (norm.includes('1786450771532') || norm.includes('photo')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'PhotoGrapher.jpg'));
+    return sendCategoryFile(res, 'PhotoGrapher.jpg');
   }
   // Painter
   if (norm.includes('1786451019343') || norm.includes('paint') || norm.includes('color')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Painter.jpg'));
+    return sendCategoryFile(res, 'Painter.jpg');
   }
   // Repairing
   if (norm.includes('1786451422502') || norm.includes('repair')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Repairing.jpg'));
+    return sendCategoryFile(res, 'Repairing.jpg');
   }
   // Solar
   if (norm.includes('1786451601583') || norm.includes('solar') || norm.includes('panel')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Solar.png'));
+    return sendCategoryFile(res, 'Solar.png');
   }
   // Tax Consultancy
   if (norm.includes('1786451938166') || norm.includes('tax')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Tax Consultancy.jpg'));
+    return sendCategoryFile(res, 'Tax Consultancy.jpg');
   }
   // Contractor
   if (norm.includes('1786452243309') || norm.includes('contract')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Contractor.png'));
+    return sendCategoryFile(res, 'Contractor.png');
   }
   // Pandit Ji
   if (norm.includes('1786452463146') || norm.includes('pandit') || norm.includes('pooja') || norm.includes('puja')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'Pandat ji.png'));
+    return sendCategoryFile(res, 'Pandat ji.png');
   }
   // Cleaning
   if (norm.includes('1786435733935') || norm.includes('clean')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'cleaning.jpg'));
+    return sendCategoryFile(res, 'cleaning.jpg');
   }
   // Iron Works / Welding
   if (norm.includes('1788515844051') || norm.includes('iron') || norm.includes('weld')) {
-    return res.sendFile(path.join(__dirname, 'assets', 'categories', 'velding icon.png'));
+    return sendCategoryFile(res, 'velding icon.png');
   }
 
   // Banner Matches (Direct HTTP 200 OK Banner PNG files)
