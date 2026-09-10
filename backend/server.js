@@ -166,8 +166,8 @@ const readDataFromJsonDb = () => {
   return null;
 };
 
-// Smart static & fallback middleware for /uploads
-app.use('/uploads', (req, res, next) => {
+// Smart static, proxy & fallback middleware for /uploads
+app.use('/uploads', async (req, res, next) => {
   const relPath = req.path.replace(/^\/+/, '');
   if (!relPath) return next();
 
@@ -193,6 +193,36 @@ app.use('/uploads', (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
+  // 4. Proxy check: Try fetching live uploaded file from Admin Backend if present
+  try {
+    const https = require('https');
+    const adminUrl = `https://adminbackend-1-h03r.onrender.com/uploads/${encodeURIComponent(relPath)}`;
+
+    const proxied = await new Promise((resolve) => {
+      const pReq = https.get(adminUrl, { timeout: 3500 }, (pRes) => {
+        if (pRes.statusCode === 200) {
+          res.setHeader('Content-Type', pRes.headers['content-type'] || 'image/jpeg');
+          try {
+            const dir = path.dirname(uploadsPath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            const fileStream = fs.createWriteStream(uploadsPath);
+            pRes.pipe(fileStream);
+          } catch (e) {}
+          pRes.pipe(res);
+          return resolve(true);
+        }
+        resolve(false);
+      });
+      pReq.on('error', () => resolve(false));
+      pReq.on('timeout', () => { pReq.destroy(); resolve(false); });
+    });
+
+    if (proxied) return;
+  } catch (e) {
+    console.warn(`[Proxy uploads error for ${relPath}]:`, e.message);
+  }
+
+  // 5. Fallback logic when file is absent locally AND on Admin Backend
   const norm = relPath.toLowerCase();
 
   function sendCategoryFile(res, targetFilename) {
@@ -205,7 +235,7 @@ app.use('/uploads', (req, res, next) => {
         return res.sendFile(path.join(catDir, match));
       }
     } catch (e) {}
-    return res.sendFile(path.join(catDir, 'Plumber.png'));
+    return res.sendFile(path.join(catDir, 'plumber_3d.png'));
   }
 
   // Car Washing
@@ -301,7 +331,7 @@ app.use('/uploads', (req, res, next) => {
     return sendCategoryFile(res, 'cleaning_3d.jpg');
   }
   // Iron Works / Welding
-  if (norm.includes('1788515844051') || norm.includes('iron') || norm.includes('weld')) {
+  if (norm.includes('1788515844051') || norm.includes('1786452895272') || norm.includes('iron') || norm.includes('weld')) {
     return sendCategoryFile(res, 'velding_icon_3d.png');
   }
 
@@ -311,11 +341,7 @@ app.use('/uploads', (req, res, next) => {
   if (norm.includes('refer') || norm.includes('earn') || norm.includes('banner') || norm.includes('1788783070948')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'refer_earn_banner.png'));
 
   // Default Fallback
-  const fallbackCat = path.join(__dirname, 'assets', 'categories', 'plumber.png');
-  if (fs.existsSync(fallbackCat)) {
-    return res.sendFile(fallbackCat);
-  }
-  next();
+  sendCategoryFile(res, 'plumber_3d.png');
 });
 
 function getCanonicalPhone(phone) {
