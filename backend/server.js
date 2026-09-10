@@ -6757,6 +6757,8 @@ const handlePostCheckout = async (req, res) => {
     const localizedOrder = localizeService({ ...finalOrder, userId: phone }, req.lang);
     const totalItemsCount = (finalOrder.items || []).length;
     const totalQtyCount = (finalOrder.items || []).reduce((sum, item) => sum + (Number(item.quantity || item.qty || 1)), 0);
+    const cutPriceVal = finalPrice + (totalQtyCount * 100);
+    const discountVal = cutPriceVal - finalPrice;
 
     res.json({
       success: true,
@@ -6764,8 +6766,12 @@ const handlePostCheckout = async (req, res) => {
       userId: phone,
       order: localizedOrder,
       items: localizedOrder.items || [],
+      cutPrice: cutPriceVal,
+      mrp: cutPriceVal,
+      discount: discountVal,
+      discountAmount: discountVal,
+      subtotal: cutPriceVal,
       totalAmount: finalPrice,
-      subtotal: finalPrice,
       grandTotal: finalPrice,
       totalItems: totalItemsCount,
       totalQuantity: totalQtyCount,
@@ -8027,17 +8033,28 @@ const handleGetCheckout = async (req, res) => {
     const totalItemsCount = localizedItems.length;
     const totalQtyCount = localizedItems.reduce((acc, item) => acc + Number(item.quantity || 1), 0);
 
+    const finalPayableAmount = isAmc ? 0.00 : Math.max(0, srvPrice - allowedWallet);
+    const cutPriceVal = isAmc ? 0.00 : (srvPrice + (totalQtyCount * 100));
+    const discountVal = isAmc ? 0.00 : (cutPriceVal - finalPayableAmount);
+
     res.json({
       success: true,
       orderId: order.id,
       userId: order.userPhone,
       user: sanitizeUserObj(targetUser),
-      product: localizedProduct,
+      product: {
+        ...localizedProduct,
+        price: isAmc ? 0 : cutPriceVal,
+        cutPrice: isAmc ? 0 : cutPriceVal,
+        mrp: isAmc ? 0 : cutPriceVal,
+        sellingPrice: finalPayableAmount,
+        discount: discountVal
+      },
       items: localizedItems,
       address: sanitizeAddressObj(order.address, req.lang),
       payment: {
         paymentMethod: currentMethod,
-        amountPaid: Number(finalAmountPaid)
+        amountPaid: Number(finalAmountPaid > 0 ? finalAmountPaid : finalPayableAmount)
       },
       status: isAmc ? "AMC" : (order.status || "Pending"),
       bookingStatus: order.bookingStatus || "searching",
@@ -8047,12 +8064,16 @@ const handleGetCheckout = async (req, res) => {
       advancePayment: finalAdvance,
       remainingAmount: finalRemaining,
       platformCharge: 0.00,
-      totalAmount: isAmc ? 0.00 : (srvPrice - allowedWallet),
-      subtotal: isAmc ? 0.00 : srvPrice,
-      grandTotal: isAmc ? 0.00 : Math.max(0, srvPrice - allowedWallet),
+      cutPrice: cutPriceVal,
+      mrp: cutPriceVal,
+      discount: discountVal,
+      discountAmount: discountVal,
+      subtotal: isAmc ? 0.00 : cutPriceVal,
+      totalAmount: finalPayableAmount,
+      grandTotal: finalPayableAmount,
       totalItems: totalItemsCount,
       totalQuantity: totalQtyCount,
-      total: finalTotal,
+      total: finalPayableAmount,
       walletBalance: userBalance,
       addresses: (addresses || []).map(addr => sanitizeAddressObj(addr, req.lang)),
       services: localizedServicesList,

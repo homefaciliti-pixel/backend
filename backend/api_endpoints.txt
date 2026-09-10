@@ -670,6 +670,7 @@ GET /api/checkout-api/:userId
   - Persistent Overrides: Query params productId, date, timeSlot are saved to DB.
   - Interactive Option Lists: Returns addresses, services/products, slots, dates for frontend dropdowns.
   - Items List (NEW): Includes the localized itemized list of multiple selected services with quantities.
+  - Price Breakdown: Checkout screen breakdown displays Item Price (MRP / Cut Price), Discount (-₹discountAmount in green), and Final Total Amount.
 
 
 ---------------------------------------------------------
