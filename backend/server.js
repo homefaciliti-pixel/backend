@@ -59,12 +59,11 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   let img = c.image || "";
-  if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
 
   let cleanFilename = "";
   if (img.includes('adminbackend-1-h03r.onrender.com')) {
     cleanFilename = path.basename(img);
-  } else if (!img.startsWith('http://') && !img.startsWith('https://') && !img.startsWith('/assets/')) {
+  } else if (img && !img.startsWith('http://') && !img.startsWith('https://') && !img.startsWith('/assets/')) {
     cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
   }
 
@@ -79,22 +78,20 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
     }
   }
 
-  if (img.startsWith('/assets/')) {
+  if (img && img.startsWith('/assets/')) {
     return `${serverBaseUrl}${img}`;
   }
 
-  // Pre-packaged 3D Isometric asset URL for guaranteed instant loading
   return getLocalCategoryAssetUrl(c.name || c.title || '', serverBaseUrl);
 };
 
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
-  if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
 
   let cleanFilename = "";
   if (img.includes('adminbackend-1-h03r.onrender.com')) {
     cleanFilename = path.basename(img);
-  } else if (!img.startsWith('http://') && !img.startsWith('https://') && !img.startsWith('/assets/')) {
+  } else if (img && !img.startsWith('http://') && !img.startsWith('https://') && !img.startsWith('/assets/')) {
     cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
   }
 
@@ -109,7 +106,7 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
     }
   }
 
-  if (img.startsWith('/assets/')) {
+  if (img && img.startsWith('/assets/')) {
     return `${serverBaseUrl}${img}`;
   }
 
