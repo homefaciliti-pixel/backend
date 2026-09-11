@@ -162,6 +162,10 @@ const JWT_SECRET = 'super_secret_jwt_key_123';
 app.use(cors());
 app.use(express.json());
 
+// Deployment version tracker
+const DEPLOY_VERSION = '2026-09-11-v2-3d-fix';
+app.get('/api/version', (req, res) => res.json({ version: DEPLOY_VERSION, timestamp: new Date().toISOString() }));
+
 // Multilingual System Middleware & Routes
 const languageMiddleware = require('./middleware/language');
 const languageRouter = require('./routes/language');
