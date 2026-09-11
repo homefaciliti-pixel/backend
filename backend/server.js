@@ -67,13 +67,10 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
     cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
   }
 
+  // Only return /uploads/ URL if a custom uploaded file exists in backend/uploads/
   if (cleanFilename) {
-    const localPath = path.join(__dirname, 'uploads', cleanFilename);
-    const assetUploadPath = path.join(__dirname, 'assets', 'uploads', cleanFilename);
-    if (fs.existsSync(localPath) && fs.statSync(localPath).size > 0) {
-      return `${serverBaseUrl}/uploads/${cleanFilename}`;
-    }
-    if (fs.existsSync(assetUploadPath) && fs.statSync(assetUploadPath).size > 0) {
+    const localUploadPath = path.join(__dirname, 'uploads', cleanFilename);
+    if (fs.existsSync(localUploadPath) && fs.statSync(localUploadPath).size > 0) {
       return `${serverBaseUrl}/uploads/${cleanFilename}`;
     }
   }
@@ -82,6 +79,7 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
 
+  // Default: Always return 3D Isometric Icon asset URL from assets/categories/
   return getLocalCategoryAssetUrl(c.name || c.title || '', serverBaseUrl);
 };
 
@@ -96,12 +94,8 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   }
 
   if (cleanFilename) {
-    const localPath = path.join(__dirname, 'uploads', cleanFilename);
-    const assetUploadPath = path.join(__dirname, 'assets', 'uploads', cleanFilename);
-    if (fs.existsSync(localPath) && fs.statSync(localPath).size > 0) {
-      return `${serverBaseUrl}/uploads/${cleanFilename}`;
-    }
-    if (fs.existsSync(assetUploadPath) && fs.statSync(assetUploadPath).size > 0) {
+    const localUploadPath = path.join(__dirname, 'uploads', cleanFilename);
+    if (fs.existsSync(localUploadPath) && fs.statSync(localUploadPath).size > 0) {
       return `${serverBaseUrl}/uploads/${cleanFilename}`;
     }
   }
