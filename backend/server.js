@@ -60,35 +60,60 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   let img = c.image || "";
   if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
+
+  let cleanFilename = "";
   if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    const filename = path.basename(img);
-    return `${serverBaseUrl}/uploads/${filename}`;
+    cleanFilename = path.basename(img);
+  } else if (!img.startsWith('http://') && !img.startsWith('https://') && !img.startsWith('/assets/')) {
+    cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
   }
-  if (img.startsWith('http://') || img.startsWith('https://')) {
-    return img;
+
+  if (cleanFilename) {
+    const localPath = path.join(__dirname, 'uploads', cleanFilename);
+    const assetUploadPath = path.join(__dirname, 'assets', 'uploads', cleanFilename);
+    if (fs.existsSync(localPath) && fs.statSync(localPath).size > 0) {
+      return `${serverBaseUrl}/uploads/${cleanFilename}`;
+    }
+    if (fs.existsSync(assetUploadPath) && fs.statSync(assetUploadPath).size > 0) {
+      return `${serverBaseUrl}/uploads/${cleanFilename}`;
+    }
   }
+
   if (img.startsWith('/assets/')) {
     return `${serverBaseUrl}${img}`;
   }
-  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+
+  // Pre-packaged 3D Isometric asset URL for guaranteed instant loading
+  return getLocalCategoryAssetUrl(c.name || c.title || '', serverBaseUrl);
 };
 
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
   if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+
+  let cleanFilename = "";
   if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    const filename = path.basename(img);
-    return `${serverBaseUrl}/uploads/${filename}`;
+    cleanFilename = path.basename(img);
+  } else if (!img.startsWith('http://') && !img.startsWith('https://') && !img.startsWith('/assets/')) {
+    cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
   }
-  if (img.startsWith('http://') || img.startsWith('https://')) {
-    return img;
+
+  if (cleanFilename) {
+    const localPath = path.join(__dirname, 'uploads', cleanFilename);
+    const assetUploadPath = path.join(__dirname, 'assets', 'uploads', cleanFilename);
+    if (fs.existsSync(localPath) && fs.statSync(localPath).size > 0) {
+      return `${serverBaseUrl}/uploads/${cleanFilename}`;
+    }
+    if (fs.existsSync(assetUploadPath) && fs.statSync(assetUploadPath).size > 0) {
+      return `${serverBaseUrl}/uploads/${cleanFilename}`;
+    }
   }
+
   if (img.startsWith('/assets/')) {
     return `${serverBaseUrl}${img}`;
   }
-  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+
+  return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
 };
 
 // Multer storage config for AMC document uploads
