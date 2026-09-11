@@ -187,19 +187,13 @@ app.use('/uploads', async (req, res, next) => {
   const relPath = req.path.replace(/^\/+/, '');
   if (!relPath) return next();
 
-  // 1. Check if uploaded file exists in backend/uploads/
+  // 1. Check if newly uploaded file exists in backend/uploads/ (from Admin Panel)
   const uploadsPath = path.join(__dirname, 'uploads', relPath);
   if (fs.existsSync(uploadsPath) && fs.statSync(uploadsPath).size > 0) {
     return res.sendFile(uploadsPath);
   }
 
-  // 2. Check if uploaded file exists in backend/assets/uploads/
-  const assetsUploadsPath = path.join(__dirname, 'assets', 'uploads', relPath);
-  if (fs.existsSync(assetsUploadsPath) && fs.statSync(assetsUploadsPath).size > 0) {
-    return res.sendFile(assetsUploadsPath);
-  }
-
-  // 3. Direct match in assets/categories/, assets/banners/, or assets/services/
+  // 2. Direct match in assets/categories/, assets/banners/, or assets/services/
   const catPath = path.join(__dirname, 'assets', 'categories', relPath);
   if (fs.existsSync(catPath)) return res.sendFile(catPath);
 
@@ -209,36 +203,7 @@ app.use('/uploads', async (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
-  // 4. Proxy check: Try fetching live uploaded file from Admin Backend if present
-  try {
-    const https = require('https');
-    const adminUrl = `https://adminbackend-1-h03r.onrender.com/uploads/${encodeURIComponent(relPath)}`;
-
-    const proxied = await new Promise((resolve) => {
-      const pReq = https.get(adminUrl, { timeout: 3500 }, (pRes) => {
-        if (pRes.statusCode === 200) {
-          res.setHeader('Content-Type', pRes.headers['content-type'] || 'image/jpeg');
-          try {
-            const dir = path.dirname(uploadsPath);
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-            const fileStream = fs.createWriteStream(uploadsPath);
-            pRes.pipe(fileStream);
-          } catch (e) {}
-          pRes.pipe(res);
-          return resolve(true);
-        }
-        resolve(false);
-      });
-      pReq.on('error', () => resolve(false));
-      pReq.on('timeout', () => { pReq.destroy(); resolve(false); });
-    });
-
-    if (proxied) return;
-  } catch (e) {
-    console.warn(`[Proxy uploads error for ${relPath}]:`, e.message);
-  }
-
-  // 5. Fallback logic when file is absent locally AND on Admin Backend
+  // 3. Fallback logic: Match default 3D Isometric Category Icons & Banners
   const norm = relPath.toLowerCase();
 
   function sendCategoryFile(res, targetFilename) {
@@ -355,6 +320,12 @@ app.use('/uploads', async (req, res, next) => {
   if (norm.includes('1787722971478') || norm.includes('ganesh') || norm.includes('chaturthi') || (norm.includes('banner') && norm.includes('ac'))) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'ac_services_banner.png'));
   if (norm.includes('1787722479893') || norm.includes('amc') || norm.includes('home') || norm.includes('swayam')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'amc_services_banner.png'));
   if (norm.includes('refer') || norm.includes('earn') || norm.includes('banner') || norm.includes('1788783070948')) return res.sendFile(path.join(__dirname, 'assets', 'banners', 'refer_earn_banner.png'));
+
+  // 4. Check if uploaded file exists in backend/assets/uploads/
+  const assetsUploadsPath = path.join(__dirname, 'assets', 'uploads', relPath);
+  if (fs.existsSync(assetsUploadsPath) && fs.statSync(assetsUploadsPath).size > 0) {
+    return res.sendFile(assetsUploadsPath);
+  }
 
   // Default Fallback
   sendCategoryFile(res, 'plumber_3d.png');
