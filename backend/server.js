@@ -4348,6 +4348,11 @@ const handleVerifyPayment = async (req, res) => {
         });
         console.log(`[Payment] Order #${resolvedOrderId} marked as Paid via Razorpay Payment ${pId}`);
       }
+      if (order && order.userPhone) {
+        await DbLayer.clearCart(order.userPhone).catch(() => {});
+        await saveUserRawCartItems(order.userPhone, []).catch(() => {});
+        console.log(`[Cart] Cleared cart for user ${order.userPhone} after payment verification`);
+      }
     }
 
     res.json({
@@ -4741,6 +4746,12 @@ const handlePaymentCallback = async (req, res) => {
         console.log(`[Payment Callback] Order #${orderId} marked as Paid via payment ${finalPaymentId}`);
       }
 
+      if (order && order.userPhone) {
+        await DbLayer.clearCart(order.userPhone).catch(() => {});
+        await saveUserRawCartItems(order.userPhone, []).catch(() => {});
+        console.log(`[Cart] Cleared cart for user ${order.userPhone} on payment callback`);
+      }
+
       res.send(`
         <!DOCTYPE html>
         <html lang="en">
@@ -5053,6 +5064,12 @@ app.post('/api/payments/cod/:orderId', async (req, res) => {
       });
       updatedOrder = await DbLayer.getOrderById(orderId);
       console.log(`[Payment] Order #${orderId} confirmed as Cash on Delivery`);
+    }
+    
+    if (order && order.userPhone) {
+      await DbLayer.clearCart(order.userPhone).catch(() => {});
+      await saveUserRawCartItems(order.userPhone, []).catch(() => {});
+      console.log(`[Cart] Cleared cart for user ${order.userPhone} on COD confirmation`);
     }
     
     res.json({
@@ -6733,6 +6750,7 @@ const handlePostCheckout = async (req, res) => {
       // Delete from in-memory draft map
       draftOrders.delete(phone);
       // Clear user cart after placing order
+      await DbLayer.clearCart(phone).catch(() => {});
       await saveUserRawCartItems(phone, []).catch(() => {});
       console.log(`[Checkout] Placed offline/wallet/amc order #${orderId} for phone ${phone} to database with ${finalOrderItems.length} items (₹${finalPrice})`);
     }
@@ -8725,6 +8743,10 @@ app.post('/api/orders', async (req, res) => {
     };
 
     await DbLayer.createOrder(newOrder);
+
+    // Clear cart for user after placing order
+    await DbLayer.clearCart(user.phone).catch(() => {});
+    await saveUserRawCartItems(user.phone, []).catch(() => {});
 
     console.log(`Placed new order #${orderId} - ${serviceName} for phone ${user.phone}`);
     res.json({ success: true, order: newOrder, message: translate("booking_success", req.lang) });
