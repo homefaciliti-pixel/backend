@@ -3219,8 +3219,8 @@ app.get('/api/categories/:category/services', async (req, res) => {
 
       if (catRows.length > 0) {
         const cat = catRows[0];
-        let queryStr = "SELECT * FROM node_services WHERE (category_id = ? OR LOWER(category) = ? OR REPLACE(REPLACE(REPLACE(LOWER(category), ' ', ''), '-', ''), '_', '') = ?) AND status IN (0, 1)";
-        const queryParams = [cat.id, (cat.title || cat.name || '').toLowerCase(), cleanCategory];
+        let queryStr = "SELECT * FROM node_services WHERE category_id = ? AND status IN (0, 1)";
+        const queryParams = [cat.id];
 
         if (search) {
           queryStr += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ?)";
