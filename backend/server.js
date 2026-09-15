@@ -6717,6 +6717,20 @@ const handlePostCheckout = async (req, res) => {
     const resolvedTimeSlot = timeSlot || (existingOrder ? existingOrder.timeSlot : null) || (await getDynamicDateAndSlot()).timeSlot;
     const resolvedAddressField = resolvedAddress || (existingOrder ? existingOrder.address : null);
     
+    // Block checkout for unserviceable pincodes
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const pinFile = path.join(__dirname, 'unserviceable_pincodes.json');
+      if (fs.existsSync(pinFile)) {
+        const unserviceablePincodes = new Set(JSON.parse(fs.readFileSync(pinFile, 'utf8')));
+        const pcode = resolvedAddressField ? String(resolvedAddressField.pincode || "").trim() : "";
+        if (pcode && unserviceablePincodes.has(pcode)) {
+          return res.status(400).json({ success: false, error: "We are currently not available yet at your location." });
+        }
+      }
+    } catch(e) {}
+
     const isOnlinePayment = paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay";
     const resolvedBookingStatus = isOnlinePayment ? "draft" : "searching";
     const resolvedStatus = "Pending"; 
