@@ -3543,7 +3543,7 @@ function resolveServiceUrls(services, serverBaseUrl) {
   if (!Array.isArray(services)) return [];
   return services.map(s => {
     let img = s.image || s.serviceImage || s.productImage || s.photo || "";
-    if (!img || img.includes('adminbackend-1-h03r') || img.endsWith('/uploads/1') || img === '1') {
+    if (!img || img.endsWith('/uploads/1') || img === '1') {
       img = getHdFallbackServiceImageUrl(s.title || s.name || '', s.category || '');
     } else if (img.startsWith('http://') || img.startsWith('https://')) {
       // Valid HTTP/HTTPS image URL
