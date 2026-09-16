@@ -172,41 +172,41 @@ app.use('/uploads', async (req, res, next) => {
   if (!relPath) return next();
 
   // 1. Check if uploaded file exists in backend/uploads/
-  const uploadsPath = path.join(__dirname, 'uploads', relPath);
+  const uploadsPath = path.resolve(__dirname, 'uploads', relPath);
   if (fs.existsSync(uploadsPath) && fs.statSync(uploadsPath).size > 0) {
     return res.sendFile(uploadsPath);
   }
 
   // 2. Check if uploaded file exists in backend/assets/uploads/
-  const assetsUploadsPath = path.join(__dirname, 'assets', 'uploads', relPath);
+  const assetsUploadsPath = path.resolve(__dirname, 'assets', 'uploads', relPath);
   if (fs.existsSync(assetsUploadsPath) && fs.statSync(assetsUploadsPath).size > 0) {
     return res.sendFile(assetsUploadsPath);
   }
 
   // 3. Direct match in assets/categories/, assets/banners/, or assets/services/
-  const catPath = path.join(__dirname, 'assets', 'categories', relPath);
+  const catPath = path.resolve(__dirname, 'assets', 'categories', relPath);
   if (fs.existsSync(catPath)) return res.sendFile(catPath);
 
-  const bannerPath = path.join(__dirname, 'assets', 'banners', relPath);
+  const bannerPath = path.resolve(__dirname, 'assets', 'banners', relPath);
   if (fs.existsSync(bannerPath)) return res.sendFile(bannerPath);
 
-  const srvPath = path.join(__dirname, 'assets', 'services', relPath);
+  const srvPath = path.resolve(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
   // 4. Instant 3D Category Asset Fallback check (serves 3D icons in 1ms, preventing proxy timeouts)
   const norm = relPath.toLowerCase();
 
   function sendCategoryFile(res, targetFilename) {
-    const catDir = path.join(__dirname, 'assets', 'categories');
+    const catDir = path.resolve(__dirname, 'assets', 'categories');
     const targetLower = targetFilename.toLowerCase();
     try {
       const files = fs.readdirSync(catDir);
       const match = files.find(f => f.toLowerCase() === targetLower);
       if (match) {
-        return res.sendFile(path.join(catDir, match));
+        return res.sendFile(path.resolve(catDir, match));
       }
     } catch (e) {}
-    return res.sendFile(path.join(catDir, 'plumber_3d.png'));
+    return res.sendFile(path.resolve(catDir, 'plumber_3d.png'));
   }
 
   // Check known category timestamp IDs & names
