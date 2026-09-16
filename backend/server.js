@@ -59,28 +59,29 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   let img = c.image || "";
-  if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
-  if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    const filename = path.basename(img);
-    return `${serverBaseUrl}/uploads/${filename}`;
+  
+  // ALWAYS force beautiful 3D icons from local assets instead of proxying B&W admin uploads
+  if (!img || img.includes('adminbackend-1-h03r') || !img.startsWith('http')) {
+    return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
   }
+  
   if (img.startsWith('http://') || img.startsWith('https://')) {
     return img;
   }
   if (img.startsWith('/assets/')) {
     return `${serverBaseUrl}${img}`;
   }
-  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
 };
 
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
   if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+  
   if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    const filename = path.basename(img);
-    return `${serverBaseUrl}/uploads/${filename}`;
+    return img;
   }
+  
   if (img.startsWith('http://') || img.startsWith('https://')) {
     return img;
   }
@@ -88,7 +89,7 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
   const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
 };
 
 // Multer storage config for AMC document uploads
