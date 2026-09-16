@@ -6726,7 +6726,11 @@ const handlePostCheckout = async (req, res) => {
         const unserviceablePincodes = new Set(JSON.parse(fs.readFileSync(pinFile, 'utf8')));
         const pcode = resolvedAddressField ? String(resolvedAddressField.pincode || "").trim() : "";
         if (pcode && unserviceablePincodes.has(pcode)) {
-          return res.status(400).json({ success: false, error: "We are currently not available yet at your location." });
+          return res.status(200).json({ 
+            success: false, 
+            error: "We are currently not available yet at your location.",
+            message: "We are currently not available yet at your location."
+          });
         }
       }
     } catch(e) {}
