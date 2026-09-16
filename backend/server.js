@@ -58,27 +58,11 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 };
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
-  const local3dUrl = getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
   let img = c.image || "";
+  if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
   
-  if (!img || img.includes('adminbackend-1-h03r')) {
-    return local3dUrl;
-  }
-  if (img.startsWith('/assets/')) {
-    return `${serverBaseUrl}${img}`;
-  }
-  if (img.startsWith('http://') || img.startsWith('https://')) {
-    return img;
-  }
-  return local3dUrl;
-};
-
-const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
-  let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
-  if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
   if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    const filename = path.basename(img);
-    return `${serverBaseUrl}/uploads/${filename}`;
+    return img;
   }
   if (img.startsWith('http://') || img.startsWith('https://')) {
     return img;
@@ -87,7 +71,24 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
   const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+};
+
+const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
+  let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
+  if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
+  
+  if (img.includes('adminbackend-1-h03r.onrender.com')) {
+    return img;
+  }
+  if (img.startsWith('http://') || img.startsWith('https://')) {
+    return img;
+  }
+  if (img.startsWith('/assets/')) {
+    return `${serverBaseUrl}${img}`;
+  }
+  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
 };
 
 // Multer storage config for AMC document uploads
@@ -3496,7 +3497,7 @@ function resolveServiceUrls(services, serverBaseUrl) {
       img = `${serverBaseUrl}${img}`;
     } else {
       const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-      img = `${serverBaseUrl}/uploads/${cleanFilename}`;
+      img = `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
     }
     return {
       ...s,
