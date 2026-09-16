@@ -193,7 +193,50 @@ app.use('/uploads', async (req, res, next) => {
   const srvPath = path.join(__dirname, 'assets', 'services', relPath);
   if (fs.existsSync(srvPath)) return res.sendFile(srvPath);
 
-  // 4. Proxy check: Try fetching live uploaded file from Admin Backend if present
+  // 4. Instant 3D Category Asset Fallback check (serves 3D icons in 1ms, preventing proxy timeouts)
+  const norm = relPath.toLowerCase();
+
+  function sendCategoryFile(res, targetFilename) {
+    const catDir = path.join(__dirname, 'assets', 'categories');
+    const targetLower = targetFilename.toLowerCase();
+    try {
+      const files = fs.readdirSync(catDir);
+      const match = files.find(f => f.toLowerCase() === targetLower);
+      if (match) {
+        return res.sendFile(path.join(catDir, match));
+      }
+    } catch (e) {}
+    return res.sendFile(path.join(catDir, 'plumber_3d.png'));
+  }
+
+  // Check known category timestamp IDs & names
+  if (norm.includes('1786447188981') || norm.includes('car_wash') || norm.includes('carwashing') || (norm.includes('car') && norm.includes('wash'))) return sendCategoryFile(res, 'car_washing_3d.jpg');
+  if (norm.includes('1786436206314') || norm.includes('plumb')) return sendCategoryFile(res, 'plumber_3d.png');
+  if (norm.includes('1786436786199') || norm.includes('electr')) return sendCategoryFile(res, 'electrician_3d.png');
+  if (norm.includes('1786435950565') || norm.includes('salon')) return sendCategoryFile(res, 'salon_3d.jpg');
+  if (norm.includes('1786442488680') || norm.includes('spa')) return sendCategoryFile(res, 'spa_3d.png');
+  if (norm.includes('1786435733935') || norm.includes('clean')) return sendCategoryFile(res, 'cleaning_3d.jpg');
+  if (norm.includes('1786446437586') || norm.includes('architect')) return sendCategoryFile(res, 'architecture_3d.png');
+  if (norm.includes('1786446696715') || norm.includes('carpen')) return sendCategoryFile(res, 'carpenter_3d.jpg');
+  if (norm.includes('1786447506154') || norm.includes('mechanic')) return sendCategoryFile(res, 'mechanic_3d.png');
+  if (norm.includes('1786443552623') || norm.includes('ac_repair') || norm.includes('ac-repair')) return sendCategoryFile(res, 'ac_repair_3d.jpg');
+  if (norm.includes('1786443775719') || norm.includes('advocate')) return sendCategoryFile(res, 'advocate_3d.jpg');
+  if (norm.includes('1786444894705') || norm.includes('compound')) return sendCategoryFile(res, 'compounder_3d.png');
+  if (norm.includes('1786449409020') || norm.includes('doctor')) return sendCategoryFile(res, 'doctor_3d.png');
+  if (norm.includes('1786448684632') || norm.includes('cater') || norm.includes('halwai')) return sendCategoryFile(res, 'caters_3d.jpg');
+  if (norm.includes('1786449239057') || norm.includes('driver')) return sendCategoryFile(res, 'driver_3d.jpg');
+  if (norm.includes('1786450010056') || norm.includes('interior')) return sendCategoryFile(res, 'interior_design_3d.png');
+  if (norm.includes('1786450312316') || norm.includes('pest')) return sendCategoryFile(res, 'pest_control_3d.jpg');
+  if (norm.includes('1786450771532') || norm.includes('photo')) return sendCategoryFile(res, 'photographer_3d.jpg');
+  if (norm.includes('1786451019343') || norm.includes('paint')) return sendCategoryFile(res, 'painter_3d.jpg');
+  if (norm.includes('1786451422502') || norm.includes('repair')) return sendCategoryFile(res, 'repairing_3d.jpg');
+  if (norm.includes('1786451601583') || norm.includes('solar')) return sendCategoryFile(res, 'solar_3d.png');
+  if (norm.includes('1786451938166') || norm.includes('tax')) return sendCategoryFile(res, 'tax_consultancy_3d.jpg');
+  if (norm.includes('1786452243309') || norm.includes('contract')) return sendCategoryFile(res, 'contractor_3d.png');
+  if (norm.includes('1786452463146') || norm.includes('pandit') || norm.includes('pandat')) return sendCategoryFile(res, 'pandat_ji_3d.png');
+  if (norm.includes('1786452895272') || norm.includes('velding') || norm.includes('iron')) return sendCategoryFile(res, 'velding_icon_3d.png');
+
+  // 5. Proxy check: Try fetching live uploaded file from Admin Backend if present
   try {
     const https = require('https');
     const adminUrl = `https://adminbackend-1-h03r.onrender.com/uploads/${encodeURIComponent(relPath)}`;
@@ -220,103 +263,6 @@ app.use('/uploads', async (req, res, next) => {
     if (proxied) return;
   } catch (e) {
     console.warn(`[Proxy uploads error for ${relPath}]:`, e.message);
-  }
-
-  // 5. Fallback logic when file is absent locally AND on Admin Backend
-  const norm = relPath.toLowerCase();
-
-  function sendCategoryFile(res, targetFilename) {
-    const catDir = path.join(__dirname, 'assets', 'categories');
-    const targetLower = targetFilename.toLowerCase();
-    try {
-      const files = fs.readdirSync(catDir);
-      const match = files.find(f => f.toLowerCase() === targetLower);
-      if (match) {
-        return res.sendFile(path.join(catDir, match));
-      }
-    } catch (e) {}
-    return res.sendFile(path.join(catDir, 'plumber_3d.png'));
-  }
-
-  // Car Washing
-  if (norm.includes('1786447188981') || norm.includes('car') || norm.includes('wash') || norm.includes('auto') || norm.includes('detailing')) {
-    return sendCategoryFile(res, 'car_washing_3d.jpg');
-  }
-  // Plumber
-  if (norm.includes('1786436206314') || norm.includes('plumb') || norm.includes('tap') || norm.includes('pipe') || norm.includes('sink')) {
-    return sendCategoryFile(res, 'plumber_3d.png');
-  }
-  // Electrician
-  if (norm.includes('1786436786199') || norm.includes('wire') || norm.includes('electr') || norm.includes('fan') || norm.includes('switch')) {
-    return sendCategoryFile(res, 'electrician_3d.png');
-  }
-  // Salon
-  if (norm.includes('1786435950565') || norm.includes('salon') || norm.includes('hair') || norm.includes('beauty') || norm.includes('makeup')) {
-    return sendCategoryFile(res, 'salon_3d.jpg');
-  }
-  // Spa
-  if (norm.includes('1786442488680') || norm.includes('spa') || norm.includes('massage')) {
-    return sendCategoryFile(res, 'spa_3d.png');
-  }
-  // Architecture / Interior
-  if (norm.includes('1786446437586') || norm.includes('1786450010056') || norm.includes('architect') || norm.includes('interior') || norm.includes('draft')) {
-    return sendCategoryFile(res, 'architecture_3d.png');
-  }
-  // Carpenter
-  if (norm.includes('1786446696715') || norm.includes('carpen') || norm.includes('wood') || norm.includes('furniture')) {
-    return sendCategoryFile(res, 'carpenter_3d.jpg');
-  }
-  // Mechanic
-  if (norm.includes('1786447506154') || norm.includes('mechanic') || norm.includes('engine') || norm.includes('motor')) {
-    return sendCategoryFile(res, 'mechanic_3d.png');
-  }
-  // AC Repair
-  if (norm.includes('1786443552623') || norm.includes('ac') || norm.includes('cool')) {
-    return sendCategoryFile(res, 'ac_repair_3d.jpg');
-  }
-  // Advocate
-  if (norm.includes('1786443775719') || norm.includes('advocate') || norm.includes('legal') || norm.includes('lawyer')) {
-    return sendCategoryFile(res, 'advocate_3d.jpg');
-  }
-  // Compounder
-  if (norm.includes('1786444894705') || norm.includes('compound') || norm.includes('nurse')) {
-    return sendCategoryFile(res, 'compounder_3d.png');
-  }
-  // Doctor
-  if (norm.includes('1786449409020') || norm.includes('doctor') || norm.includes('health')) {
-    return sendCategoryFile(res, 'doctor_3d.png');
-  }
-  // Catering / Halwai
-  if (norm.includes('1786448684632') || norm.includes('cater') || norm.includes('chef') || norm.includes('halwai')) {
-    return sendCategoryFile(res, 'caters_3d.jpg');
-  }
-  // Driver
-  if (norm.includes('1786449239057') || norm.includes('driver')) {
-    return sendCategoryFile(res, 'driver_3d.jpg');
-  }
-  // Pest Control
-  if (norm.includes('1786450312316') || norm.includes('pest')) {
-    return sendCategoryFile(res, 'pest_control_3d.jpg');
-  }
-  // Photographer
-  if (norm.includes('1786450771532') || norm.includes('photo')) {
-    return sendCategoryFile(res, 'photographer_3d.jpg');
-  }
-  // Painter
-  if (norm.includes('1786451019343') || norm.includes('paint') || norm.includes('color')) {
-    return sendCategoryFile(res, 'painter_3d.jpg');
-  }
-  // Repairing
-  if (norm.includes('1786451422502') || norm.includes('repair')) {
-    return sendCategoryFile(res, 'repairing_3d.jpg');
-  }
-  // Solar
-  if (norm.includes('1786451601583') || norm.includes('solar') || norm.includes('panel')) {
-    return sendCategoryFile(res, 'solar_3d.png');
-  }
-  // Tax Consultancy
-  if (norm.includes('1786451938166') || norm.includes('tax')) {
-    return sendCategoryFile(res, 'tax_consultancy_3d.jpg');
   }
   // Contractor
   if (norm.includes('1786452243309') || norm.includes('contract')) {
