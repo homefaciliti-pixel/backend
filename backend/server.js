@@ -58,20 +58,19 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 };
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
+  const local3dUrl = getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
   let img = c.image || "";
-  if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
-  if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    const filename = path.basename(img);
-    return `${serverBaseUrl}/uploads/${filename}`;
-  }
-  if (img.startsWith('http://') || img.startsWith('https://')) {
-    return img;
+  
+  if (!img || img.includes('adminbackend-1-h03r')) {
+    return local3dUrl;
   }
   if (img.startsWith('/assets/')) {
     return `${serverBaseUrl}${img}`;
   }
-  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `${serverBaseUrl}/uploads/${cleanFilename}`;
+  if (img.startsWith('http://') || img.startsWith('https://')) {
+    return img;
+  }
+  return local3dUrl;
 };
 
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
@@ -446,24 +445,24 @@ const handleBookingStatusSmsTrigger = async (order, oldStatus, newStatus) => {
 const DB_FILE = path.join(__dirname, 'database.json');
 
 const DEFAULT_CATEGORIES = [
-  { id: "ac_repair", name: "AcRepair", image: "/assets/categories/ac_repair.png" },
-  { id: "car_washing", name: "Car Washing", image: "/assets/categories/car_washing.png" },
-  { id: "plumber", name: "Plumber", image: "/assets/categories/plumber.png" },
-  { id: "cleaning", name: "Cleaning", image: "/assets/categories/cleaning.png" },
-  { id: "electrician", name: "Electrician", image: "/assets/categories/electrician.png" },
-  { id: "salon_and_spa", name: "Salon And Spa", image: "/assets/categories/salon_and_spa.png" },
-  { id: "painter", name: "Painter", image: "/assets/categories/painter.png" },
-  { id: "carpenter", name: "Carpenter", image: "/assets/categories/carpenter.png" },
-  { id: "bike_services", name: "Bike Services", image: "/assets/categories/bike_services.png" },
-  { id: "architecture", name: "Architecture", image: "/assets/categories/architecture.png" },
-  { id: "contractor", name: "Contractor", image: "/assets/categories/contractor.png" },
-  { id: "mechanic", name: "Mechanic", image: "/assets/categories/mechanic.png" },
-  { id: "pandit_ji", name: "Pandit ji", image: "/assets/categories/pandit_ji.png" },
-  { id: "driver", name: "Driver", image: "/assets/categories/driver.png" },
-  { id: "photographer", name: "Photographer", image: "/assets/categories/photographer.png" },
-  { id: "doctors", name: "Doctors", image: "/assets/categories/doctors.png" },
-  { id: "compounder", name: "Compounder", image: "/assets/categories/compounder.png" },
-  { id: "halwai", name: "Halwai", image: "/assets/categories/halwai.png" }
+  { id: "ac_repair", name: "AcRepair", image: "/assets/categories/ac_repair_3d.jpg" },
+  { id: "car_washing", name: "Car Washing", image: "/assets/categories/car_washing_3d.jpg" },
+  { id: "plumber", name: "Plumber", image: "/assets/categories/plumber_3d.png" },
+  { id: "cleaning", name: "Cleaning", image: "/assets/categories/cleaning_3d.jpg" },
+  { id: "electrician", name: "Electrician", image: "/assets/categories/electrician_3d.png" },
+  { id: "salon_and_spa", name: "Salon And Spa", image: "/assets/categories/salon_3d.jpg" },
+  { id: "painter", name: "Painter", image: "/assets/categories/painter_3d.jpg" },
+  { id: "carpenter", name: "Carpenter", image: "/assets/categories/carpenter_3d.jpg" },
+  { id: "bike_services", name: "Bike Services", image: "/assets/categories/bike_services_3d.jpg" },
+  { id: "architecture", name: "Architecture", image: "/assets/categories/architecture_3d.png" },
+  { id: "contractor", name: "Contractor", image: "/assets/categories/contractor_3d.png" },
+  { id: "mechanic", name: "Mechanic", image: "/assets/categories/mechanic_3d.png" },
+  { id: "pandit_ji", name: "Pandit ji", image: "/assets/categories/pandat_ji_3d.png" },
+  { id: "driver", name: "Driver", image: "/assets/categories/driver_3d.jpg" },
+  { id: "photographer", name: "Photographer", image: "/assets/categories/photographer_3d.jpg" },
+  { id: "doctors", name: "Doctors", image: "/assets/categories/doctor_3d.png" },
+  { id: "compounder", name: "Compounder", image: "/assets/categories/compounder_3d.png" },
+  { id: "halwai", name: "Halwai", image: "/assets/categories/caters_3d.jpg" }
 ];
 
 // ----------------------------------------
