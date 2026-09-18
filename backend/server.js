@@ -59,20 +59,8 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 };
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
-  let img = c.image || "";
-  if (!img) return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
-  
-  if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    return img;
-  }
-  if (img.startsWith('http://') || img.startsWith('https://')) {
-    return img;
-  }
-  if (img.startsWith('/assets/')) {
-    return `${serverBaseUrl}${img}`;
-  }
-  const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+  // Always use static local icons from assets/categories to prevent database load
+  return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
 };
 
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
