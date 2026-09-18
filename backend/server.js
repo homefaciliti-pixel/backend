@@ -3003,45 +3003,7 @@ app.get('/api/banners', async (req, res) => {
     }));
   }
 
-  // Load unserviceable pincodes from JSON and check user's pincode
-  try {
-    let unserviceablePincodes = new Set();
-    const fs = require('fs');
-    const path = require('path');
-    const pinFile = path.join(__dirname, 'unserviceable_pincodes.json');
-    if (fs.existsSync(pinFile)) {
-      unserviceablePincodes = new Set(JSON.parse(fs.readFileSync(pinFile, 'utf8')));
-    }
 
-    let userPincode = req.query.pincode || req.body.pincode || null;
-    if (!userPincode) {
-      const authUser = await getAuthenticatedUser(req).catch(() => null);
-      if (authUser) {
-        const addr = await resolveAddressForPhone(authUser.phone).catch(() => null);
-        if (addr) userPincode = String(addr.pincode || "").trim();
-      }
-    }
-
-    if (userPincode && unserviceablePincodes.has(userPincode)) {
-      const bannerImg = "https://placehold.co/800x250/FF3333/FFFFFF/png?text=We+are+currently+not+available+yet+at+your+location";
-      dbBanners.unshift({
-        id: "unserviceable_banner",
-        image: bannerImg,
-        bannerImage: bannerImg,
-        imageUrl: bannerImg,
-        photo: bannerImg,
-        url: bannerImg,
-        rawImage: bannerImg,
-        title: "Not Available",
-        category: "",
-        badge: "Location",
-        subtitle: "We are currently not available yet at your location",
-        buttonText: "Change Location"
-      });
-    }
-  } catch (err) {
-    console.warn("[DynamicBanners] Failed to inject unserviceable banner:", err.message);
-  }
 
   res.json({
     success: true,
@@ -6663,23 +6625,7 @@ const handlePostCheckout = async (req, res) => {
     const resolvedTimeSlot = timeSlot || (existingOrder ? existingOrder.timeSlot : null) || (await getDynamicDateAndSlot()).timeSlot;
     const resolvedAddressField = resolvedAddress || (existingOrder ? existingOrder.address : null);
     
-    // Block checkout for unserviceable pincodes
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const pinFile = path.join(__dirname, 'unserviceable_pincodes.json');
-      if (fs.existsSync(pinFile)) {
-        const unserviceablePincodes = new Set(JSON.parse(fs.readFileSync(pinFile, 'utf8')));
-        const pcode = resolvedAddressField ? String(resolvedAddressField.pincode || "").trim() : "";
-        if (pcode && unserviceablePincodes.has(pcode)) {
-          return res.status(200).json({ 
-            success: false, 
-            error: "We are currently not available yet at your location.",
-            message: "We are currently not available yet at your location."
-          });
-        }
-      }
-    } catch(e) {}
+
 
     const isOnlinePayment = paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay";
     const resolvedBookingStatus = isOnlinePayment ? "draft" : "searching";
