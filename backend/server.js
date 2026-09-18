@@ -2859,7 +2859,7 @@ app.get('/api/categories', async (req, res) => {
     const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-    const categories = dbCategories.map(c => {
+    let categories = dbCategories.map(c => {
       const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
       const localizedObj = localizeCategory(c, req.lang);
 
@@ -2871,6 +2871,23 @@ app.get('/api/categories', async (req, res) => {
         image: String(img || '')
       };
     });
+
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    
+    if (page && limit) {
+      const startIndex = (page - 1) * limit;
+      const endIndex = page * limit;
+      const paginatedCategories = categories.slice(startIndex, endIndex);
+      
+      return res.json({ 
+        success: true, 
+        categories: paginatedCategories,
+        currentPage: page,
+        totalPages: Math.ceil(categories.length / limit),
+        totalCategories: categories.length
+      });
+    }
 
     res.json({ success: true, categories: categories });
   } catch (err) {
