@@ -19,10 +19,10 @@ const getLocalCategoryAssetUrl = (name, serverBaseUrl) => {
   else if (norm.includes('clean')) file = '7_Cleaning.png';
   else if (norm.includes('architect') || norm.includes('arch')) file = '9_Architect.png';
   else if (norm.includes('carpen') || norm.includes('wood')) file = '11_Carpenter.png';
-  else if (norm.includes('car') || norm.includes('wash')) file = '27_Car_Washing.png';
+  else if (norm === 'car washing' || norm.includes('wash')) file = '27_Car_Washing.png';
   else if (norm.includes('mechanic')) file = '29_Mechanic.png';
   else if (norm.includes('spa')) file = '37_Spa.png';
-  else if (norm.includes('ac') || norm.includes('air')) file = '38_AC_Repair.png';
+  else if (norm.includes('ac repair') || norm.includes('air') || norm === 'ac' || norm.startsWith('ac ')) file = '38_AC_Repair.png';
   else if (norm.includes('advocate') || norm.includes('lawyer')) file = '39_Advocate.png';
   else if (norm.includes('compound') || norm.includes('nurse')) file = '40_Compounder.png';
   else if (norm.includes('halwai') || norm.includes('cater')) file = '41_Cater_s.png';
