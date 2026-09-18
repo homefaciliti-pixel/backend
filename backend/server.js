@@ -11,33 +11,34 @@ const { localizeCategory, localizeService, localizeAddress, runContentI18nMigrat
 
 const getLocalCategoryAssetUrl = (name, serverBaseUrl) => {
   const norm = (name || '').toLowerCase().trim();
-  let file = 'plumber_3d.png';
+  let file = '1_Plumber.png';
   
-  if (norm.includes('plumb')) file = 'plumber_3d.png';
-  else if (norm.includes('electric')) file = 'electrician_3d.png';
-  else if (norm === 'salon' || norm.includes('salon')) file = 'salon_3d.jpg';
-  else if (norm.includes('spa')) file = 'spa_3d.png';
-  else if (norm.includes('clean')) file = 'cleaning_3d.jpg';
-  else if (norm.includes('architect') || norm.includes('arch')) file = 'architecture_3d.png';
-  else if (norm.includes('carpen') || norm.includes('wood')) file = 'carpenter_3d.jpg';
-  else if (norm.includes('car') || norm.includes('wash')) file = 'car_washing_3d.jpg';
-  else if (norm.includes('mechanic')) file = 'mechanic_3d.png';
-  else if (norm.includes('ac') || norm.includes('air')) file = 'ac_repair_3d.jpg';
-  else if (norm.includes('paint')) file = 'painter_3d.jpg';
-  else if (norm.includes('bike') || norm.includes('motor')) file = 'bike_services_3d.jpg';
-  else if (norm.includes('driver')) file = 'driver_3d.jpg';
-  else if (norm.includes('photo')) file = 'photographer_3d.jpg';
-  else if (norm.includes('doctor') || norm.includes('doc')) file = 'doctor_3d.png';
-  else if (norm.includes('compound') || norm.includes('nurse')) file = 'compounder_3d.png';
-  else if (norm.includes('halwai') || norm.includes('cater')) file = 'caters_3d.jpg';
-  else if (norm.includes('contract')) file = 'contractor_3d.png';
-  else if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) file = 'pandat_ji_3d.png';
-  else if (norm.includes('pest')) file = 'pest_control_3d.jpg';
-  else if (norm.includes('solar')) file = 'solar_3d.png';
-  else if (norm.includes('tax')) file = 'tax_consultancy_3d.jpg';
-  else if (norm.includes('advocate') || norm.includes('legal')) file = 'advocate_3d.jpg';
-  else if (norm.includes('interior')) file = 'interior_design_3d.png';
-  else if (norm.includes('repair')) file = 'repairing_3d.jpg';
+  if (norm.includes('plumb')) file = '1_Plumber.png';
+  else if (norm.includes('electric')) file = '3_Electrician.png';
+  else if (norm === 'salon' || norm.includes('salon')) file = '5_Salon.png';
+  else if (norm.includes('clean')) file = '7_Cleaning.png';
+  else if (norm.includes('architect') || norm.includes('arch')) file = '9_Architect.png';
+  else if (norm.includes('carpen') || norm.includes('wood')) file = '11_Carpenter.png';
+  else if (norm.includes('car') || norm.includes('wash')) file = '27_Car_Washing.png';
+  else if (norm.includes('mechanic')) file = '29_Mechanic.png';
+  else if (norm.includes('spa')) file = '37_Spa.png';
+  else if (norm.includes('ac') || norm.includes('air')) file = '38_AC_Repair.png';
+  else if (norm.includes('advocate') || norm.includes('lawyer')) file = '39_Advocate.png';
+  else if (norm.includes('compound') || norm.includes('nurse')) file = '40_Compounder.png';
+  else if (norm.includes('halwai') || norm.includes('cater')) file = '41_Cater_s.png';
+  else if (norm.includes('driver')) file = '42_Driver.png';
+  else if (norm.includes('doctor') || norm.includes('doc')) file = '43_Doctor.png';
+  else if (norm.includes('interior')) file = '45_Interior_Design.png';
+  else if (norm.includes('pest')) file = '46_Pest_Control.png';
+  else if (norm.includes('photo')) file = '48_Photographer.png';
+  else if (norm.includes('paint')) file = '49_Painter.png';
+  else if (norm.includes('repair')) file = '50_Repairing.png';
+  else if (norm.includes('solar')) file = '51_Solar.png';
+  else if (norm.includes('tax')) file = '52_Tax_Consultancy.png';
+  else if (norm.includes('contract')) file = '57_Contractor.png';
+  else if (norm.includes('pandit') || norm.includes('puja') || norm.includes('pooja')) file = '58_Pandit_Ji.jpg';
+  else if (norm.includes('iron') || norm.includes('weld')) file = '60_Iron_Works.png';
+  else if (norm.includes('bike') || norm.includes('motor')) file = '29_Mechanic.png'; // Fallback to mechanic for bikes
   
   return `${serverBaseUrl}/assets/categories/${file}`;
 };
