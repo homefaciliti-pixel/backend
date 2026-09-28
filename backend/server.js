@@ -58,6 +58,72 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
   return `${serverBaseUrl}/assets/banners/${file}`;
 };
 
+let cachedAdminCategories = null;
+let lastAdminCatFetchTime = 0;
+let cachedAdminServices = null;
+let lastAdminSvcFetchTime = 0;
+const ADMIN_FETCH_TTL = 30000; // 30s cache
+
+async function fetchAdminBackendCategories() {
+  const now = Date.now();
+  if (cachedAdminCategories && (now - lastAdminCatFetchTime < ADMIN_FETCH_TTL)) {
+    return cachedAdminCategories;
+  }
+  try {
+    const https = require('https');
+    const data = await new Promise((resolve) => {
+      https.get('https://adminbackend-1-h03r.onrender.com/api/categories', { timeout: 4000 }, (res) => {
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.data && Array.isArray(parsed.data)) return resolve(parsed.data);
+          } catch(e){}
+          resolve([]);
+        });
+      }).on('error', () => resolve([]));
+    });
+    if (data.length > 0) {
+      cachedAdminCategories = data;
+      lastAdminCatFetchTime = now;
+    }
+    return cachedAdminCategories || data;
+  } catch(e) {
+    return cachedAdminCategories || [];
+  }
+}
+
+async function fetchAdminBackendServices() {
+  const now = Date.now();
+  if (cachedAdminServices && (now - lastAdminSvcFetchTime < ADMIN_FETCH_TTL)) {
+    return cachedAdminServices;
+  }
+  try {
+    const https = require('https');
+    const data = await new Promise((resolve) => {
+      https.get('https://adminbackend-1-h03r.onrender.com/api/services', { timeout: 6000 }, (res) => {
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.data && Array.isArray(parsed.data)) return resolve(parsed.data);
+          } catch(e){}
+          resolve([]);
+        });
+      }).on('error', () => resolve([]));
+    });
+    if (data.length > 0) {
+      cachedAdminServices = data;
+      lastAdminSvcFetchTime = now;
+    }
+    return cachedAdminServices || data;
+  } catch(e) {
+    return cachedAdminServices || [];
+  }
+}
+
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   // Always use static local icons from assets/categories to prevent database load
   return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
@@ -1117,10 +1183,37 @@ const MySqlDbLayer = {
   },
 
   async getCategories() {
-    // Read directly from node_categories table
-    const [rows] = await mysqlPool.query(
-      "SELECT * FROM node_categories WHERE status IN (0, 1) OR status IS NULL"
-    );
+    let rows = [];
+    try {
+      const [resRows] = await mysqlPool.query(
+        "SELECT * FROM node_categories WHERE status IN (0, 1) OR status IS NULL"
+      );
+      rows = resRows || [];
+    } catch(e) {}
+
+    try {
+      const adminCats = await fetchAdminBackendCategories();
+      if (adminCats && adminCats.length > 0) {
+        const existingIds = new Set(rows.map(r => String(r.id)));
+        const existingTitles = new Set(rows.map(r => String(r.title || r.name || '').toLowerCase().trim()));
+
+        adminCats.forEach(ac => {
+          const aId = String(ac.id);
+          const aTitle = String(ac.title || ac.name || '').trim();
+          if (!existingIds.has(aId) && !existingTitles.has(aTitle.toLowerCase())) {
+            rows.push({
+              id: aId,
+              title: aTitle,
+              name: aTitle,
+              parent: ac.parent || 'Main Category',
+              image: ac.image || '',
+              status: ac.status ? 1 : 0
+            });
+          }
+        });
+      }
+    } catch(e) {}
+
     return rows.map(r => {
       let img = r.image || "";
       if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
