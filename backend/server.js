@@ -1119,7 +1119,7 @@ const MySqlDbLayer = {
   async getCategories() {
     // Read directly from node_categories table
     const [rows] = await mysqlPool.query(
-      "SELECT * FROM node_categories WHERE status = 1"
+      "SELECT * FROM node_categories WHERE status IN (0, 1) OR status IS NULL"
     );
     return rows.map(r => {
       let img = r.image || "";
@@ -1129,44 +1129,59 @@ const MySqlDbLayer = {
       return {
         ...r,
         id: String(r.id),
-        name: r.title,
-        image: img
+        name: r.title || r.name || "",
+        title: r.title || r.name || "",
+        image: img,
+        status: r.status === 0 ? 0 : 1
       };
     });
   },
 
   async addCategory(categoryData) {
-    const { name, id, image, parent } = categoryData;
+    const { name, title, id, image, parent, status } = categoryData;
+    const catTitle = title || name || "";
     const parentVal = parent || 'Main Category';
-    await mysqlPool.query(
-      "INSERT INTO node_categories (title, parent, image, status) VALUES (?, ?, ?, 1)",
-      [name, parentVal, image || ""]
-    );
-    const row = await this.queryOne("SELECT * FROM node_categories WHERE title = ?", [name]);
-    if (!row) return null;
-    let img = row.image || "";
-    if (img && !img.startsWith('http') && !img.startsWith('https') && !img.startsWith('/assets/')) {
-      img = `https://adminbackend-1-h03r.onrender.com/uploads/${img.replace(/^uploads\//, '')}`;
+    const catStatus = status !== undefined ? (status === 'inactive' || status === 0 ? 0 : 1) : 1;
+    let insertId;
+    if (id && !isNaN(id)) {
+      await mysqlPool.query(
+        "INSERT INTO node_categories (id, title, parent, image, status) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), image=VALUES(image), status=VALUES(status)",
+        [parseInt(id), catTitle, parentVal, image || "", catStatus]
+      );
+      insertId = id;
+    } else {
+      const [res] = await mysqlPool.query(
+        "INSERT INTO node_categories (title, parent, image, status) VALUES (?, ?, ?, ?)",
+        [catTitle, parentVal, image || "", catStatus]
+      );
+      insertId = res.insertId;
     }
+    try { JsonDbLayer.addCategory({ id: String(insertId), name: catTitle, title: catTitle, image: image || "", parent: parentVal, status: catStatus }); } catch(e){}
     return {
-      id: String(row.id),
-      name: row.title,
-      image: img
+      id: String(insertId),
+      name: catTitle,
+      title: catTitle,
+      image: image || "",
+      parent: parentVal,
+      status: catStatus
     };
   },
 
   async updateCategory(id, categoryData) {
-    const { name, title, image, status } = categoryData;
-    const catTitle = title || name || "";
+    const { name, title, image, status, parent } = categoryData;
+    const catTitle = title || name || null;
+    const catStatus = status !== undefined ? (status === 'inactive' || status === 0 ? 0 : 1) : null;
     await mysqlPool.query(
-      "UPDATE node_categories SET title = IFNULL(?, title), image = IFNULL(?, image), status = IFNULL(?, status) WHERE id = ?",
-      [catTitle || null, image || null, status !== undefined ? status : 1, id]
+      "UPDATE node_categories SET title = IFNULL(?, title), image = IFNULL(?, image), status = IFNULL(?, status), parent = IFNULL(?, parent) WHERE id = ?",
+      [catTitle, image || null, catStatus, parent || null, id]
     );
-    return { id: String(id), name: catTitle, image: image || "" };
+    try { JsonDbLayer.updateCategory(id, categoryData); } catch(e){}
+    return { id: String(id), name: catTitle || title || name, title: catTitle || title || name, image: image || "" };
   },
 
   async deleteCategory(id) {
     await mysqlPool.query("DELETE FROM node_categories WHERE id = ?", [id]);
+    try { JsonDbLayer.deleteCategory(id); } catch(e){}
     return true;
   },
 
@@ -1196,27 +1211,49 @@ const MySqlDbLayer = {
   },
 
   async addService(serviceData) {
-    const { title, name, category, category_id, price, description, image } = serviceData;
+    const { title, name, category, category_id, categoryId, price, description, image, status } = serviceData;
     const srvTitle = title || name || "";
+    let finalCatId = category_id || categoryId || category || 1;
+    if (typeof finalCatId === 'string' && isNaN(finalCatId)) {
+      try {
+        const [catRows] = await mysqlPool.query("SELECT id FROM node_categories WHERE LOWER(title) = ? LIMIT 1", [finalCatId.toLowerCase()]);
+        if (catRows.length > 0) {
+          finalCatId = catRows[0].id;
+        }
+      } catch(e){}
+    }
+    const srvStatus = status !== undefined ? (status === 'inactive' || status === 0 ? 0 : 1) : 1;
     const [res] = await mysqlPool.query(
-      "INSERT INTO node_services (title, category_id, price, description, image, status) VALUES (?, ?, ?, ?, ?, 1)",
-      [srvTitle, category_id || 1, price || 0, description || "", image || ""]
+      "INSERT INTO node_services (title, category_id, price, description, image, status) VALUES (?, ?, ?, ?, ?, ?)",
+      [srvTitle, finalCatId, price || 0, description || "", image || "", srvStatus]
     );
-    return { id: String(res.insertId), title: srvTitle, price, image };
+    const newService = { id: String(res.insertId), title: srvTitle, category_id: String(finalCatId), categoryId: String(finalCatId), price, description, image, status: srvStatus };
+    try { JsonDbLayer.addService(newService); } catch(e){}
+    return newService;
   },
 
   async updateService(id, serviceData) {
-    const { title, name, price, description, image, status } = serviceData;
+    const { title, name, price, description, image, status, category_id, categoryId, category } = serviceData;
     const srvTitle = title || name || null;
+    let finalCatId = category_id || categoryId || category || null;
+    if (typeof finalCatId === 'string' && isNaN(finalCatId)) {
+      try {
+        const [catRows] = await mysqlPool.query("SELECT id FROM node_categories WHERE LOWER(title) = ? LIMIT 1", [finalCatId.toLowerCase()]);
+        if (catRows.length > 0) finalCatId = catRows[0].id;
+      } catch(e){}
+    }
+    const srvStatus = status !== undefined ? (status === 'inactive' || status === 0 ? 0 : 1) : null;
     await mysqlPool.query(
-      "UPDATE node_services SET title = IFNULL(?, title), price = IFNULL(?, price), description = IFNULL(?, description), image = IFNULL(?, image), status = IFNULL(?, status) WHERE id = ?",
-      [srvTitle, price || null, description || null, image || null, status !== undefined ? status : 1, id]
+      "UPDATE node_services SET title = IFNULL(?, title), category_id = IFNULL(?, category_id), price = IFNULL(?, price), description = IFNULL(?, description), image = IFNULL(?, image), status = IFNULL(?, status) WHERE id = ?",
+      [srvTitle, finalCatId, price || null, description || null, image || null, srvStatus, id]
     );
+    try { JsonDbLayer.updateService(id, serviceData); } catch(e){}
     return { id: String(id), ...serviceData };
   },
 
   async deleteService(id) {
     await mysqlPool.query("DELETE FROM node_services WHERE id = ?", [id]);
+    try { JsonDbLayer.deleteService(id); } catch(e){}
     return true;
   },
 
@@ -2935,9 +2972,25 @@ app.get('/api/categories', async (req, res) => {
           variants: varts
       };
 
+      const catName = String(s.categoryName || s.category_name || s.category || '').trim();
+      const catKeyLower = catId.toLowerCase().trim();
+      const catNameLower = catName.toLowerCase().trim();
+
       if (catId) {
         if (!servicesByCat[catId]) servicesByCat[catId] = [];
         servicesByCat[catId].push(mappedService);
+        if (catKeyLower !== catId) {
+          if (!servicesByCat[catKeyLower]) servicesByCat[catKeyLower] = [];
+          servicesByCat[catKeyLower].push(mappedService);
+        }
+      }
+      if (catName) {
+        if (!servicesByCat[catName]) servicesByCat[catName] = [];
+        servicesByCat[catName].push(mappedService);
+        if (catNameLower !== catName) {
+          if (!servicesByCat[catNameLower]) servicesByCat[catNameLower] = [];
+          servicesByCat[catNameLower].push(mappedService);
+        }
       }
     });
 
@@ -2946,9 +2999,12 @@ app.get('/api/categories', async (req, res) => {
       const localizedObj = typeof localizeCategory === 'function' ? localizeCategory(c, req.lang) : c;
       const catIdStr = String(localizedObj.id || c.id || '');
 
-      // Check if services match by ID or by title
+      // Check if services match by ID, ID lowercase, title, or title lowercase
       const catTitle = String(localizedObj.name || c.title || c.name || '');
-      const catServices = servicesByCat[catIdStr] || servicesByCat[catTitle] || [];
+      const catIdLower = catIdStr.toLowerCase().trim();
+      const catTitleLower = catTitle.toLowerCase().trim();
+
+      const catServices = servicesByCat[catIdStr] || servicesByCat[catIdLower] || servicesByCat[catTitle] || servicesByCat[catTitleLower] || [];
 
       return {
         categoryId: catIdStr,
