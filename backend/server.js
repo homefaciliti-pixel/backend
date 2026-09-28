@@ -120,8 +120,8 @@ function parseOrderNumbers(row) {
   row.address = safeJsonParse(row.address);
   row.payment = safeJsonParse(row.payment);
   row.items = safeJsonParse(row.items) || [];
-  row.advancePayment = row.advancePayment !== undefined && row.advancePayment !== null ? Math.round(Number(row.advancePayment)) : 199;
-  row.remainingAmount = row.remainingAmount !== undefined && row.remainingAmount !== null ? Math.round(Number(row.remainingAmount)) : 0;
+  row.advancePayment = row.advancePayment !== undefined && row.advancePayment !== null ? Math.round(Number(row.advancePayment)) : 0;
+  row.remainingAmount = row.remainingAmount !== undefined && row.remainingAmount !== null ? Math.round(Number(row.remainingAmount)) : (row.price ? Math.round(Number(row.price)) : 0);
   return row;
 }
 
@@ -1048,8 +1048,8 @@ const MySqlDbLayer = {
     const finalItems = items ? JSON.stringify(items) : null;
     const finalCreatedAt = createdAt || Date.now();
     const finalAmcId = amcId || null;
-    const finalAdvance = advancePayment !== undefined ? advancePayment : 199.00;
-    const finalRemaining = remainingAmount !== undefined ? remainingAmount : 0.00;
+    const finalAdvance = advancePayment !== undefined ? advancePayment : 0.00;
+    const finalRemaining = remainingAmount !== undefined ? remainingAmount : (price !== undefined ? price : 0.00);
 
     await mysqlPool.query(
       `INSERT INTO node_orders_v2 (
@@ -1136,10 +1136,11 @@ const MySqlDbLayer = {
   },
 
   async addCategory(categoryData) {
-    const { name, id, image } = categoryData;
+    const { name, id, image, parent } = categoryData;
+    const parentVal = parent || 'Main Category';
     await mysqlPool.query(
-      "INSERT INTO node_categories (title, parent, image, status) VALUES (?, 'None', ?, 1)",
-      [name, image || ""]
+      "INSERT INTO node_categories (title, parent, image, status) VALUES (?, ?, ?, 1)",
+      [name, parentVal, image || ""]
     );
     const row = await this.queryOne("SELECT * FROM node_categories WHERE title = ?", [name]);
     if (!row) return null;
@@ -2048,7 +2049,6 @@ const SERVICES_DATA = {
   ],
   "Cleaning": [
     { title: "Home Cleaning", price: 999, description: "Full house cleaning service", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400&auto=format&fit=crop", discount: 23, rating: 4.9, reviewsCount: 312, cutPrice: 1299 },
-    { title: "Bathroom Cleaning", price: 499, description: "Deep bathroom cleaning", image: "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?q=80&w=400&auto=format&fit=crop", discount: 16, rating: 4.7, reviewsCount: 154, cutPrice: 599 },
     { title: "Sofa & Carpet Cleaning", price: 799, description: "Vacuuming and steam sanitizing fabric surfaces", image: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=400&auto=format&fit=crop", discount: 20, rating: 4.6, reviewsCount: 120, cutPrice: 999 },
     { title: "Window Cleaning", price: 299, description: "Sparkling glass and pane washing inside-out", image: "https://images.unsplash.com/photo-1528740561666-bd247e66a20c?q=80&w=400&auto=format&fit=crop", discount: 25, rating: 4.5, reviewsCount: 74, cutPrice: 399 }
   ],
@@ -2859,51 +2859,165 @@ app.get('/api/categories', async (req, res) => {
     const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-    let categories = dbCategories.map(c => {
+    // Fetch all services and variants to attach to categories
+    let allServices = [];
+    let allVariants = [];
+    if (mysqlReady) {
+      try {
+        const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE status IN (0, 1)");
+        allServices = srvRows.map(r => {
+           let s = sanitizeServiceDbObj(r, serverBaseUrl);
+           return typeof localizeService === 'function' ? localizeService(s, req.lang) : s;
+        });
+        
+        try {
+          const [varRows] = await mysqlPool.query("SELECT * FROM service_variants");
+          allVariants = varRows;
+        } catch(e) {
+          console.warn("Failed to fetch service variants:", e.message);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch services for categories endpoint:", err.message);
+      }
+    } else {
+      // Fallback to JSON db for services
+      try {
+        const data = readDataFromJsonDb();
+        if (data && data.services) {
+          allServices = data.services.filter(s => s.status === 1 || s.status === 0 || s.status === undefined).map(s => {
+             return typeof localizeService === 'function' ? localizeService(s, req.lang) : s;
+          });
+        }
+      } catch(e) {}
+    }
+
+    // Group variants by service_id
+    const variantsBySrv = {};
+    allVariants.forEach(v => {
+      const sId = String(v.service_id || '');
+      if (sId) {
+        if (!variantsBySrv[sId]) variantsBySrv[sId] = [];
+        variantsBySrv[sId].push({
+           variantId: String(v.id),
+           name: String(v.title || v.name || ''),
+           description: String(v.description || ''),
+           price: Number(v.price || 0),
+           cutPrice: Number(v.cutPrice || v.price || 0),
+           discount: Number(v.discount || 0),
+           duration: Number(v.duration || 60),
+           status: v.status === 0 ? "inactive" : "active"
+        });
+      }
+    });
+
+    // Group services by category
+    const servicesByCat = {};
+    allServices.forEach(s => {
+      const catId = String(s.category_id || s.categoryId || s.category || '');
+      const srvIdStr = String(s.id || s.serviceId || '');
+      const varts = variantsBySrv[srvIdStr] || [];
+      
+      const mappedService = {
+          serviceId: srvIdStr,
+          productDbId: srvIdStr,
+          title: String(s.title || ''),
+          subtitle: String(s.subtitle || ''),
+          description: String(s.description || ''),
+          image: String(s.image || ''),
+          categoryId: catId,
+          status: s.status === 0 ? "inactive" : "active",
+          rating: Number(s.rating || 4.5),
+          reviewsCount: Number(s.reviewsCount || 0),
+          discount: Number(s.discount || 0),
+          cutPrice: Number(s.cutPrice || s.price || 0),
+          price: Number(s.price || 0),
+          hasVariants: varts.length > 0,
+          variants: varts
+      };
+
+      if (catId) {
+        if (!servicesByCat[catId]) servicesByCat[catId] = [];
+        servicesByCat[catId].push(mappedService);
+      }
+    });
+
+    let categoriesList = dbCategories.map(c => {
       const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
-      const localizedObj = localizeCategory(c, req.lang);
+      const localizedObj = typeof localizeCategory === 'function' ? localizeCategory(c, req.lang) : c;
+      const catIdStr = String(localizedObj.id || c.id || '');
+
+      // Check if services match by ID or by title
+      const catTitle = String(localizedObj.name || c.title || c.name || '');
+      const catServices = servicesByCat[catIdStr] || servicesByCat[catTitle] || [];
 
       return {
-        ...c,
-        id: String(localizedObj.id || c.id || ''),
-        name: String(localizedObj.name || c.name || c.title || ''),
-        title: String(localizedObj.name || c.title || c.name || ''),
-        image: String(img || '')
+        categoryId: catIdStr,
+        categoryName: catTitle,
+        categoryImage: String(img || ''),
+        status: c.status === 0 ? "inactive" : "active",
+        services: catServices
       };
     });
 
-    const page = parseInt(req.query.page);
-    const limit = parseInt(req.query.limit);
-    
-    if (page && limit) {
-      const startIndex = (page - 1) * limit;
-      const endIndex = page * limit;
-      const paginatedCategories = categories.slice(startIndex, endIndex);
-      
-      return res.json({ 
-        success: true, 
-        categories: paginatedCategories,
-        currentPage: page,
-        totalPages: Math.ceil(categories.length / limit),
-        totalCategories: categories.length
-      });
-    }
+    // Handle Subcategories logic if parent logic remains
+    const subCategoriesByParent = {};
+    const rootCategories = [];
 
-    res.json({ success: true, categories: categories });
+    categoriesList.forEach(c => {
+      // In original code, we checked 'parent' on dbCategories. Need to map it properly.
+      const originalCat = dbCategories.find(dbC => String(dbC.id) === String(c.categoryId)) || {};
+      const parent = originalCat.parent;
+      if (parent && parent !== 'Main Category' && parent !== '') {
+        if (!subCategoriesByParent[parent]) subCategoriesByParent[parent] = [];
+        subCategoriesByParent[parent].push(c);
+      } else {
+        rootCategories.push(c);
+      }
+    });
+
+    // If subcategories are not explicitly requested in the json format, we might just return all or nest them.
+    // The user's JSON format doesn't have subCategories array, but we can leave them flat or just return rootCategories.
+    // Let's return all categories flat if subcategories are not nested, or nest them if needed.
+    // Assuming user wants all categories (or just root categories):
+    let categories = categoriesList; 
+    
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 20;
+    
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedCategories = categories.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(categories.length / limit);
+
+    res.json({ 
+      success: true, 
+      message: "Services fetched successfully",
+      data: {
+        categories: paginatedCategories
+      },
+      pagination: {
+        page: page,
+        limit: limit,
+        total: categories.length,
+        totalPages: totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    });
   } catch (err) {
     console.error("Fetch categories failed:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 });
 
 // Categories: Create/Add Category (Allows Infinite Categories)
 app.post('/api/categories', async (req, res) => {
-  const { name, id, image } = req.body;
+  const { name, id, image, parent } = req.body;
   if (!name) {
     return res.status(400).json({ error: "Category name is required" });
   }
   try {
-    const category = await DbLayer.addCategory({ name, id, image });
+    const category = await DbLayer.addCategory({ name, id, image, parent });
     console.log(`Added new category: ${category.name}`);
     res.json({ success: true, category: category, message: "Category created successfully" });
   } catch (err) {
@@ -2911,6 +3025,23 @@ app.post('/api/categories', async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// Subcategories: Create/Add Subcategory explicitly
+app.post('/api/subcategories', async (req, res) => {
+  const { name, parent, image } = req.body;
+  if (!name || !parent) {
+    return res.status(400).json({ error: "Both name and parent are required for a subcategory" });
+  }
+  try {
+    const category = await DbLayer.addCategory({ name, image, parent });
+    console.log(`Added new subcategory: ${category.name} under ${parent}`);
+    res.json({ success: true, subcategory: category, message: "Subcategory created successfully" });
+  } catch (err) {
+    console.error("Add subcategory failed:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 // Banners: Static Data
 const BANNERS_DATA = [
@@ -8560,11 +8691,11 @@ app.get('/api/orders', async (req, res) => {
       date: o.date,
       timeSlot: o.timeSlot,
       razorpayOrderId: o.razorpayOrderId || null,
-      advancePayment: o.advancePayment !== undefined ? Number(o.advancePayment) : (o.status === "AMC" ? 0.00 : 199.00),
-      remainingAmount: o.remainingAmount !== undefined ? Number(o.remainingAmount) : 0.00,
+      advancePayment: o.advancePayment !== undefined ? Number(o.advancePayment) : 0.00,
+      remainingAmount: o.remainingAmount !== undefined ? Number(o.remainingAmount) : (o.status === "AMC" ? 0.00 : Number(o.price || 0)),
       platformCharge: o.platformCharge !== undefined ? Number(o.platformCharge) : 0.00,
       totalAmount: o.status === "AMC" ? 0.00 : Number(o.price || 0),
-      total: o.remainingAmount !== undefined ? Number(o.remainingAmount) : 0.00,
+      total: o.status === "AMC" ? 0.00 : Number(o.price || 0),
       items: o.items
     }));
 

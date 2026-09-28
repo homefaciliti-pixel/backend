@@ -109,12 +109,69 @@ POST /api/language/upsert
 ---------------------------------------------------------
 
 GET /api/categories
-- Response: { "success": true, "categories": [ { "id": "plumber", "name": "Plumber", "image": "https://..." }, ... ] }
+- Response: 
+{
+  "success": true,
+  "message": "Services fetched successfully",
+  "data": {
+    "categories": [
+      {
+        "categoryId": "7",
+        "categoryName": "Cleaning",
+        "categoryImage": "https://...",
+        "status": "active",
+        "services": [
+          {
+            "serviceId": "101",
+            "productDbId": "101",
+            "title": "Deep Home Cleaning",
+            "subtitle": "Complete home deep cleaning",
+            "description": "...",
+            "image": "https://...",
+            "categoryId": "7",
+            "status": "active",
+            "rating": 4.8,
+            "reviewsCount": 245,
+            "discount": 10,
+            "cutPrice": 1499,
+            "price": 1349,
+            "hasVariants": true,
+            "variants": [
+              {
+                "variantId": "1011",
+                "name": "1 BHK",
+                "description": "Deep cleaning for 1 BHK home",
+                "price": 999,
+                "cutPrice": 1199,
+                "discount": 17,
+                "duration": 180,
+                "status": "active"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100,
+    "totalPages": 5,
+    "hasNextPage": true,
+    "hasPreviousPage": false
+  }
+}
 
 POST /api/categories
-- Body: { "name": "string", "id": "string" (optional), "image": "string" (optional) }
+- Body: { "name": "string", "parent": "string" (optional, for subcategories), "id": "string" (optional), "image": "string" (optional) }
 - Response: { "success": true, "category": { "id": "gardening", "name": "Gardening", "image": "https://..." }, "message": "Category created successfully" }
 - Note: Adds a new category dynamically, allowing infinite categories.
+
+POST /api/subcategories
+- Body: { "name": "string", "parent": "string" (required), "image": "string" (optional) }
+- Response: { "success": true, "subcategory": { ... }, "message": "Subcategory created successfully" }
+- Note: Dedicated endpoint for creating subcategories under a specific parent category.
 
 GET /api/categories/:category/services
 - Path Parameter: category (e.g., "Plumber", "Electrician", "AcRepair")
