@@ -8301,18 +8301,26 @@ async function getUserRawCartItems(userId) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
       `);
 
-      const [rows] = await mysqlPool.query(
-        "SELECT * FROM node_cart WHERE user_id = ?",
-        [userId]
-      );
+      let rows;
+      try {
+        [rows] = await mysqlPool.query("SELECT * FROM node_cart WHERE user_id = ?", [userId]);
+      } catch (err1) {
+        [rows] = await mysqlPool.query("SELECT * FROM node_cart WHERE userPhone = ?", [userId]);
+      }
+
       if (rows && rows.length > 0) {
-        return rows.map(r => ({
-          serviceId: String(r.service_id),
-          quantity: parseInt(r.quantity || 1, 10),
-          categoryId: String(r.category_id || ''),
-          categoryName: String(r.category_name || ''),
-          options: r.options ? (typeof r.options === 'string' ? JSON.parse(r.options || '{}') : r.options) : {}
-        }));
+        return rows.map(r => {
+          const opts = r.options ? (typeof r.options === 'string' ? JSON.parse(r.options || '{}') : r.options) : {};
+          return {
+            serviceId: String(r.service_id),
+            quantity: parseInt(r.quantity || 1, 10),
+            categoryId: String(r.category_id || ''),
+            categoryName: String(r.category_name || ''),
+            price: opts.price || r.price,
+            cutPrice: opts.cutPrice || opts.cut_price || r.cut_price,
+            options: opts
+          };
+        });
       }
     } catch (e) {
       console.warn("[Cart] MySQL query failed, falling back:", e.message);
@@ -8322,13 +8330,15 @@ async function getUserRawCartItems(userId) {
   try {
     const dbData = readDataFromJsonDb();
     if (dbData && dbData.cart) {
-      const userItems = dbData.cart.filter(item => String(item.userId || item.user_id) === String(userId));
+      const userItems = dbData.cart.filter(item => String(item.userId || item.user_id || item.userPhone) === String(userId));
       if (userItems.length > 0) {
         return userItems.map(item => ({
           serviceId: String(item.serviceId || item.service_id),
           quantity: parseInt(item.quantity || item.qty || 1, 10),
           categoryId: String(item.categoryId || item.category_id || ''),
           categoryName: String(item.categoryName || item.category_name || ''),
+          price: item.price || (item.options && item.options.price),
+          cutPrice: item.cutPrice || item.cut_price || (item.options && (item.options.cutPrice || item.options.cut_price)),
           options: item.options || {}
         }));
       }
@@ -8352,19 +8362,38 @@ async function saveUserRawCartItems(userId, items) {
 
   if (mysqlReady) {
     try {
-      await mysqlPool.query("DELETE FROM node_cart WHERE user_id = ?", [userId]);
+      try {
+        await mysqlPool.query("DELETE FROM node_cart WHERE user_id = ?", [userId]);
+      } catch (err1) {
+        await mysqlPool.query("DELETE FROM node_cart WHERE userPhone = ?", [userId]);
+      }
+
       for (const item of items) {
-        await mysqlPool.query(
-          "INSERT INTO node_cart (user_id, service_id, category_id, category_name, quantity, options) VALUES (?, ?, ?, ?, ?, ?)",
-          [
-            userId,
-            String(item.serviceId),
-            String(item.categoryId || ''),
-            String(item.categoryName || ''),
-            item.quantity,
-            JSON.stringify(item.options || {})
-          ]
-        );
+        try {
+          await mysqlPool.query(
+            "INSERT INTO node_cart (user_id, service_id, category_id, category_name, quantity, options) VALUES (?, ?, ?, ?, ?, ?)",
+            [
+              userId,
+              String(item.serviceId),
+              String(item.categoryId || ''),
+              String(item.categoryName || ''),
+              item.quantity,
+              JSON.stringify(item.options || {})
+            ]
+          );
+        } catch (err1) {
+          await mysqlPool.query(
+            "INSERT INTO node_cart (userPhone, service_id, category_id, category_name, quantity, options) VALUES (?, ?, ?, ?, ?, ?)",
+            [
+              userId,
+              String(item.serviceId),
+              String(item.categoryId || ''),
+              String(item.categoryName || ''),
+              item.quantity,
+              JSON.stringify(item.options || {})
+            ]
+          );
+        }
       }
     } catch (e) {
       console.warn("[Cart] MySQL save failed:", e.message);
@@ -8376,7 +8405,7 @@ async function saveUserRawCartItems(userId, items) {
     if (fs.existsSync(dbPath)) {
       const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
       if (dbData) {
-        dbData.cart = (dbData.cart || []).filter(item => String(item.userId || item.user_id) !== String(userId));
+        dbData.cart = (dbData.cart || []).filter(item => String(item.userId || item.user_id || item.userPhone) !== String(userId));
         for (const item of items) {
           dbData.cart.push({
             userId: userId,
@@ -8384,6 +8413,8 @@ async function saveUserRawCartItems(userId, items) {
             quantity: item.quantity,
             categoryId: String(item.categoryId || ''),
             categoryName: String(item.categoryName || ''),
+            price: item.price,
+            cutPrice: item.cutPrice,
             options: item.options || {},
             updatedAt: new Date().toISOString()
           });
@@ -8408,6 +8439,8 @@ async function resolveFullUserCart(userId, lang = 'en') {
   const serverBaseUrl = host;
 
   let allServices = [];
+  let allVariants = [];
+
   if (mysqlReady) {
     try {
       const [rows] = await mysqlPool.query(
@@ -8416,6 +8449,12 @@ async function resolveFullUserCart(userId, lang = 'en') {
       if (rows && rows.length > 0) {
         allServices = rows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
       }
+      try {
+        const [vRows] = await mysqlPool.query("SELECT * FROM service_variants");
+        if (vRows && vRows.length > 0) {
+          allVariants = vRows;
+        }
+      } catch (e) {}
     } catch (e) {}
   }
 
@@ -8435,25 +8474,61 @@ async function resolveFullUserCart(userId, lang = 'en') {
 
   for (const raw of rawItems) {
     const sId = String(raw.serviceId);
+
+    const vId = raw.options ? String(raw.options.variantId || raw.options.variant_id || raw.options.id || '') : '';
+    let matchedVariant = allVariants.find(v => 
+      String(v.id) === sId || 
+      String(v.variantId) === sId || 
+      (vId && String(v.id) === vId)
+    );
+
     let matchedSvc = allServices.find(s => 
       String(s.id) === sId || 
       String(s.service_id) === sId || 
+      (matchedVariant && (String(s.id) === String(matchedVariant.service_id) || String(s.service_id) === String(matchedVariant.service_id))) ||
       (s.title && s.title.toLowerCase() === sId.toLowerCase())
     );
 
-    let title = raw.title || (matchedSvc ? (matchedSvc.title || matchedSvc.name) : "Service Item");
-    let description = matchedSvc ? (matchedSvc.description || matchedSvc.desc || "") : "";
-    let price = matchedSvc ? parseFloat(matchedSvc.price || matchedSvc.price_final || 0) : parseFloat(raw.price || 0);
-    let originalPrice = matchedSvc ? parseFloat(matchedSvc.original_price || matchedSvc.cut_price || (price * 1.25)) : (price * 1.25);
+    let title = raw.title || (matchedVariant ? (matchedVariant.title || matchedVariant.name) : '') || (matchedSvc ? (matchedSvc.title || matchedSvc.name) : "Service Item");
+    let description = (matchedVariant && matchedVariant.description) || (matchedSvc ? (matchedSvc.description || matchedSvc.desc || "") : "");
+
+    let optPrice = raw.price || (raw.options && (raw.options.price || raw.options.variantPrice || (raw.options.variant && raw.options.variant.price)));
+    let parsedOptPrice = optPrice !== undefined && optPrice !== null && !isNaN(parseFloat(optPrice)) ? parseFloat(optPrice) : 0;
+
+    let price = 0;
+    if (parsedOptPrice > 0) {
+      price = parsedOptPrice;
+    } else if (matchedVariant && parseFloat(matchedVariant.price || 0) > 0) {
+      price = parseFloat(matchedVariant.price);
+    } else if (matchedSvc && parseFloat(matchedSvc.price || matchedSvc.price_final || matchedSvc.discount_price || 0) > 0) {
+      price = parseFloat(matchedSvc.price || matchedSvc.price_final || matchedSvc.discount_price);
+    } else if (raw.price && parseFloat(raw.price) > 0) {
+      price = parseFloat(raw.price);
+    }
+
+    let optCutPrice = raw.cutPrice || (raw.options && (raw.options.cutPrice || raw.options.originalPrice || (raw.options.variant && (raw.options.variant.cutPrice || raw.options.variant.originalPrice))));
+    let parsedOptCutPrice = optCutPrice !== undefined && optCutPrice !== null && !isNaN(parseFloat(optCutPrice)) ? parseFloat(optCutPrice) : 0;
+
+    let originalPrice = 0;
+    if (parsedOptCutPrice > 0) {
+      originalPrice = parsedOptCutPrice;
+    } else if (matchedVariant && parseFloat(matchedVariant.cutPrice || matchedVariant.cut_price || 0) > 0) {
+      originalPrice = parseFloat(matchedVariant.cutPrice || matchedVariant.cut_price);
+    } else if (matchedSvc && parseFloat(matchedSvc.original_price || matchedSvc.cut_price || matchedSvc.cutPrice || 0) > 0) {
+      originalPrice = parseFloat(matchedSvc.original_price || matchedSvc.cut_price || matchedSvc.cutPrice);
+    } else {
+      originalPrice = Math.round(price * 1.25);
+    }
+
     if (originalPrice < price) originalPrice = Math.round(price * 1.2);
     
-    let discount = matchedSvc && matchedSvc.discount ? matchedSvc.discount : "20% OFF";
+    let discount = (matchedVariant && matchedVariant.discount) ? matchedVariant.discount : ((matchedSvc && matchedSvc.discount) ? matchedSvc.discount : "20% OFF");
     let image = matchedSvc ? resolveDynamicServiceImageUrl(matchedSvc, serverBaseUrl) : (raw.image || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=500&auto=format&fit=crop");
     let catId = raw.categoryId || (matchedSvc ? String(matchedSvc.category_id || matchedSvc.category || "1") : "1");
     let catName = raw.categoryName || (matchedSvc ? String(matchedSvc.cat_name || matchedSvc.categoryName || matchedSvc.category || "General") : "General");
     let qty = parseInt(raw.quantity || 1, 10);
     let itemTotal = price * qty;
-    let duration = matchedSvc && matchedSvc.duration ? matchedSvc.duration : "45 mins";
+    let duration = (matchedVariant && matchedVariant.duration) ? (matchedVariant.duration + " mins") : ((matchedSvc && matchedSvc.duration) ? matchedSvc.duration : "45 mins");
     let warranty = matchedSvc && matchedSvc.warranty ? matchedSvc.warranty : "30 Days Warranty";
 
     if (lang && lang !== 'en' && matchedSvc && mysqlReady) {
@@ -8521,6 +8596,12 @@ app.post('/api/cart/add', async (req, res) => {
     const categoryName = String(body.categoryName || body.category_name || '');
     const options = body.options || {};
 
+    const price = body.price || (body.options && body.options.price);
+    const cutPrice = body.cutPrice || body.cut_price || body.originalPrice || (body.options && (body.options.cutPrice || body.options.originalPrice));
+
+    if (price !== undefined) options.price = parseFloat(price);
+    if (cutPrice !== undefined) options.cutPrice = parseFloat(cutPrice);
+
     if (!serviceId) {
       return res.status(400).json({ success: false, error: "serviceId is required" });
     }
@@ -8532,13 +8613,17 @@ app.post('/api/cart/add', async (req, res) => {
       items[existingIndex].quantity += quantity;
       if (categoryId) items[existingIndex].categoryId = categoryId;
       if (categoryName) items[existingIndex].categoryName = categoryName;
-      if (Object.keys(options).length > 0) items[existingIndex].options = options;
+      if (price !== undefined) items[existingIndex].price = parseFloat(price);
+      if (cutPrice !== undefined) items[existingIndex].cutPrice = parseFloat(cutPrice);
+      items[existingIndex].options = { ...(items[existingIndex].options || {}), ...options };
     } else {
       items.push({
         serviceId: serviceId,
         quantity: quantity,
         categoryId: categoryId,
         categoryName: categoryName,
+        price: price !== undefined ? parseFloat(price) : undefined,
+        cutPrice: cutPrice !== undefined ? parseFloat(cutPrice) : undefined,
         options: options
       });
     }
