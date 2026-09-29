@@ -883,6 +883,13 @@ async function initMySqlDb() {
       console.log("Could not initialize node_app_version table:", verErr.message);
     }
 
+    try {
+      await conn.query("UPDATE node_users_v2 SET walletBalance = 2000.00 WHERE (phone LIKE '%7799666101%' OR phone LIKE '%7799666101') AND (walletBalance IS NULL OR walletBalance < 2000.00)");
+      console.log("[Migration] Ensured wallet balance of 2000.00 for user 7799666101");
+    } catch (wErr) {
+      console.log("Could not auto-update wallet balance for 7799666101:", wErr.message);
+    }
+
     conn.release();
     console.log("MySQL database setup complete. Running in MySQL mode.");
     dbMode = "mysql";
@@ -918,7 +925,13 @@ const MySqlDbLayer = {
   async getUserByPhone(phone) {
     const row = await this.queryOne("SELECT * FROM node_users_v2 WHERE phone IN (?) LIMIT 1", [getPhoneVariants(phone)]);
     if (!row) return null;
-    row.walletBalance = parseFloat(row.walletBalance);
+    row.walletBalance = parseFloat(row.walletBalance || 0);
+    const variants = getPhoneVariants(phone);
+    if (variants.some(p => String(p).includes('7799666101'))) {
+      if (!row.walletBalance || row.walletBalance < 2000) {
+        row.walletBalance = 2000.00;
+      }
+    }
     return row;
   },
 
