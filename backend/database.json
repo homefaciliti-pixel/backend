@@ -1,5 +1,42 @@
 {
-  "users": {},
+  "users": {
+    "7799666101": {
+      "name": "Test User",
+      "phone": "7799666101",
+      "email": "test@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "TEST779966",
+      "walletBalance": 2000,
+      "countryCode": "+91",
+      "language": "en"
+    },
+    "+917799666101": {
+      "name": "Test User",
+      "phone": "+917799666101",
+      "email": "test@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "TEST779966",
+      "walletBalance": 2000,
+      "countryCode": "+91",
+      "language": "en"
+    },
+    "917799666101": {
+      "name": "Test User",
+      "phone": "917799666101",
+      "email": "test@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "TEST779966",
+      "walletBalance": 2000,
+      "countryCode": "+91",
+      "language": "en"
+    }
+  },
   "orders": [],
   "referralsApplied": {},
   "categories": [
