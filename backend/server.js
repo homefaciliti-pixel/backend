@@ -3016,68 +3016,101 @@ app.get('/api/categories', async (req, res) => {
     const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-    // Fetch all services and variants to attach to categories
+    // --------------------------------------------------------
+    // STEP 1: Fetch services - Admin Backend is PRIMARY source
+    // --------------------------------------------------------
     let allServices = [];
     let allVariants = [];
-    if (mysqlReady) {
+
+    // 1a. Try Admin Backend first (primary source of truth)
+    try {
+      const adminSrvs = await fetchAdminBackendServices();
+      if (adminSrvs && adminSrvs.length > 0) {
+        allServices = adminSrvs.map(as => {
+          // Resolve image: use admin image if present, otherwise HD fallback
+          let img = String(as.image || as.photo || '').trim();
+          if (!img || img === '1') {
+            img = getHdFallbackServiceImageUrl(as.title || as.name || '', '');
+          } else if (img.startsWith('http://') || img.startsWith('https://')) {
+            // valid URL, keep as is
+          } else {
+            const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+            img = `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+          }
+
+          const price = parseFloat(as.price || 0);
+          const discount = parseFloat(as.discount || 0);
+          const finalPrice = discount > 0 ? Math.max(0, price - discount) : price;
+          const displayDiscount = price > 0 && discount > 0 ? Math.min(100, Math.round((discount / price) * 100)) : 0;
+          const catId = String(as.category_id || as.categoryId || as.category || '');
+          const srvId = String(as.id || as.serviceId || '');
+
+          return {
+            ...as,
+            id: srvId,
+            serviceId: srvId,
+            productDbId: srvId,
+            productId: as.title || as.name || '',
+            title: String(as.title || as.name || ''),
+            name: String(as.title || as.name || ''),
+            serviceName: String(as.title || as.name || ''),
+            description: String(as.description || ''),
+            image: img,
+            price: finalPrice,
+            cutPrice: price,
+            discount: displayDiscount,
+            rating: parseFloat(as.rating || 4.8),
+            reviewsCount: 50 + (parseInt(srvId) * 17) % 250,
+            category: catId,
+            category_id: catId,
+            categoryId: catId,
+            status: (as.status === true || as.status === 1 || as.status === '1') ? 1 : 0,
+            hasVariants: false,
+            variants: []
+          };
+        });
+      }
+    } catch(e) {
+      console.warn("Admin backend services fetch failed:", e.message);
+    }
+
+    // 1b. Fallback to MySQL if admin fetch returned nothing
+    if (allServices.length === 0 && mysqlReady) {
       try {
         const [srvRows] = await mysqlPool.query("SELECT * FROM node_services WHERE status IN (0, 1)");
         allServices = srvRows.map(r => {
-           let s = sanitizeServiceDbObj(r, serverBaseUrl);
-           return typeof localizeService === 'function' ? localizeService(s, req.lang) : s;
+          let s = sanitizeServiceDbObj(r, serverBaseUrl);
+          // Fix empty image
+          if (!s.image || s.image.endsWith('/uploads/1') || s.image === '1') {
+            s.image = getHdFallbackServiceImageUrl(s.title || '', '');
+          }
+          return typeof localizeService === 'function' ? localizeService(s, req.lang) : s;
         });
-        
         try {
           const [varRows] = await mysqlPool.query("SELECT * FROM service_variants");
           allVariants = varRows;
-        } catch(e) {
-          console.warn("Failed to fetch service variants:", e.message);
-        }
+        } catch(e) {}
       } catch (err) {
-        console.warn("Failed to fetch services for categories endpoint:", err.message);
+        console.warn("MySQL services fetch also failed:", err.message);
       }
-    } else {
-      // Fallback to JSON db for services
+    }
+
+    // 1c. Final fallback to JSON db
+    if (allServices.length === 0) {
       try {
         const data = readDataFromJsonDb();
         if (data && data.services) {
           allServices = data.services.filter(s => s.status === 1 || s.status === 0 || s.status === undefined).map(s => {
-             return typeof localizeService === 'function' ? localizeService(s, req.lang) : s;
+            return typeof localizeService === 'function' ? localizeService(s, req.lang) : s;
           });
         }
       } catch(e) {}
     }
 
-    // Merge live admin backend services (https://adminbackend-1-h03r.onrender.com/api/services)
-    try {
-      const adminSrvs = await fetchAdminBackendServices();
-      if (adminSrvs && adminSrvs.length > 0) {
-        const existingSrvIds = new Set(allServices.map(s => String(s.id || s.serviceId || '')));
-        const existingSrvTitles = new Set(allServices.map(s => String(s.title || s.name || '').toLowerCase().trim()));
-
-        adminSrvs.forEach(as => {
-          const aId = String(as.id || as.serviceId || '');
-          const aTitle = String(as.title || as.name || '').trim();
-          if (!existingSrvIds.has(aId) && !existingSrvTitles.has(aTitle.toLowerCase())) {
-            let sanitizedAdminSrv = sanitizeServiceDbObj({
-              id: aId,
-              title: aTitle,
-              description: as.description || '',
-              price: as.price || 0,
-              discount: as.discount || 0,
-              rating: as.rating || 4.8,
-              image: as.image || as.photo || '',
-              category_id: as.category_id || as.categoryId || as.category || '',
-              status: as.status ? 1 : 0
-            }, serverBaseUrl);
-            allServices.push(sanitizedAdminSrv);
-          }
-        });
-      }
-    } catch(e) {}
-
-    // Resolve all service image URLs dynamically (Admin uploads & HD fallbacks)
-    allServices = resolveServiceUrls(allServices, serverBaseUrl);
+    // Localize all admin services
+    if (typeof localizeService === 'function') {
+      allServices = allServices.map(s => localizeService(s, req.lang));
+    }
 
     // Group variants by service_id
     const variantsBySrv = {};
