@@ -3186,19 +3186,28 @@ app.get('/api/categories', async (req, res) => {
     const isFlat = req.query.flat === 'true' || req.query.includeAll === 'true';
     let categories = isFlat ? categoriesList : (rootCategories.length > 0 ? rootCategories : categoriesList);
     
-    let page = parseInt(req.query.page) || 1;
-    let limit = parseInt(req.query.limit) || 20;
-    
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const paginatedCategories = categories.slice(startIndex, endIndex);
-    const totalPages = Math.ceil(categories.length / limit);
+    const hasPaginationParams = req.query.page !== undefined || req.query.limit !== undefined;
+
+    let finalCategories = categories;
+    let page = 1;
+    let limit = categories.length || 1;
+    let totalPages = 1;
+
+    if (hasPaginationParams) {
+      page = parseInt(req.query.page) || 1;
+      limit = parseInt(req.query.limit) || 20;
+      const startIndex = (page - 1) * limit;
+      const endIndex = page * limit;
+      finalCategories = categories.slice(startIndex, endIndex);
+      totalPages = Math.ceil(categories.length / limit) || 1;
+    }
 
     res.json({ 
       success: true, 
       message: "Services fetched successfully",
+      categories: finalCategories, // Top-level array (backward compatible with ea41765 & older app builds)
       data: {
-        categories: paginatedCategories
+        categories: finalCategories // Nested object (compatible with newer app builds)
       },
       pagination: {
         page: page,
@@ -3207,7 +3216,10 @@ app.get('/api/categories', async (req, res) => {
         totalPages: totalPages,
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1
-      }
+      },
+      currentPage: page,
+      totalPages: totalPages,
+      totalCategories: categories.length
     });
   } catch (err) {
     console.error("Fetch categories failed:", err);
