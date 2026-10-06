@@ -125,7 +125,14 @@ async function fetchAdminBackendServices() {
 }
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
-  // Always use static local icons from assets/categories to prevent database load
+  let img = c.image || c.categoryImage || "";
+  if (img) {
+    if (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/assets/')) {
+      return img;
+    }
+    const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+    return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+  }
   return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
 };
 
@@ -3047,6 +3054,37 @@ app.get('/api/categories', async (req, res) => {
         }
       } catch(e) {}
     }
+
+    // Merge live admin backend services (https://adminbackend-1-h03r.onrender.com/api/services)
+    try {
+      const adminSrvs = await fetchAdminBackendServices();
+      if (adminSrvs && adminSrvs.length > 0) {
+        const existingSrvIds = new Set(allServices.map(s => String(s.id || s.serviceId || '')));
+        const existingSrvTitles = new Set(allServices.map(s => String(s.title || s.name || '').toLowerCase().trim()));
+
+        adminSrvs.forEach(as => {
+          const aId = String(as.id || as.serviceId || '');
+          const aTitle = String(as.title || as.name || '').trim();
+          if (!existingSrvIds.has(aId) && !existingSrvTitles.has(aTitle.toLowerCase())) {
+            let sanitizedAdminSrv = sanitizeServiceDbObj({
+              id: aId,
+              title: aTitle,
+              description: as.description || '',
+              price: as.price || 0,
+              discount: as.discount || 0,
+              rating: as.rating || 4.8,
+              image: as.image || as.photo || '',
+              category_id: as.category_id || as.categoryId || as.category || '',
+              status: as.status ? 1 : 0
+            }, serverBaseUrl);
+            allServices.push(sanitizedAdminSrv);
+          }
+        });
+      }
+    } catch(e) {}
+
+    // Resolve all service image URLs dynamically (Admin uploads & HD fallbacks)
+    allServices = resolveServiceUrls(allServices, serverBaseUrl);
 
     // Group variants by service_id
     const variantsBySrv = {};
