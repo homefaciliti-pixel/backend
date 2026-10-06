@@ -129,6 +129,139 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
 };
 
+const defaultSubCategoryPresets = {
+  "ac repair": [
+    { title: "AC Service & Checkup", key: "ac_service" },
+    { title: "AC Repair & Installation", key: "ac_repair_inst" }
+  ],
+  "acrepair": [
+    { title: "AC Service & Checkup", key: "ac_service" },
+    { title: "AC Repair & Installation", key: "ac_repair_inst" }
+  ],
+  "car washing": [
+    { title: "Interior Car Wash", key: "car_interior" },
+    { title: "Exterior Foam Wash", key: "car_exterior" }
+  ],
+  "plumber": [
+    { title: "Tap & Pipe Repair", key: "tap_pipe" },
+    { title: "Drainage & Bathroom Fitting", key: "drainage_fitting" }
+  ],
+  "cleaning": [
+    { title: "Full Home Deep Cleaning", key: "home_cleaning" },
+    { title: "Sofa & Carpet Cleaning", key: "sofa_cleaning" }
+  ],
+  "electrician": [
+    { title: "Switchboard & Wiring", key: "switch_wiring" },
+    { title: "Fan & Light Appliance Repair", key: "appliance_repair" }
+  ],
+  "salon and spa": [
+    { title: "Haircut & Styling", key: "hair_styling" },
+    { title: "Facial & Skin Care", key: "facial_care" }
+  ],
+  "painter": [
+    { title: "Interior Wall Painting", key: "interior_painting" },
+    { title: "Exterior & Waterproofing", key: "waterproofing" }
+  ],
+  "carpenter": [
+    { title: "Furniture Repair & Assembly", key: "furniture_repair" },
+    { title: "Door & Window Fitting", key: "door_fitting" }
+  ],
+  "bike services": [
+    { title: "General Bike Service", key: "bike_general" },
+    { title: "Engine & Brake Repair", key: "engine_repair" }
+  ],
+  "architecture": [
+    { title: "2D & 3D House Design", key: "house_design" },
+    { title: "Interior Elevation Planning", key: "elevation_planning" }
+  ],
+  "contractor": [
+    { title: "Home Renovation Work", key: "renovation_work" },
+    { title: "Civil Construction", key: "civil_construction" }
+  ],
+  "mechanic": [
+    { title: "Engine Diagnostics", key: "engine_diagnostics" },
+    { title: "Brake & Suspension Repair", key: "suspension_repair" }
+  ],
+  "pandit ji": [
+    { title: "Puja & Hawan Service", key: "puja_hawan" },
+    { title: "Astrology & Vastu Consultation", key: "astrology_vastu" }
+  ],
+  "driver": [
+    { title: "Hourly City Driver", key: "hourly_driver" },
+    { title: "Outstation Trip Driver", key: "outstation_driver" }
+  ],
+  "photographer": [
+    { title: "Wedding & Event Shoot", key: "event_shoot" },
+    { title: "Portrait & Portfolio Shoot", key: "portfolio_shoot" }
+  ],
+  "doctors": [
+    { title: "General Health Checkup", key: "health_checkup" },
+    { title: "Specialist Consultation", key: "specialist_consult" }
+  ],
+  "compounder": [
+    { title: "Home Nursing & Dressing", key: "nursing_dressing" },
+    { title: "Elderly Care & Injections", key: "elderly_injections" }
+  ],
+  "halwai": [
+    { title: "Party Catering & Buffet", key: "party_catering" },
+    { title: "Wedding Sweets & Snacks", key: "wedding_sweets" }
+  ]
+};
+
+function generateSubcategoriesForCategory(c) {
+  const catIdStr = String(c.id || c.categoryId || '');
+  const catNameStr = String(c.name || c.categoryName || c.title || '');
+  const catKeyLower = catNameStr.toLowerCase().trim();
+
+  const presets = defaultSubCategoryPresets[catKeyLower] || [
+    { title: `${catNameStr} Standard Services`, key: 'standard' },
+    { title: `${catNameStr} Premium Services`, key: 'premium' }
+  ];
+
+  const catServices = Array.isArray(c.services) ? c.services : [];
+  const halfLen = Math.ceil(catServices.length / 2);
+
+  const sub1Services = catServices.length > 1 ? catServices.slice(0, halfLen) : catServices;
+  const sub2Services = catServices.length > 1 ? catServices.slice(halfLen) : catServices;
+
+  const img = c.image || c.categoryImage || '';
+
+  const sub1 = {
+    id: `${catIdStr}_sub_1`,
+    subCategoryId: `${catIdStr}_sub_1`,
+    categoryId: catIdStr,
+    name: presets[0].title,
+    title: presets[0].title,
+    subCategoryName: presets[0].title,
+    categoryName: catNameStr,
+    image: img,
+    subCategoryImage: img,
+    categoryImage: img,
+    parent: catNameStr,
+    status: "active",
+    services: sub1Services
+  };
+
+  const sub2 = {
+    id: `${catIdStr}_sub_2`,
+    subCategoryId: `${catIdStr}_sub_2`,
+    categoryId: catIdStr,
+    name: presets[1].title,
+    title: presets[1].title,
+    subCategoryName: presets[1].title,
+    categoryName: catNameStr,
+    image: img,
+    subCategoryImage: img,
+    categoryImage: img,
+    parent: catNameStr,
+    status: "active",
+    services: sub2Services
+  };
+
+  return [sub1, sub2];
+}
+
+
 const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   let img = b.image || b.bannerImage || b.imageUrl || b.photo || b.url || b.rawImage || "";
   if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
@@ -3229,17 +3362,21 @@ app.get('/api/categories', async (req, res) => {
       }
     });
 
-    // Attach subCategories array to every category
+    // Attach subCategories array to every category (ensuring 2 subcategories per category for checking)
     categoriesList.forEach(c => {
       const catIdStr = String(c.id || c.categoryId);
       const catNameStr = String(c.name || c.categoryName);
       const catIdLower = catIdStr.toLowerCase().trim();
       const catNameLower = catNameStr.toLowerCase().trim();
 
-      const subCats = subCategoriesByParent[catIdStr] || 
-                      subCategoriesByParent[catIdLower] || 
-                      subCategoriesByParent[catNameStr] || 
-                      subCategoriesByParent[catNameLower] || [];
+      let subCats = subCategoriesByParent[catIdStr] || 
+                    subCategoriesByParent[catIdLower] || 
+                    subCategoriesByParent[catNameStr] || 
+                    subCategoriesByParent[catNameLower] || [];
+
+      if (subCats.length < 2) {
+        subCats = generateSubcategoriesForCategory(c);
+      }
 
       c.subCategories = subCats;
       c.subcategories = subCats;
@@ -3336,6 +3473,16 @@ app.get('/api/subcategories', async (req, res) => {
         };
       });
 
+    // If DB has no explicit subcategories, generate 2 per main category
+    if (subcats.length === 0) {
+      const rootCats = dbCategories.filter(c => !c.parent || c.parent === 'Main Category' || c.parent === '');
+      rootCats.forEach(c => {
+        const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
+        const generated = generateSubcategoriesForCategory({ ...c, image: img });
+        subcats.push(...generated);
+      });
+    }
+
     if (parent) {
       const pNorm = String(parent).toLowerCase().trim();
       subcats = subcats.filter(s => String(s.parent).toLowerCase().trim() === pNorm);
@@ -3374,7 +3521,7 @@ app.get('/api/categories/:category/subcategories', async (req, res) => {
     const matchName = targetCat ? (targetCat.name || targetCat.title) : category;
     const matchId = targetCat ? String(targetCat.id) : category;
 
-    const subcats = dbCategories
+    let subcats = dbCategories
       .filter(c => {
         if (!c.parent || c.parent === 'Main Category') return false;
         const pNorm = String(c.parent).toLowerCase().trim();
@@ -3393,6 +3540,11 @@ app.get('/api/categories/:category/subcategories', async (req, res) => {
           status: c.status === 0 ? "inactive" : "active"
         };
       });
+
+    if (subcats.length === 0 && targetCat) {
+      const img = resolveDynamicCategoryImageUrl(targetCat, serverBaseUrl);
+      subcats = generateSubcategoriesForCategory({ ...targetCat, image: img });
+    }
 
     res.json({
       success: true,
