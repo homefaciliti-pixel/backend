@@ -125,14 +125,7 @@ async function fetchAdminBackendServices() {
 }
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
-  let img = c.image || c.categoryImage || "";
-  if (img) {
-    if (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/assets/')) {
-      return img;
-    }
-    const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-    return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
-  }
+  // Always use static 3D icons from assets/categories
   return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
 };
 
