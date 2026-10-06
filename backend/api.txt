@@ -109,6 +109,10 @@ POST /api/language/upsert
 ---------------------------------------------------------
 
 GET /api/categories
+- Query Parameters:
+  - `page` (optional): Page number for pagination (default: 1)
+  - `limit` (optional): Categories per page (default: 20)
+  - `flat` (optional): Set to "true" if flat category list is needed without top-level nesting
 - Response: 
 {
   "success": true,
@@ -119,7 +123,21 @@ GET /api/categories
         "categoryId": "7",
         "categoryName": "Cleaning",
         "categoryImage": "https://...",
+        "parent": "Main Category",
         "status": "active",
+        "subCategories": [
+          {
+            "subCategoryId": "701",
+            "categoryId": "701",
+            "subCategoryName": "Full Home Deep Cleaning",
+            "categoryName": "Full Home Deep Cleaning",
+            "subCategoryImage": "https://...",
+            "categoryImage": "https://...",
+            "parent": "Cleaning",
+            "status": "active",
+            "services": [ ... ]
+          }
+        ],
         "services": [
           {
             "serviceId": "101",
@@ -161,6 +179,49 @@ GET /api/categories
     "hasNextPage": true,
     "hasPreviousPage": false
   }
+}
+
+GET /api/subcategories
+- Query Parameters:
+  - `parent` (optional): Filter subcategories by parent category name or ID
+- Response:
+{
+  "success": true,
+  "message": "Subcategories fetched successfully",
+  "total": 2,
+  "subcategories": [
+    {
+      "subCategoryId": "701",
+      "categoryId": "701",
+      "subCategoryName": "Full Home Deep Cleaning",
+      "categoryName": "Full Home Deep Cleaning",
+      "subCategoryImage": "https://...",
+      "categoryImage": "https://...",
+      "parent": "Cleaning",
+      "status": "active"
+    }
+  ]
+}
+
+GET /api/categories/:category/subcategories
+- Path Parameter: category (e.g., "Cleaning", "Plumber", "7")
+- Response:
+{
+  "success": true,
+  "category": "Cleaning",
+  "total": 1,
+  "subcategories": [
+    {
+      "subCategoryId": "701",
+      "categoryId": "701",
+      "subCategoryName": "Full Home Deep Cleaning",
+      "categoryName": "Full Home Deep Cleaning",
+      "subCategoryImage": "https://...",
+      "categoryImage": "https://...",
+      "parent": "Cleaning",
+      "status": "active"
+    }
+  ]
 }
 
 POST /api/categories

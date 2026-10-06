@@ -3130,32 +3130,61 @@ app.get('/api/categories', async (req, res) => {
         categoryId: catIdStr,
         categoryName: catTitle,
         categoryImage: String(img || ''),
+        parent: c.parent || 'Main Category',
         status: c.status === 0 ? "inactive" : "active",
         services: catServices
       };
     });
 
-    // Handle Subcategories logic if parent logic remains
+    // Handle Subcategories nesting logic
     const subCategoriesByParent = {};
     const rootCategories = [];
 
     categoriesList.forEach(c => {
-      // In original code, we checked 'parent' on dbCategories. Need to map it properly.
       const originalCat = dbCategories.find(dbC => String(dbC.id) === String(c.categoryId)) || {};
-      const parent = originalCat.parent;
-      if (parent && parent !== 'Main Category' && parent !== '') {
-        if (!subCategoriesByParent[parent]) subCategoriesByParent[parent] = [];
-        subCategoriesByParent[parent].push(c);
+      const parentVal = String(originalCat.parent || c.parent || '').trim();
+      c.parent = parentVal || 'Main Category';
+
+      if (parentVal && parentVal !== 'Main Category' && parentVal !== 'null' && parentVal !== 'undefined') {
+        const parentKey = parentVal.toLowerCase();
+        if (!subCategoriesByParent[parentKey]) subCategoriesByParent[parentKey] = [];
+        
+        const subCatObj = {
+          subCategoryId: String(c.categoryId),
+          categoryId: String(c.categoryId),
+          subCategoryName: String(c.categoryName),
+          categoryName: String(c.categoryName),
+          subCategoryImage: String(c.categoryImage),
+          categoryImage: String(c.categoryImage),
+          parent: String(c.parent),
+          status: c.status,
+          services: c.services || []
+        };
+        subCategoriesByParent[parentKey].push(subCatObj);
       } else {
         rootCategories.push(c);
       }
     });
 
-    // If subcategories are not explicitly requested in the json format, we might just return all or nest them.
-    // The user's JSON format doesn't have subCategories array, but we can leave them flat or just return rootCategories.
-    // Let's return all categories flat if subcategories are not nested, or nest them if needed.
-    // Assuming user wants all categories (or just root categories):
-    let categories = categoriesList; 
+    // Attach subCategories array to every category
+    categoriesList.forEach(c => {
+      const catIdStr = String(c.categoryId);
+      const catNameStr = String(c.categoryName);
+      const catIdLower = catIdStr.toLowerCase().trim();
+      const catNameLower = catNameStr.toLowerCase().trim();
+
+      const subCats = subCategoriesByParent[catIdStr] || 
+                      subCategoriesByParent[catIdLower] || 
+                      subCategoriesByParent[catNameStr] || 
+                      subCategoriesByParent[catNameLower] || [];
+
+      c.subCategories = subCats;
+      c.subcategories = subCats;
+    });
+
+    // Return root categories with nested subcategories by default, or all flat if requested via flat=true
+    const isFlat = req.query.flat === 'true' || req.query.includeAll === 'true';
+    let categories = isFlat ? categoriesList : (rootCategories.length > 0 ? rootCategories : categoriesList);
     
     let page = parseInt(req.query.page) || 1;
     let limit = parseInt(req.query.limit) || 20;
@@ -3215,6 +3244,103 @@ app.post('/api/subcategories', async (req, res) => {
   } catch (err) {
     console.error("Add subcategory failed:", err);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Subcategories: Get all subcategories or filter by parent query
+app.get('/api/subcategories', async (req, res) => {
+  try {
+    const { parent } = req.query;
+    const dbCategories = await DbLayer.getCategories();
+    
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+    const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+    let subcats = dbCategories
+      .filter(c => c.parent && c.parent !== 'Main Category' && c.parent !== '')
+      .map(c => {
+        const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
+        return {
+          subCategoryId: String(c.id),
+          categoryId: String(c.id),
+          subCategoryName: c.title || c.name || '',
+          categoryName: c.title || c.name || '',
+          subCategoryImage: String(img || ''),
+          categoryImage: String(img || ''),
+          parent: c.parent,
+          status: c.status === 0 ? "inactive" : "active"
+        };
+      });
+
+    if (parent) {
+      const pNorm = String(parent).toLowerCase().trim();
+      subcats = subcats.filter(s => String(s.parent).toLowerCase().trim() === pNorm);
+    }
+
+    res.json({
+      success: true,
+      message: "Subcategories fetched successfully",
+      total: subcats.length,
+      subcategories: subcats
+    });
+  } catch (err) {
+    console.error("Fetch subcategories failed:", err);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
+
+// Subcategories: Get subcategories under a specific category name or ID
+app.get('/api/categories/:category/subcategories', async (req, res) => {
+  try {
+    const { category } = req.params;
+    const dbCategories = await DbLayer.getCategories();
+    
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+    const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
+
+    const catNorm = String(category).toLowerCase().trim();
+
+    const targetCat = dbCategories.find(c => 
+      String(c.id).toLowerCase().trim() === catNorm || 
+      String(c.name || c.title || '').toLowerCase().trim() === catNorm
+    );
+
+    const matchName = targetCat ? (targetCat.name || targetCat.title) : category;
+    const matchId = targetCat ? String(targetCat.id) : category;
+
+    const subcats = dbCategories
+      .filter(c => {
+        if (!c.parent || c.parent === 'Main Category') return false;
+        const pNorm = String(c.parent).toLowerCase().trim();
+        return pNorm === catNorm || pNorm === matchName.toLowerCase().trim() || pNorm === matchId.toLowerCase().trim();
+      })
+      .map(c => {
+        const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
+        return {
+          subCategoryId: String(c.id),
+          categoryId: String(c.id),
+          subCategoryName: c.title || c.name || '',
+          categoryName: c.title || c.name || '',
+          subCategoryImage: String(img || ''),
+          categoryImage: String(img || ''),
+          parent: c.parent,
+          status: c.status === 0 ? "inactive" : "active"
+        };
+      });
+
+    res.json({
+      success: true,
+      category: matchName,
+      total: subcats.length,
+      subcategories: subcats
+    });
+  } catch (err) {
+    console.error("Fetch category subcategories failed:", err);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 });
 
