@@ -3075,9 +3075,11 @@ app.get('/api/categories', async (req, res) => {
       const varts = variantsBySrv[srvIdStr] || [];
       
       const mappedService = {
+          ...s,
           serviceId: srvIdStr,
           productDbId: srvIdStr,
-          title: String(s.title || ''),
+          title: String(s.title || s.name || ''),
+          name: String(s.title || s.name || ''),
           subtitle: String(s.subtitle || ''),
           description: String(s.description || ''),
           image: String(s.image || ''),
@@ -3117,16 +3119,20 @@ app.get('/api/categories', async (req, res) => {
     let categoriesList = dbCategories.map(c => {
       const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
       const localizedObj = typeof localizeCategory === 'function' ? localizeCategory(c, req.lang) : c;
-      const catIdStr = String(localizedObj.id || c.id || '');
 
-      // Check if services match by ID, ID lowercase, title, or title lowercase
-      const catTitle = String(localizedObj.name || c.title || c.name || '');
+      const catIdStr = String(localizedObj.id || c.id || '');
+      const catTitle = String(localizedObj.name || c.name || c.title || '');
       const catIdLower = catIdStr.toLowerCase().trim();
       const catTitleLower = catTitle.toLowerCase().trim();
 
       const catServices = servicesByCat[catIdStr] || servicesByCat[catIdLower] || servicesByCat[catTitle] || servicesByCat[catTitleLower] || [];
 
       return {
+        ...c,
+        id: catIdStr,
+        name: catTitle,
+        title: catTitle,
+        image: String(img || ''),
         categoryId: catIdStr,
         categoryName: catTitle,
         categoryImage: String(img || ''),
@@ -3141,24 +3147,17 @@ app.get('/api/categories', async (req, res) => {
     const rootCategories = [];
 
     categoriesList.forEach(c => {
-      const originalCat = dbCategories.find(dbC => String(dbC.id) === String(c.categoryId)) || {};
-      const parentVal = String(originalCat.parent || c.parent || '').trim();
-      c.parent = parentVal || 'Main Category';
+      const parentVal = String(c.parent || '').trim();
 
       if (parentVal && parentVal !== 'Main Category' && parentVal !== 'null' && parentVal !== 'undefined') {
         const parentKey = parentVal.toLowerCase();
         if (!subCategoriesByParent[parentKey]) subCategoriesByParent[parentKey] = [];
         
         const subCatObj = {
-          subCategoryId: String(c.categoryId),
-          categoryId: String(c.categoryId),
-          subCategoryName: String(c.categoryName),
-          categoryName: String(c.categoryName),
-          subCategoryImage: String(c.categoryImage),
-          categoryImage: String(c.categoryImage),
-          parent: String(c.parent),
-          status: c.status,
-          services: c.services || []
+          ...c,
+          subCategoryId: String(c.id || c.categoryId),
+          subCategoryName: String(c.name || c.categoryName),
+          subCategoryImage: String(c.image || c.categoryImage)
         };
         subCategoriesByParent[parentKey].push(subCatObj);
       } else {
@@ -3168,8 +3167,8 @@ app.get('/api/categories', async (req, res) => {
 
     // Attach subCategories array to every category
     categoriesList.forEach(c => {
-      const catIdStr = String(c.categoryId);
-      const catNameStr = String(c.categoryName);
+      const catIdStr = String(c.id || c.categoryId);
+      const catNameStr = String(c.name || c.categoryName);
       const catIdLower = catIdStr.toLowerCase().trim();
       const catNameLower = catNameStr.toLowerCase().trim();
 
@@ -3182,48 +3181,35 @@ app.get('/api/categories', async (req, res) => {
       c.subcategories = subCats;
     });
 
-    // Return root categories with nested subcategories by default, or all flat if requested via flat=true
     const isFlat = req.query.flat === 'true' || req.query.includeAll === 'true';
     let categories = isFlat ? categoriesList : (rootCategories.length > 0 ? rootCategories : categoriesList);
     
-    const hasPaginationParams = req.query.page !== undefined || req.query.limit !== undefined;
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
 
-    let finalCategories = categories;
-    let page = 1;
-    let limit = categories.length || 1;
-    let totalPages = 1;
-
-    if (hasPaginationParams) {
-      page = parseInt(req.query.page) || 1;
-      limit = parseInt(req.query.limit) || 20;
+    if (page && limit) {
       const startIndex = (page - 1) * limit;
       const endIndex = page * limit;
-      finalCategories = categories.slice(startIndex, endIndex);
-      totalPages = Math.ceil(categories.length / limit) || 1;
+      const paginatedCategories = categories.slice(startIndex, endIndex);
+      
+      return res.json({ 
+        success: true, 
+        categories: paginatedCategories,
+        data: { categories: paginatedCategories },
+        currentPage: page,
+        totalPages: Math.ceil(categories.length / limit),
+        totalCategories: categories.length
+      });
     }
 
-    res.json({ 
-      success: true, 
-      message: "Services fetched successfully",
-      categories: finalCategories, // Top-level array (backward compatible with ea41765 & older app builds)
-      data: {
-        categories: finalCategories // Nested object (compatible with newer app builds)
-      },
-      pagination: {
-        page: page,
-        limit: limit,
-        total: categories.length,
-        totalPages: totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1
-      },
-      currentPage: page,
-      totalPages: totalPages,
-      totalCategories: categories.length
+    res.json({
+      success: true,
+      categories: categories,
+      data: { categories: categories }
     });
   } catch (err) {
     console.error("Fetch categories failed:", err);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
