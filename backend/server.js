@@ -208,6 +208,138 @@ const defaultSubCategoryPresets = {
   ]
 };
 
+const defaultSubCatServicePresets = {
+  "ac service & checkup": [
+    { title: "AC Power Saver Service", price: 599, cutPrice: 899 },
+    { title: "AC Foam & Jet Wash Service", price: 799, cutPrice: 1199 },
+    { title: "AC Anti-Bacterial Checkup", price: 399, cutPrice: 599 }
+  ],
+  "ac repair & installation": [
+    { title: "Split AC Installation", price: 1499, cutPrice: 1999 },
+    { title: "Window AC Installation", price: 999, cutPrice: 1499 },
+    { title: "AC Gas Charging (R32/R410)", price: 2299, cutPrice: 2999 }
+  ],
+  "interior car wash": [
+    { title: "Car Interior Vacuum & Sanitization", price: 499, cutPrice: 799 },
+    { title: "Car Seat Shampoo & Upholstery Clean", price: 899, cutPrice: 1299 },
+    { title: "Dashboard & Console Polish", price: 349, cutPrice: 499 }
+  ],
+  "exterior foam wash": [
+    { title: "High-Pressure Foam Wash & Wax", price: 399, cutPrice: 599 },
+    { title: "Complete Exterior Polish & Shine", price: 799, cutPrice: 1199 },
+    { title: "Tire & Alloy Wheel Detailing", price: 299, cutPrice: 499 }
+  ],
+  "tap & pipe repair": [
+    { title: "Tap Leakage & Washer Repair", price: 199, cutPrice: 299 },
+    { title: "Mixer & Shower Installation", price: 399, cutPrice: 599 },
+    { title: "Pipeline Fitting & Leakage Fix", price: 499, cutPrice: 799 }
+  ],
+  "drainage & bathroom fitting": [
+    { title: "Bathroom Waste Pipe Unclogging", price: 399, cutPrice: 599 },
+    { title: "Commode & Flush Tank Repair", price: 499, cutPrice: 799 },
+    { title: "Washbasin & Sink Drain Repair", price: 299, cutPrice: 499 }
+  ],
+  "full home deep cleaning": [
+    { title: "2 BHK Full Home Deep Cleaning", price: 2499, cutPrice: 3499 },
+    { title: "3 BHK Full Home Deep Cleaning", price: 3499, cutPrice: 4499 },
+    { title: "Kitchen & Bathroom Deep Cleaning", price: 1499, cutPrice: 1999 }
+  ],
+  "sofa & carpet cleaning": [
+    { title: "5 Seater Sofa Shampoo & Cleaning", price: 799, cutPrice: 1199 },
+    { title: "Living Room Carpet Dry Cleaning", price: 599, cutPrice: 899 },
+    { title: "Dining Chair & Mattress Cleaning", price: 499, cutPrice: 699 }
+  ],
+  "switchboard & wiring": [
+    { title: "Switch & Socket Replacement", price: 149, cutPrice: 249 },
+    { title: "MCB & Main Line Fuse Repair", price: 299, cutPrice: 499 },
+    { title: "Complete Room Wiring & Checkup", price: 799, cutPrice: 1199 }
+  ],
+  "fan & light appliance repair": [
+    { title: "Ceiling Fan Installation & Repair", price: 199, cutPrice: 299 },
+    { title: "LED Light & Chandelier Fitting", price: 249, cutPrice: 399 },
+    { title: "Exhaust Fan & Geyser Checkup", price: 349, cutPrice: 499 }
+  ],
+  "haircut & styling": [
+    { title: "Men's Haircut & Beard Styling", price: 299, cutPrice: 499 },
+    { title: "Hair Spa & Scalp Massage", price: 599, cutPrice: 899 },
+    { title: "Hair Color & Organic Treatment", price: 899, cutPrice: 1299 }
+  ],
+  "facial & skin care": [
+    { title: "Gold Glow Facial & Clean-up", price: 799, cutPrice: 1199 },
+    { title: "Detan Face & Neck Pack", price: 499, cutPrice: 699 },
+    { title: "Full Body Scrub & Massage", price: 1499, cutPrice: 1999 }
+  ],
+  "interior wall painting": [
+    { title: "Single Room Express Paint", price: 1999, cutPrice: 2799 },
+    { title: "Full House Wall Touchup & Paint", price: 4999, cutPrice: 6999 },
+    { title: "Designer Texture & Accent Wall", price: 2999, cutPrice: 3999 }
+  ],
+  "exterior & waterproofing": [
+    { title: "Roof Waterproofing Coating", price: 3499, cutPrice: 4999 },
+    { title: "Wall Dampness Treatment", price: 2499, cutPrice: 3499 }
+  ],
+  "furniture repair & assembly": [
+    { title: "Bed & Sofa Repair / Tightening", price: 399, cutPrice: 599 },
+    { title: "Modular Furniture Assembly", price: 699, cutPrice: 999 },
+    { title: "Wardrobe Lock & Hinge Fix", price: 299, cutPrice: 449 }
+  ],
+  "door & window fitting": [
+    { title: "Door Lock & Handle Fitting", price: 249, cutPrice: 399 },
+    { title: "Wooden Door Channel Repair", price: 349, cutPrice: 499 }
+  ],
+  "general bike service": [
+    { title: "Complete Bike Tune-up & Oil Change", price: 499, cutPrice: 799 },
+    { title: "Carburetor Clean & Chain Lube", price: 299, cutPrice: 449 },
+    { title: "Brake Shoe & Cable Replacement", price: 249, cutPrice: 399 }
+  ],
+  "engine & brake repair": [
+    { title: "Bike Engine Overhaul & Servicing", price: 1499, cutPrice: 2199 },
+    { title: "Disc Brake Pad Replacement", price: 399, cutPrice: 599 }
+  ]
+};
+
+function generateDefaultServicesForSubCategory(subCatTitle, categoryName, catId, subCatId) {
+  const normTitle = String(subCatTitle || '').toLowerCase().trim();
+  const presets = defaultSubCatServicePresets[normTitle] || [
+    { title: `${subCatTitle} - Basic Service`, price: 399, cutPrice: 599 },
+    { title: `${subCatTitle} - Advanced Service`, price: 699, cutPrice: 999 },
+    { title: `${subCatTitle} - Complete Package`, price: 1199, cutPrice: 1599 }
+  ];
+
+  return presets.map((p, idx) => {
+    const srvId = `${subCatId}_srv_${idx + 1}`;
+    const price = p.price;
+    const cutPrice = p.cutPrice;
+    const discount = Math.round(((cutPrice - price) / cutPrice) * 100);
+    const img = typeof getHdFallbackServiceImageUrl === 'function' 
+      ? getHdFallbackServiceImageUrl(p.title, categoryName)
+      : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&q=80";
+      
+    return {
+      id: srvId,
+      serviceId: srvId,
+      productDbId: srvId,
+      productId: p.title,
+      title: p.title,
+      name: p.title,
+      serviceName: p.title,
+      description: `${p.title} by professional experts with 100% satisfaction guarantee.`,
+      image: img,
+      price: price,
+      cutPrice: cutPrice,
+      discount: discount,
+      rating: 4.8,
+      reviewsCount: 120 + idx * 17,
+      category: String(catId),
+      category_id: String(catId),
+      categoryId: String(catId),
+      status: "active",
+      hasVariants: false,
+      variants: []
+    };
+  });
+}
+
 function generateSubcategoriesForCategory(c) {
   const catIdStr = String(c.id || c.categoryId || '');
   const catNameStr = String(c.name || c.categoryName || c.title || '');
@@ -221,14 +353,25 @@ function generateSubcategoriesForCategory(c) {
   const catServices = Array.isArray(c.services) ? c.services : [];
   const halfLen = Math.ceil(catServices.length / 2);
 
-  const sub1Services = catServices.length > 1 ? catServices.slice(0, halfLen) : catServices;
-  const sub2Services = catServices.length > 1 ? catServices.slice(halfLen) : catServices;
+  let sub1Services = catServices.length > 1 ? catServices.slice(0, halfLen) : catServices;
+  let sub2Services = catServices.length > 1 ? catServices.slice(halfLen) : catServices;
+
+  const sub1Id = `${catIdStr}_sub_1`;
+  const sub2Id = `${catIdStr}_sub_2`;
+
+  if (!sub1Services || sub1Services.length < 2) {
+    sub1Services = generateDefaultServicesForSubCategory(presets[0].title, catNameStr, catIdStr, sub1Id);
+  }
+
+  if (!sub2Services || sub2Services.length < 2) {
+    sub2Services = generateDefaultServicesForSubCategory(presets[1].title, catNameStr, catIdStr, sub2Id);
+  }
 
   const img = c.image || c.categoryImage || '';
 
   const sub1 = {
-    id: `${catIdStr}_sub_1`,
-    subCategoryId: `${catIdStr}_sub_1`,
+    id: sub1Id,
+    subCategoryId: sub1Id,
     categoryId: catIdStr,
     name: presets[0].title,
     title: presets[0].title,
@@ -243,8 +386,8 @@ function generateSubcategoriesForCategory(c) {
   };
 
   const sub2 = {
-    id: `${catIdStr}_sub_2`,
-    subCategoryId: `${catIdStr}_sub_2`,
+    id: sub2Id,
+    subCategoryId: sub2Id,
     categoryId: catIdStr,
     name: presets[1].title,
     title: presets[1].title,
