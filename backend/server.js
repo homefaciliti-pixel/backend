@@ -72,7 +72,7 @@ async function fetchAdminBackendCategories() {
   try {
     const https = require('https');
     const data = await new Promise((resolve) => {
-      https.get('https://adminbackend-1-h03r.onrender.com/api/categories', { timeout: 4000 }, (res) => {
+      const req = https.get('https://adminbackend-1-h03r.onrender.com/api/categories', { timeout: 4000 }, (res) => {
         let raw = '';
         res.on('data', chunk => raw += chunk);
         res.on('end', () => {
@@ -82,7 +82,12 @@ async function fetchAdminBackendCategories() {
           } catch(e){}
           resolve([]);
         });
-      }).on('error', () => resolve([]));
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        resolve([]);
+      });
+      req.on('error', () => resolve([]));
     });
     if (data.length > 0) {
       cachedAdminCategories = data;
@@ -102,7 +107,7 @@ async function fetchAdminBackendServices() {
   try {
     const https = require('https');
     const data = await new Promise((resolve) => {
-      https.get('https://adminbackend-1-h03r.onrender.com/api/services', { timeout: 6000 }, (res) => {
+      const req = https.get('https://adminbackend-1-h03r.onrender.com/api/services', { timeout: 5000 }, (res) => {
         let raw = '';
         res.on('data', chunk => raw += chunk);
         res.on('end', () => {
@@ -112,7 +117,12 @@ async function fetchAdminBackendServices() {
           } catch(e){}
           resolve([]);
         });
-      }).on('error', () => resolve([]));
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        resolve([]);
+      });
+      req.on('error', () => resolve([]));
     });
     if (data.length > 0) {
       cachedAdminServices = data;
@@ -4177,7 +4187,7 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
   return serviceObj;
 };
 
-const getHdFallbackServiceImageUrl = (title, categoryName) => {
+function getHdFallbackServiceImageUrl(title, categoryName) {
   const t = (title || '').toLowerCase();
   const c = (categoryName || '').toLowerCase();
 
