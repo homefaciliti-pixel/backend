@@ -3533,6 +3533,7 @@ app.get('/api/categories', async (req, res) => {
 
       c.subCategories = subCats;
       c.subcategories = subCats;
+      c.sub_categories = subCats;
     });
 
     const isFlat = req.query.flat === 'true' || req.query.includeAll === 'true';
@@ -3599,10 +3600,91 @@ app.post('/api/subcategories', async (req, res) => {
   }
 });
 
+// GET /api/categories/:id - Single category with nested subcategories
+app.get('/api/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dbCategories = await DbLayer.getCategories();
+
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
+    const serverBaseUrl = (isLocal ? protocol : 'https') + '://' + host;
+
+    const idNorm = String(id).toLowerCase().trim();
+    const found = dbCategories.find(c =>
+      String(c.id).toLowerCase().trim() === idNorm ||
+      String(c.title || c.name || '').toLowerCase().trim() === idNorm
+    );
+
+    if (!found) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+
+    const localizedObj = typeof localizeCategory === 'function' ? localizeCategory(found, req.lang) : found;
+    const img = resolveDynamicCategoryImageUrl(found, serverBaseUrl);
+    const catIdStr = String(localizedObj.id || found.id || '');
+    const catTitle = String(localizedObj.name || found.name || found.title || '');
+
+    // Get subcategories for this category
+    let subcats = dbCategories
+      .filter(c => {
+        if (!c.parent || c.parent === 'Main Category') return false;
+        const pNorm = String(c.parent).toLowerCase().trim();
+        return pNorm === idNorm || pNorm === catTitle.toLowerCase().trim() || pNorm === catIdStr.toLowerCase().trim();
+      })
+      .map(c => {
+        const subImg = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
+        return {
+          id: String(c.id),
+          subCategoryId: String(c.id),
+          categoryId: catIdStr,
+          category_id: isNaN(catIdStr) ? catIdStr : parseInt(catIdStr),
+          name: c.title || c.name || '',
+          title: c.title || c.name || '',
+          subCategoryName: c.title || c.name || '',
+          categoryName: catTitle,
+          image: String(subImg || ''),
+          subCategoryImage: String(subImg || ''),
+          categoryImage: String(subImg || ''),
+          parent: c.parent,
+          status: c.status === 0 ? 'inactive' : 'active',
+          services: []
+        };
+      });
+
+    if (subcats.length === 0) {
+      subcats = generateSubcategoriesForCategory({ ...found, image: img });
+    }
+
+    const categoryData = {
+      ...found,
+      id: isNaN(catIdStr) ? catIdStr : parseInt(catIdStr),
+      title: catTitle,
+      name: catTitle,
+      image: String(img || ''),
+      status: found.status === 0 ? false : true,
+      parent: found.parent || 'Main Category',
+      subcategories: subcats,
+      sub_categories: subcats,
+      subCategories: subcats
+    };
+
+    res.json({
+      success: true,
+      data: categoryData,
+      category: categoryData
+    });
+  } catch (err) {
+    console.error('Fetch single category failed:', err);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+});
+
 // Subcategories: Get all subcategories or filter by parent query
 app.get('/api/subcategories', async (req, res) => {
   try {
-    const { parent } = req.query;
+    const parent = req.query.parent || req.query.category_id || req.query.categoryId || req.query.category;
     const dbCategories = await DbLayer.getCategories();
     
     const host = req.get('host');
@@ -3638,7 +3720,11 @@ app.get('/api/subcategories', async (req, res) => {
 
     if (parent) {
       const pNorm = String(parent).toLowerCase().trim();
-      subcats = subcats.filter(s => String(s.parent).toLowerCase().trim() === pNorm);
+      subcats = subcats.filter(s => 
+        String(s.parent || '').toLowerCase().trim() === pNorm ||
+        String(s.categoryId || s.category_id || '').toLowerCase().trim() === pNorm ||
+        String(s.categoryName || '').toLowerCase().trim() === pNorm
+      );
     }
 
     res.json({
@@ -4276,7 +4362,9 @@ function resolveServiceUrls(services, serverBaseUrl) {
 
 // 6. Services: Fetch with category / search filter
 app.get('/api/services', async (req, res) => {
-  const { category, search } = req.query;
+  const category = req.query.category || req.query.category_id || req.query.categoryId;
+  const subCategory = req.query.sub_category_id || req.query.subCategoryId || req.query.subcategory_id;
+  const search = req.query.search;
 
   const host = req.get('host');
   const protocol = req.protocol;
@@ -4388,6 +4476,13 @@ app.get('/api/services', async (req, res) => {
     list = list.filter(s => s.title.toLowerCase().includes(query) || s.description.toLowerCase().includes(query));
   }
 
+  if (subCategory) {
+    const subNorm = String(subCategory).toLowerCase().trim();
+    list = list.filter(s => 
+      String(s.sub_category_id || s.subCategoryId || s.subCategory || s.sub_category || s.id || '').toLowerCase().trim() === subNorm ||
+      String(s.sub_category_id || s.subCategoryId || '').toLowerCase().includes(subNorm)
+    );
+  }
   res.json({ success: true, services: resolveServiceUrls(list, serverBaseUrl).map(s => localizeService(s, req.lang)) });
 });
 
