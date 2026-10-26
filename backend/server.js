@@ -343,6 +343,10 @@ function generateDefaultServicesForSubCategory(subCatTitle, categoryName, catId,
       category: String(catId),
       category_id: String(catId),
       categoryId: String(catId),
+      subCategoryId: String(subCatId),
+      sub_category_id: String(subCatId),
+      subCategory: String(subCatTitle || ''),
+      sub_category: String(subCatTitle || ''),
       status: "active",
       hasVariants: false,
       variants: []
@@ -3350,6 +3354,10 @@ app.get('/api/categories', async (req, res) => {
             category: catId,
             category_id: catId,
             categoryId: catId,
+            subCategoryId: as.subCategoryId || as.sub_category_id ? String(as.subCategoryId || as.sub_category_id) : (as.subCategory || as.sub_category ? String(as.subCategory || as.sub_category) : null),
+            sub_category_id: as.sub_category_id || as.subCategoryId ? String(as.sub_category_id || as.subCategoryId) : (as.sub_category || as.subCategory ? String(as.sub_category || as.subCategory) : null),
+            subCategory: as.subCategory || as.sub_category || null,
+            sub_category: as.sub_category || as.subCategory || null,
             status: (as.status === true || as.status === 1 || as.status === '1') ? 1 : 0,
             hasVariants: false,
             variants: []
@@ -3434,6 +3442,11 @@ app.get('/api/categories', async (req, res) => {
           description: String(s.description || ''),
           image: String(s.image || ''),
           categoryId: catId,
+          category_id: catId,
+          subCategoryId: s.subCategoryId || s.sub_category_id ? String(s.subCategoryId || s.sub_category_id) : (s.subCategory || s.sub_category ? String(s.subCategory || s.sub_category) : null),
+          sub_category_id: s.sub_category_id || s.subCategoryId ? String(s.sub_category_id || s.subCategoryId) : (s.sub_category || s.subCategory ? String(s.sub_category || s.subCategory) : null),
+          subCategory: s.subCategory || s.sub_category || null,
+          sub_category: s.sub_category || s.subCategory || null,
           status: s.status === 0 ? "inactive" : "active",
           rating: Number(s.rating || 4.5),
           reviewsCount: Number(s.reviewsCount || 0),
@@ -4263,6 +4276,11 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
     highlights: finalHighlights,
     category: r.category_id ? r.category_id.toString() : "",
     categoryId: r.category_id ? r.category_id.toString() : "",
+    category_id: r.category_id ? r.category_id.toString() : "",
+    subCategoryId: r.sub_category_id ? String(r.sub_category_id) : (r.subCategoryId ? String(r.subCategoryId) : (r.sub_category ? String(r.sub_category) : null)),
+    sub_category_id: r.sub_category_id ? String(r.sub_category_id) : (r.subCategoryId ? String(r.subCategoryId) : (r.sub_category ? String(r.sub_category) : null)),
+    subCategory: r.sub_category || r.subCategory || null,
+    sub_category: r.sub_category || r.subCategory || null,
     duration: r.title.toLowerCase().includes("cleaning") || r.title.toLowerCase().includes("paint") ? "3-4 Hours" : "1-2 Hours",
   };
   for (const lang of ['hi', 'mr', 'gu', 'bn', 'ta', 'te', 'kn', 'ml', 'pa', 'or', 'as']) {
@@ -4353,9 +4371,19 @@ function resolveServiceUrls(services, serverBaseUrl) {
       const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
       img = `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
     }
+    const catIdVal = s.categoryId || s.category_id || s.category || "";
+    const subCatIdVal = s.subCategoryId || s.sub_category_id || null;
+    const subCatNameVal = s.subCategory || s.sub_category || null;
     return {
       ...s,
-      image: img
+      image: img,
+      categoryId: catIdVal ? String(catIdVal) : "",
+      category_id: catIdVal ? String(catIdVal) : "",
+      category: catIdVal ? String(catIdVal) : "",
+      subCategoryId: subCatIdVal ? String(subCatIdVal) : (subCatNameVal ? String(subCatNameVal) : null),
+      sub_category_id: subCatIdVal ? String(subCatIdVal) : (subCatNameVal ? String(subCatNameVal) : null),
+      subCategory: subCatNameVal || (subCatIdVal ? String(subCatIdVal) : null),
+      sub_category: subCatNameVal || (subCatIdVal ? String(subCatIdVal) : null)
     };
   });
 }
@@ -4392,14 +4420,45 @@ app.get('/api/services', async (req, res) => {
         }
       }
 
+      if (subCategory) {
+        queryStr += " AND (sub_category_id = ? OR sub_category = ?)";
+        queryParams.push(String(subCategory), String(subCategory));
+      }
+
       if (search) {
         queryStr += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ?)";
         const term = `%${search.toString().toLowerCase()}%`;
         queryParams.push(term, term);
       }
 
-      const [srvRows] = await mysqlPool.query(queryStr, queryParams);
-      const dbServices = srvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
+      let srvRows = [];
+      try {
+        const [rows] = await mysqlPool.query(queryStr, queryParams);
+        srvRows = rows;
+      } catch (colErr) {
+        // If sub_category_id column doesn't exist in MySQL table, query without it and filter in memory
+        let fallbackQueryStr = "SELECT * FROM node_services WHERE status IN (0, 1)";
+        const fallbackParams = [];
+        if (category) {
+          const [catRows] = await mysqlPool.query(
+            "SELECT id FROM node_categories WHERE LOWER(title) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ?",
+            [category.toLowerCase(), isNaN(category) ? -1 : parseInt(category), cleanCategory]
+          );
+          if (catRows.length > 0) {
+            fallbackQueryStr += " AND category_id = ?";
+            fallbackParams.push(catRows[0].id);
+          } else {
+            fallbackQueryStr += " AND category_id = -1";
+          }
+        }
+        if (search) {
+          fallbackQueryStr += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ?)";
+          fallbackParams.push(`%${search.toString().toLowerCase()}%`, `%${search.toString().toLowerCase()}%`);
+        }
+        const [rows] = await mysqlPool.query(fallbackQueryStr, fallbackParams);
+        srvRows = rows;
+      }
+      let dbServices = srvRows.map(r => sanitizeServiceDbObj(r, serverBaseUrl));
 
       // Merge with static services
       let staticList = [];
@@ -4421,7 +4480,15 @@ app.get('/api/services', async (req, res) => {
 
       const dbTitles = new Set(dbServices.map(s => s.title.toLowerCase()));
       const uniqueStatic = staticList.filter(s => !dbTitles.has(s.title.toLowerCase()));
-      const mergedServices = [...dbServices, ...uniqueStatic];
+      let mergedServices = [...dbServices, ...uniqueStatic];
+
+      if (subCategory) {
+        const subNorm = String(subCategory).toLowerCase().trim();
+        mergedServices = mergedServices.filter(s =>
+          String(s.sub_category_id || s.subCategoryId || s.subCategory || s.sub_category || s.id || '').toLowerCase().trim() === subNorm ||
+          String(s.sub_category_id || s.subCategoryId || '').toLowerCase().includes(subNorm)
+        );
+      }
 
       return res.json({
         success: true,
