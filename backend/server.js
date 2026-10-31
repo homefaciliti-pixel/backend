@@ -60,9 +60,11 @@ const getLocalBannerAssetUrl = (title, serverBaseUrl) => {
 
 let cachedAdminCategories = null;
 let lastAdminCatFetchTime = 0;
+let cachedAdminSubcategories = null;
+let lastAdminSubcatFetchTime = 0;
 let cachedAdminServices = null;
 let lastAdminSvcFetchTime = 0;
-const ADMIN_FETCH_TTL = 30000; // 30s cache
+const ADMIN_FETCH_TTL = 10000; // 10s cache for fast admin sync
 
 async function fetchAdminBackendCategories() {
   const now = Date.now();
@@ -72,13 +74,16 @@ async function fetchAdminBackendCategories() {
   try {
     const https = require('https');
     const data = await new Promise((resolve) => {
-      const req = https.get('https://adminbackend-1-h03r.onrender.com/api/categories', { timeout: 4000 }, (res) => {
+      const req = https.get('https://adminbackend-1-h03r.onrender.com/api/categories', { timeout: 6000 }, (res) => {
         let raw = '';
         res.on('data', chunk => raw += chunk);
         res.on('end', () => {
           try {
             const parsed = JSON.parse(raw);
-            if (parsed && parsed.data && Array.isArray(parsed.data)) return resolve(parsed.data);
+            if (parsed && Array.isArray(parsed.data)) return resolve(parsed.data);
+            if (parsed && Array.isArray(parsed.services)) return resolve(parsed.services);
+            if (parsed && Array.isArray(parsed.categories)) return resolve(parsed.categories);
+            if (Array.isArray(parsed)) return resolve(parsed);
           } catch(e){}
           resolve([]);
         });
@@ -99,6 +104,43 @@ async function fetchAdminBackendCategories() {
   }
 }
 
+async function fetchAdminBackendSubcategories() {
+  const now = Date.now();
+  if (cachedAdminSubcategories && (now - lastAdminSubcatFetchTime < ADMIN_FETCH_TTL)) {
+    return cachedAdminSubcategories;
+  }
+  try {
+    const https = require('https');
+    const data = await new Promise((resolve) => {
+      const req = https.get('https://adminbackend-1-h03r.onrender.com/api/subcategories', { timeout: 6000 }, (res) => {
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.data)) return resolve(parsed.data);
+            if (parsed && Array.isArray(parsed.subcategories)) return resolve(parsed.subcategories);
+            if (Array.isArray(parsed)) return resolve(parsed);
+          } catch(e){}
+          resolve([]);
+        });
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        resolve([]);
+      });
+      req.on('error', () => resolve([]));
+    });
+    if (data.length > 0) {
+      cachedAdminSubcategories = data;
+      lastAdminSubcatFetchTime = now;
+    }
+    return cachedAdminSubcategories || data;
+  } catch(e) {
+    return cachedAdminSubcategories || [];
+  }
+}
+
 async function fetchAdminBackendServices() {
   const now = Date.now();
   if (cachedAdminServices && (now - lastAdminSvcFetchTime < ADMIN_FETCH_TTL)) {
@@ -113,7 +155,10 @@ async function fetchAdminBackendServices() {
         res.on('end', () => {
           try {
             const parsed = JSON.parse(raw);
-            if (parsed && parsed.data && Array.isArray(parsed.data)) return resolve(parsed.data);
+            if (parsed && Array.isArray(parsed.data)) return resolve(parsed.data);
+            if (parsed && Array.isArray(parsed.services)) return resolve(parsed.services);
+            if (parsed && Array.isArray(parsed.categories)) return resolve(parsed.categories);
+            if (Array.isArray(parsed)) return resolve(parsed);
           } catch(e){}
           resolve([]);
         });
@@ -135,7 +180,21 @@ async function fetchAdminBackendServices() {
 }
 
 const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
-  // Always use static 3D icons from assets/categories
+  let img = c.image || c.categoryImage || c.photo || c.icon || '';
+  if (img && typeof img === 'string') {
+    img = img.trim();
+    if (img.startsWith('http://') || img.startsWith('https://')) {
+      return img;
+    }
+    if (img.startsWith('/assets/')) {
+      return `${serverBaseUrl}${img}`;
+    }
+    if (img !== '1' && img !== 'null' && img !== 'undefined' && img.length > 2) {
+      const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
+      return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+    }
+  }
+  // Static 3D icons fallback from assets/categories
   return getLocalCategoryAssetUrl(c.title || c.name || '', serverBaseUrl);
 };
 
@@ -3298,6 +3357,8 @@ app.delete('/api/services/:id', async (req, res) => {
 
 app.get('/api/categories', async (req, res) => {
   try {
+    const adminCats = await fetchAdminBackendCategories();
+    const adminSubcats = await fetchAdminBackendSubcategories();
     const dbCategories = await DbLayer.getCategories();
     
     // Determine the base URL dynamically based on the incoming request headers
@@ -3479,7 +3540,93 @@ app.get('/api/categories', async (req, res) => {
       }
     });
 
-    let categoriesList = dbCategories.map(c => {
+    // Centralize categories: combine adminCats and dbCategories
+    const catMap = new Map();
+
+    (dbCategories || []).forEach(c => {
+      const idKey = String(c.id || c.categoryId || '').trim();
+      if (idKey) catMap.set(idKey, { ...c });
+    });
+
+    (adminCats || []).forEach(ac => {
+      const idKey = String(ac.id || ac.categoryId || '').trim();
+      const titleKey = String(ac.title || ac.name || '').trim().toLowerCase();
+      
+      let existingKey = null;
+      if (idKey && catMap.has(idKey)) {
+        existingKey = idKey;
+      } else {
+        for (const [k, v] of catMap.entries()) {
+          const vTitle = String(v.title || v.name || '').trim().toLowerCase();
+          if (vTitle && vTitle === titleKey) {
+            existingKey = k;
+            break;
+          }
+        }
+      }
+
+      const adminNestedSubs = Array.isArray(ac.subcategories) ? ac.subcategories : (Array.isArray(ac.subCategories) ? ac.subCategories : (Array.isArray(ac.sub_categories) ? ac.sub_categories : []));
+
+      if (existingKey) {
+        const existing = catMap.get(existingKey);
+        catMap.set(existingKey, {
+          ...existing,
+          ...ac,
+          id: existing.id || ac.id,
+          title: ac.title || ac.name || existing.title || existing.name,
+          name: ac.title || ac.name || existing.title || existing.name,
+          image: ac.image || ac.photo || existing.image,
+          status: (ac.status === false || ac.status === 0 || ac.status === 'inactive') ? 'inactive' : 'active',
+          adminSubcategories: adminNestedSubs
+        });
+      } else if (idKey || titleKey) {
+        const newKey = idKey || `cat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        catMap.set(newKey, {
+          ...ac,
+          id: newKey,
+          title: ac.title || ac.name || '',
+          name: ac.title || ac.name || '',
+          image: ac.image || ac.photo || '',
+          status: (ac.status === false || ac.status === 0 || ac.status === 'inactive') ? 'inactive' : 'active',
+          parent: ac.parent || 'Main Category',
+          adminSubcategories: adminNestedSubs
+        });
+      }
+    });
+
+    const combinedCategoriesList = Array.from(catMap.values());
+
+    // Map subcategories from adminSubcats and dbCategories by parent key
+    const subCatsByCatKey = {};
+
+    function addSubCatToGroup(key, subObj) {
+      if (!key) return;
+      const k = String(key).toLowerCase().trim();
+      if (!subCatsByCatKey[k]) subCatsByCatKey[k] = [];
+      const exists = subCatsByCatKey[k].some(s => 
+        String(s.id || s.subCategoryId).toLowerCase() === String(subObj.id || subObj.subCategoryId).toLowerCase() ||
+        String(s.name || s.title).toLowerCase().trim() === String(subObj.name || subObj.title).toLowerCase().trim()
+      );
+      if (!exists) {
+        subCatsByCatKey[k].push(subObj);
+      }
+    }
+
+    (adminSubcats || []).forEach(sub => {
+      const catId = String(sub.category_id || sub.categoryId || sub.parent_id || sub.parent || '').trim();
+      const catName = String(sub.category_name || sub.categoryName || sub.parent || '').trim();
+      if (catId) addSubCatToGroup(catId, sub);
+      if (catName) addSubCatToGroup(catName, sub);
+    });
+
+    (dbCategories || []).forEach(c => {
+      const parentVal = String(c.parent || '').trim();
+      if (parentVal && parentVal !== 'Main Category' && parentVal !== 'null' && parentVal !== 'undefined') {
+        addSubCatToGroup(parentVal, c);
+      }
+    });
+
+    let categoriesList = combinedCategoriesList.map(c => {
       const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
       const localizedObj = typeof localizeCategory === 'function' ? localizeCategory(c, req.lang) : c;
 
@@ -3540,7 +3687,77 @@ app.get('/api/categories', async (req, res) => {
                     subCategoriesByParent[catNameStr] || 
                     subCategoriesByParent[catNameLower] || [];
 
-      if (subCats.length < 2) {
+      // Collect all subcategories from admin backend and DB
+      let rawSubs = Array.isArray(c.adminSubcategories) && c.adminSubcategories.length > 0 ? [...c.adminSubcategories] : [];
+
+      const groupedSubs = [
+        ...(subCategoriesByParent[catIdStr] || []),
+        ...(subCategoriesByParent[catIdLower] || []),
+        ...(subCategoriesByParent[catNameStr] || []),
+        ...(subCategoriesByParent[catNameLower] || []),
+        ...(subCatsByCatKey[catIdStr] || []),
+        ...(subCatsByCatKey[catIdLower] || []),
+        ...(subCatsByCatKey[catNameStr] || []),
+        ...(subCatsByCatKey[catNameLower] || [])
+      ];
+
+      groupedSubs.forEach(gs => {
+        const already = rawSubs.some(r => 
+          String(r.id || r.subCategoryId) === String(gs.id || gs.subCategoryId) ||
+          String(r.name || r.title).toLowerCase().trim() === String(gs.name || gs.title).toLowerCase().trim()
+        );
+        if (!already) rawSubs.push(gs);
+      });
+
+      if (rawSubs.length > 0) {
+        subCats = rawSubs.map((sub, idx) => {
+          const subIdStr = String(sub.id || sub.subCategoryId || sub.sub_category_id || `${catIdStr}_sub_${idx + 1}`);
+          const subTitle = String(sub.title || sub.name || sub.subCategoryName || '').trim();
+          
+          let subImg = sub.image || sub.subCategoryImage || sub.photo || '';
+          if (subImg && typeof subImg === 'string') {
+            subImg = subImg.trim();
+            if (!subImg.startsWith('http://') && !subImg.startsWith('https://')) {
+              const clean = subImg.replace(/^\/+/, '').replace(/^uploads\//, '');
+              subImg = `https://adminbackend-1-h03r.onrender.com/uploads/${clean}`;
+            }
+          }
+          if (!subImg || subImg === '1') {
+            subImg = c.image || c.categoryImage || '';
+          }
+
+          const subNorm = subTitle.toLowerCase();
+          let subServices = allServices.filter(s => {
+            const sSubId = String(s.subCategoryId || s.sub_category_id || '');
+            const sSubName = String(s.subCategory || s.sub_category || '').toLowerCase().trim();
+            return (sSubId && sSubId === subIdStr) || (sSubName && sSubName === subNorm);
+          });
+
+          if (subServices.length === 0) {
+            subServices = generateDefaultServicesForSubCategory(subTitle, catNameStr, catIdStr, subIdStr);
+          }
+
+          return {
+            id: subIdStr,
+            subCategoryId: subIdStr,
+            sub_category_id: subIdStr,
+            categoryId: catIdStr,
+            category_id: isNaN(catIdStr) ? catIdStr : parseInt(catIdStr),
+            name: subTitle,
+            title: subTitle,
+            subCategoryName: subTitle,
+            categoryName: catNameStr,
+            image: String(subImg || ''),
+            subCategoryImage: String(subImg || ''),
+            categoryImage: String(c.image || c.categoryImage || ''),
+            parent: catNameStr,
+            status: (sub.status === 0 || sub.status === false || sub.status === 'inactive') ? 'inactive' : 'active',
+            services: subServices
+          };
+        });
+      }
+
+      if (subCats.length === 0) {
         subCats = generateSubcategoriesForCategory(c);
       }
 
@@ -3588,6 +3805,8 @@ app.post('/api/categories', async (req, res) => {
     return res.status(400).json({ error: "Category name is required" });
   }
   try {
+    cachedAdminCategories = null;
+    lastAdminCatFetchTime = 0;
     const category = await DbLayer.addCategory({ name, id, image, parent });
     console.log(`Added new category: ${category.name}`);
     res.json({ success: true, category: category, message: "Category created successfully" });
@@ -3599,7 +3818,12 @@ app.post('/api/categories', async (req, res) => {
 
 // Subcategories: Create/Add Subcategory explicitly
 app.post('/api/subcategories', async (req, res) => {
-  const { name, parent, image } = req.body;
+  const { name, image } = req.body;
+  const parent = req.body.parent || req.body.category_id || req.body.categoryId;
+  cachedAdminSubcategories = null;
+  cachedAdminCategories = null;
+  lastAdminSubcatFetchTime = 0;
+  lastAdminCatFetchTime = 0;
   if (!name || !parent) {
     return res.status(400).json({ error: "Both name and parent are required for a subcategory" });
   }
@@ -3613,10 +3837,76 @@ app.post('/api/subcategories', async (req, res) => {
   }
 });
 
+function collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBaseUrl) {
+  const allSubs = [];
+  const seen = new Set();
+
+  function addSub(sub, parentCat) {
+    const subId = String(sub.id || sub.subCategoryId || sub.sub_category_id || '').trim();
+    const subTitle = String(sub.title || sub.name || sub.subCategoryName || '').trim();
+    if (!subTitle) return;
+
+    const catId = String(parentCat ? (parentCat.id || parentCat.categoryId) : (sub.category_id || sub.categoryId || sub.parent_id || sub.parent || '')).trim();
+    const catName = String(parentCat ? (parentCat.name || parentCat.title || parentCat.categoryName) : (sub.categoryName || sub.category_name || sub.parent || '')).trim();
+
+    const dedupKey = `${subId}_${subTitle}_${catId}`.toLowerCase();
+    if (seen.has(dedupKey)) return;
+    seen.add(dedupKey);
+
+    let subImg = sub.image || sub.subCategoryImage || sub.photo || '';
+    if (subImg && typeof subImg === 'string') {
+      subImg = subImg.trim();
+      if (!subImg.startsWith('http://') && !subImg.startsWith('https://')) {
+        const clean = subImg.replace(/^\/+/, '').replace(/^uploads\//, '');
+        subImg = `https://adminbackend-1-h03r.onrender.com/uploads/${clean}`;
+      }
+    }
+    if (!subImg || subImg === '1') {
+      subImg = parentCat ? resolveDynamicCategoryImageUrl(parentCat, serverBaseUrl) : `${serverBaseUrl}/assets/categories/1_Plumber.png`;
+    }
+
+    allSubs.push({
+      id: subId || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      subCategoryId: subId || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      sub_category_id: subId || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      categoryId: catId,
+      category_id: isNaN(catId) ? catId : parseInt(catId),
+      name: subTitle,
+      title: subTitle,
+      subCategoryName: subTitle,
+      categoryName: catName || 'Category',
+      image: String(subImg || ''),
+      subCategoryImage: String(subImg || ''),
+      categoryImage: parentCat ? resolveDynamicCategoryImageUrl(parentCat, serverBaseUrl) : String(subImg || ''),
+      parent: catName || 'Main Category',
+      status: (sub.status === 0 || sub.status === false || sub.status === 'inactive') ? 'inactive' : 'active',
+      services: Array.isArray(sub.services) ? sub.services : []
+    });
+  }
+
+  (adminSubcats || []).forEach(sub => addSub(sub));
+
+  (adminCats || []).forEach(ac => {
+    const nested = Array.isArray(ac.subcategories) ? ac.subcategories : (Array.isArray(ac.subCategories) ? ac.subCategories : (Array.isArray(ac.sub_categories) ? ac.sub_categories : []));
+    nested.forEach(sub => addSub(sub, ac));
+  });
+
+  (dbCategories || []).forEach(c => {
+    const parentVal = String(c.parent || '').trim();
+    if (parentVal && parentVal !== 'Main Category' && parentVal !== 'null' && parentVal !== 'undefined') {
+      addSub(c);
+    }
+  });
+
+  return allSubs;
+}
+
 // GET /api/categories/:id - Single category with nested subcategories
 app.get('/api/categories/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const adminCats = await fetchAdminBackendCategories();
+    const adminSubcats = await fetchAdminBackendSubcategories();
     const dbCategories = await DbLayer.getCategories();
 
     const host = req.get('host');
@@ -3625,7 +3915,8 @@ app.get('/api/categories/:id', async (req, res) => {
     const serverBaseUrl = (isLocal ? protocol : 'https') + '://' + host;
 
     const idNorm = String(id).toLowerCase().trim();
-    const found = dbCategories.find(c =>
+    const allCats = [...(adminCats || []), ...(dbCategories || [])];
+    const found = allCats.find(c =>
       String(c.id).toLowerCase().trim() === idNorm ||
       String(c.title || c.name || '').toLowerCase().trim() === idNorm
     );
@@ -3639,35 +3930,42 @@ app.get('/api/categories/:id', async (req, res) => {
     const catIdStr = String(localizedObj.id || found.id || '');
     const catTitle = String(localizedObj.name || found.name || found.title || '');
 
-    // Get subcategories for this category
-    let subcats = dbCategories
-      .filter(c => {
-        if (!c.parent || c.parent === 'Main Category') return false;
-        const pNorm = String(c.parent).toLowerCase().trim();
-        return pNorm === idNorm || pNorm === catTitle.toLowerCase().trim() || pNorm === catIdStr.toLowerCase().trim();
-      })
-      .map(c => {
-        const subImg = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
-        return {
-          id: String(c.id),
-          subCategoryId: String(c.id),
-          categoryId: catIdStr,
-          category_id: isNaN(catIdStr) ? catIdStr : parseInt(catIdStr),
-          name: c.title || c.name || '',
-          title: c.title || c.name || '',
-          subCategoryName: c.title || c.name || '',
-          categoryName: catTitle,
-          image: String(subImg || ''),
-          subCategoryImage: String(subImg || ''),
-          categoryImage: String(subImg || ''),
-          parent: c.parent,
-          status: c.status === 0 ? 'inactive' : 'active',
-          services: []
-        };
-      });
+    const allSubs = collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBaseUrl);
+
+    let subcats = allSubs.filter(s => {
+      const pNorm = String(s.parent || '').toLowerCase().trim();
+      const cId = String(s.categoryId || s.category_id || '').toLowerCase().trim();
+      const cName = String(s.categoryName || '').toLowerCase().trim();
+      return pNorm === idNorm || pNorm === catTitle.toLowerCase().trim() || cId === catIdStr.toLowerCase().trim() || cName === catTitle.toLowerCase().trim();
+    });
 
     if (subcats.length === 0) {
-      subcats = generateSubcategoriesForCategory({ ...found, image: img });
+      const dbSubs = dbCategories
+        .filter(c => {
+          if (!c.parent || c.parent === 'Main Category') return false;
+          const pNorm = String(c.parent).toLowerCase().trim();
+          return pNorm === idNorm || pNorm === catTitle.toLowerCase().trim() || pNorm === catIdStr.toLowerCase().trim();
+        })
+        .map(c => {
+          const subImg = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
+          return {
+            id: String(c.id),
+            subCategoryId: String(c.id),
+            categoryId: catIdStr,
+            category_id: isNaN(catIdStr) ? catIdStr : parseInt(catIdStr),
+            name: c.title || c.name || '',
+            title: c.title || c.name || '',
+            subCategoryName: c.title || c.name || '',
+            categoryName: catTitle,
+            image: String(subImg || ''),
+            subCategoryImage: String(subImg || ''),
+            categoryImage: String(subImg || ''),
+            parent: c.parent,
+            status: c.status === 0 ? 'inactive' : 'active',
+            services: []
+          };
+        });
+      subcats = dbSubs.length > 0 ? dbSubs : generateSubcategoriesForCategory({ ...found, image: img });
     }
 
     const categoryData = {
@@ -3698,6 +3996,8 @@ app.get('/api/categories/:id', async (req, res) => {
 app.get('/api/subcategories', async (req, res) => {
   try {
     const parent = req.query.parent || req.query.category_id || req.query.categoryId || req.query.category;
+    const adminCats = await fetchAdminBackendCategories();
+    const adminSubcats = await fetchAdminBackendSubcategories();
     const dbCategories = await DbLayer.getCategories();
     
     const host = req.get('host');
@@ -3705,21 +4005,7 @@ app.get('/api/subcategories', async (req, res) => {
     const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
     const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-    let subcats = dbCategories
-      .filter(c => c.parent && c.parent !== 'Main Category' && c.parent !== '')
-      .map(c => {
-        const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
-        return {
-          subCategoryId: String(c.id),
-          categoryId: String(c.id),
-          subCategoryName: c.title || c.name || '',
-          categoryName: c.title || c.name || '',
-          subCategoryImage: String(img || ''),
-          categoryImage: String(img || ''),
-          parent: c.parent,
-          status: c.status === 0 ? "inactive" : "active"
-        };
-      });
+    let subcats = collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBaseUrl);
 
     // If DB has no explicit subcategories, generate 2 per main category
     if (subcats.length === 0) {
@@ -3744,7 +4030,8 @@ app.get('/api/subcategories', async (req, res) => {
       success: true,
       message: "Subcategories fetched successfully",
       total: subcats.length,
-      subcategories: subcats
+      subcategories: subcats,
+      data: subcats
     });
   } catch (err) {
     console.error("Fetch subcategories failed:", err);
@@ -3756,6 +4043,8 @@ app.get('/api/subcategories', async (req, res) => {
 app.get('/api/categories/:category/subcategories', async (req, res) => {
   try {
     const { category } = req.params;
+    const adminCats = await fetchAdminBackendCategories();
+    const adminSubcats = await fetchAdminBackendSubcategories();
     const dbCategories = await DbLayer.getCategories();
     
     const host = req.get('host');
@@ -3765,13 +4054,15 @@ app.get('/api/categories/:category/subcategories', async (req, res) => {
 
     const catNorm = String(category).toLowerCase().trim();
 
-    const targetCat = dbCategories.find(c => 
+    const allCats = [...(adminCats || []), ...(dbCategories || [])];
+    const targetCat = allCats.find(c => 
       String(c.id).toLowerCase().trim() === catNorm || 
       String(c.name || c.title || '').toLowerCase().trim() === catNorm
     );
 
     const matchName = targetCat ? (targetCat.name || targetCat.title) : category;
-    const matchId = targetCat ? String(targetCat.id) : category;
+    const matchId = targetCat ? String(targetCat.id || targetCat.categoryId) : category;
+    const allSubs = collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBaseUrl);
 
     let subcats = dbCategories
       .filter(c => {
@@ -3793,6 +4084,17 @@ app.get('/api/categories/:category/subcategories', async (req, res) => {
         };
       });
 
+    const matchedAdminSubs = allSubs.filter(s => {
+      const pNorm = String(s.parent || '').toLowerCase().trim();
+      const cId = String(s.categoryId || s.category_id || '').toLowerCase().trim();
+      const cName = String(s.categoryName || '').toLowerCase().trim();
+      return pNorm === catNorm || pNorm === matchName.toLowerCase().trim() || cId === matchId.toLowerCase().trim() || cName === matchName.toLowerCase().trim() || cId === catNorm;
+    });
+
+    if (matchedAdminSubs.length > 0) {
+      subcats = matchedAdminSubs;
+    }
+
     if (subcats.length === 0 && targetCat) {
       const img = resolveDynamicCategoryImageUrl(targetCat, serverBaseUrl);
       subcats = generateSubcategoriesForCategory({ ...targetCat, image: img });
@@ -3802,7 +4104,8 @@ app.get('/api/categories/:category/subcategories', async (req, res) => {
       success: true,
       category: matchName,
       total: subcats.length,
-      subcategories: subcats
+      subcategories: subcats,
+      data: subcats
     });
   } catch (err) {
     console.error("Fetch category subcategories failed:", err);
