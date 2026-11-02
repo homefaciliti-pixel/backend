@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { countriesList, CATEGORIES_DATA } = require('../config/constants');
+const { countriesList, CATEGORIES_DATA, STATIC_BOOKING_SLOTS } = require('../config/constants');
 const { translate } = require('../helpers/translate');
 
 function safeJsonParse(str, fallback = null) {
