@@ -1,4 +1,4 @@
-const { DbLayer, draftOrders } = require('../services/dbLayer');
+﻿const { DbLayer, draftOrders } = require('../services/dbLayer');
 const { getAuthenticatedUser } = require('../middleware/auth.middleware');
 const { getMysqlPool, getMysqlReady, getDbMode } = require('../config/db');
 const { STATIC_BOOKING_SLOTS, SERVICES_DATA } = require('../config/constants');
@@ -544,10 +544,14 @@ const handlePostCheckout = async (req, res) => {
       }
     }
 
+    // Track amount in paise alongside Razorpay order ID for price-mismatch validation
+    let razorpayAmountPaisa = 0;
     if (!razorpayOrderId && (paymentMethod.toLowerCase() === "online" || paymentMethod.toLowerCase() === "razorpay")) {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_SwFaJKQjU5ZOsH';
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'JY4Uup8xp2k1AvXXE2ezOje2';
-      const advanceOnlineAmount = amountPaid > 0 ? amountPaid : finalPrice;
+      // CRITICAL FIX: Always use server-calculated finalPrice for Razorpay order creation.
+      // Never trust client-supplied amountPaid — it may be stale and cause wrong amount in Razorpay popup.
+      const advanceOnlineAmount = finalPrice > 0 ? finalPrice : (amountPaid > 0 ? amountPaid : 1);
       try {
         const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
         const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
@@ -565,6 +569,7 @@ const handlePostCheckout = async (req, res) => {
         const rzpData = await rzpRes.json();
         if (rzpData && rzpData.id) {
           razorpayOrderId = rzpData.id;
+          razorpayAmountPaisa = rzpData.amount || Math.round(advanceOnlineAmount * 100);
           console.log(`[Razorpay] Successfully created order ${razorpayOrderId} for advance amount ₹${advanceOnlineAmount}`);
         } else {
           console.warn('[Razorpay] Order creation failed:', JSON.stringify(rzpData));
@@ -657,6 +662,7 @@ const handlePostCheckout = async (req, res) => {
         amountPaid: paymentMethod.toLowerCase() === "wallet" ? allowedWalletDeduction : (paymentMethod.toLowerCase() === "amc" ? 0 : amountPaid)
       },
       razorpayOrderId: razorpayOrderId,
+      razorpayAmountPaisa: razorpayAmountPaisa,
       razorpayPaymentId: (existingOrder ? existingOrder.razorpayPaymentId : null) || null,
       createdAt: Date.now(),
       amcId: activeAmcId,
@@ -1605,7 +1611,27 @@ const handleGetCheckout = async (req, res) => {
       bookingStatus: order.bookingStatus || "searching",
       partnerName: order.partnerName || null,
       partnerDistance: order.partnerDistance || null,
-      razorpayOrderId: order.razorpayOrderId || null,
+      // CRITICAL FIX: Validate stale razorpayOrderId — if the current payable amount
+      // does not match the amount when the Razorpay order was created, clear it.
+      // Razorpay SDK enforces the amount from its own server when order_id is provided,
+      // so a stale razorpayOrderId causes wrong price to appear in Razorpay popup.
+      razorpayOrderId: (() => {
+        const rid = order.razorpayOrderId;
+        if (!rid) return null;
+        // mock order IDs are safe (not real Razorpay orders) — always pass them through
+        if (rid.startsWith('order_mock_')) return rid;
+        // For real Razorpay order IDs, check if the stored price matches current payable amount
+        const storedRzpAmount = Number(order.razorpayAmount || order.razorpayAmountPaisa || 0);
+        const currentAmountPaisa = Math.round(finalPayableAmount * 100);
+        if (storedRzpAmount > 0 && storedRzpAmount !== currentAmountPaisa) {
+          console.warn(`[GetCheckout] Clearing stale razorpayOrderId ${rid}: stored amount ${storedRzpAmount} paisa != current ${currentAmountPaisa} paisa`);
+          // Clear from order in-memory too so next POST creates a fresh one
+          order.razorpayOrderId = null;
+          if (order.userPhone) draftOrders.set(order.userPhone, order);
+          return null;
+        }
+        return rid;
+      })(),
       advancePayment: finalAdvance,
       remainingAmount: finalRemaining,
       platformCharge: 0.00,
