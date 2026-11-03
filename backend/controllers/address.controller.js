@@ -1,7 +1,7 @@
 const { DbLayer } = require('../services/dbLayer');
 const { getAuthenticatedUser } = require('../middleware/auth.middleware');
 const { localizeAddress } = require('../helpers/contentI18n');
-const { sanitizeAddressObj, validatePhoneNumberLength } = require('../utils/helpers');
+const { sanitizeAddressObj, validatePhoneNumberLength, getExpectedPhoneLength, getCountryNameByPrefix } = require('../utils/helpers');
 const { translate } = require('../helpers/translate');
 
 const handleAddAddress = async (req, res) => {

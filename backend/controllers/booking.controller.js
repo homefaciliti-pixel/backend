@@ -77,6 +77,48 @@ async function getAvailableSlotsForDate(dateStr, excludeOrderId = null, productI
   return slots;
 }
 
+
+// Helper to resolve address for a user phone number
+const resolveAddressForPhone = async (phone) => {
+  if (phone && phone !== "9876543210") {
+    try {
+      const addresses = await DbLayer.getAddressesByUserPhone(phone);
+      if (addresses && addresses.length > 0) {
+        return addresses[addresses.length - 1];
+      }
+    } catch (err) {
+      console.error("Resolve address for phone failed:", err);
+    }
+  }
+
+  // Fallback to user profile location/locality fields if they exist
+  try {
+    const user = await DbLayer.getUserByPhone(phone);
+    if (user && (user.location || user.locality)) {
+      console.log(`[AddressResolution] Falling back to user profile location fields for user ${phone}`);
+      return {
+        type: "Home",
+        houseNo: "",
+        society: "",
+        floor: "",
+        landmark: "",
+        city: user.location || "Mumbai, Maharashtra",
+        locality: user.locality || "Andheri West",
+        pincode: "",
+        latitude: 26.9124,
+        longitude: 75.7873,
+        name: user.name || "",
+        alternateNumber: "",
+        countryCode: user.countryCode || "+91"
+      };
+    }
+  } catch (userErr) {
+    console.error("Resolve address from user profile failed:", userErr);
+  }
+
+  return null;
+};
+
 const handlePostBooking = async (req, res) => {
   let productId = req.body.productId || req.query.productId || req.body.product_id || req.query.product_id || req.body.product || req.query.product || req.body.serviceName || req.query.serviceName;
   let date = req.body.date || req.query.date || req.body.dates || req.query.dates || req.headers['x-date'];

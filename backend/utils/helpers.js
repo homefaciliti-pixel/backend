@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { countriesList, CATEGORIES_DATA, STATIC_BOOKING_SLOTS } = require('../config/constants');
 const { translate } = require('../helpers/translate');
+const { localizeAddress } = require('../helpers/contentI18n');
 
 function safeJsonParse(str, fallback = null) {
   if (!str) return fallback;
@@ -356,5 +357,7 @@ module.exports = {
   sanitizeUserObj,
   sanitizeProductObj,
   parseTimeRange,
-  timesOverlap
+  timesOverlap,
+  getExpectedPhoneLength,
+  getCountryNameByPrefix
 };

@@ -13,12 +13,9 @@ async function getAuthenticatedUser(req) {
 
   try {
     let phone;
-    const cleanDigits = token.replace(/\D/g, '');
-    if (cleanDigits.length === 10) {
-      phone = cleanDigits;
-    } else if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
-      phone = cleanDigits.substring(2);
-    } else {
+
+    // 1. If it's a standard JWT token (contains dots), verify and decode it first
+    if (token.includes('.')) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         phone = decoded.phone || decoded.userId || decoded.id;
@@ -27,9 +24,26 @@ async function getAuthenticatedUser(req) {
           phone = digits.length === 12 && digits.startsWith('91') ? digits.substring(2) : digits;
         }
       } catch (jwtErr) {
-        if (cleanDigits.length >= 10) {
-          phone = cleanDigits.slice(-10);
-        }
+        try {
+          const decoded = jwt.decode(token);
+          if (decoded && (decoded.phone || decoded.userId || decoded.id)) {
+            phone = decoded.phone || decoded.userId || decoded.id;
+            const digits = String(phone).replace(/\D/g, '');
+            phone = digits.length === 12 && digits.startsWith('91') ? digits.substring(2) : digits;
+          }
+        } catch (decErr) {}
+      }
+    }
+
+    // 2. If not a JWT or decoding failed, check if token itself is a direct phone number
+    if (!phone) {
+      const cleanDigits = token.replace(/\D/g, '');
+      if (cleanDigits.length === 10) {
+        phone = cleanDigits;
+      } else if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+        phone = cleanDigits.substring(2);
+      } else if (cleanDigits.length > 10) {
+        phone = cleanDigits.slice(-10);
       }
     }
 
