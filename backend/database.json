@@ -35,9 +35,225 @@
       "walletBalance": 2000,
       "countryCode": "+91",
       "language": "en"
+    },
+    "5207083650": {
+      "name": "Guest User",
+      "phone": "5207083650",
+      "email": "guest@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "GUE213808",
+      "walletBalance": 0,
+      "countryCode": "+91",
+      "language": "en"
+    },
+    "6520071717": {
+      "name": "Guest User",
+      "phone": "6520071717",
+      "email": "guest@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "GUE235109",
+      "walletBalance": 0,
+      "countryCode": "+91",
+      "language": "en"
+    },
+    "0477354873": {
+      "name": "Guest User",
+      "phone": "0477354873",
+      "email": "guest@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "GUE428865",
+      "walletBalance": 0,
+      "countryCode": "+91",
+      "language": "en"
+    },
+    "6520549310": {
+      "name": "Guest User",
+      "phone": "6520549310",
+      "email": "guest@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "GUE519810",
+      "walletBalance": 0,
+      "countryCode": "+91",
+      "language": "en"
+    },
+    "9876543210": {
+      "name": "Guest User",
+      "phone": "9876543210",
+      "email": "guest@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "GUE690242",
+      "walletBalance": 0,
+      "countryCode": "+91",
+      "language": "en"
+    },
+    "9999888877": {
+      "name": "Guest User",
+      "phone": "9999888877",
+      "email": "guest@example.com",
+      "location": "",
+      "locality": "",
+      "gender": "Male",
+      "referralCode": "GUE936557",
+      "walletBalance": 0,
+      "countryCode": "+91",
+      "language": "en"
     }
   },
-  "orders": [],
+  "orders": [
+    {
+      "id": 1,
+      "userPhone": "0477354873",
+      "userId": "0477354873",
+      "serviceName": "pipefix",
+      "price": 599,
+      "date": "2026-11-04",
+      "status": "Draft",
+      "bookingStatus": "draft",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "pipefix",
+      "description": "kunal ne bna di jodi ",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "address": null,
+      "payment": {
+        "paymentMethod": "Wallet",
+        "amountPaid": 599
+      },
+      "createdAt": 1793682434417,
+      "items": [
+        {
+          "productId": "pipefix",
+          "serviceName": "pipefix",
+          "price": 599,
+          "quantity": 1,
+          "description": "kunal ne bna di jodi ",
+          "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop",
+          "category": "Plumber"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "userPhone": "6520549310",
+      "userId": "6520549310",
+      "serviceName": "pipefix",
+      "price": 599,
+      "date": "2026-11-04",
+      "status": "Draft",
+      "bookingStatus": "draft",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "pipefix",
+      "description": "kunal ne bna di jodi ",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "address": null,
+      "payment": {
+        "paymentMethod": "Wallet",
+        "amountPaid": 599
+      },
+      "createdAt": 1793682522656,
+      "items": [
+        {
+          "productId": "pipefix",
+          "serviceName": "pipefix",
+          "price": 599,
+          "quantity": 1,
+          "description": "kunal ne bna di jodi ",
+          "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop",
+          "category": "Plumber"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "userPhone": "9876543210",
+      "userId": "9876543210",
+      "serviceName": "pipefix",
+      "price": 599,
+      "date": "2026-11-04",
+      "status": "Draft",
+      "bookingStatus": "draft",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "pipefix",
+      "description": "kunal ne bna di jodi ",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "address": null,
+      "payment": {
+        "paymentMethod": "Wallet",
+        "amountPaid": 599
+      },
+      "createdAt": 1793682692734,
+      "items": [
+        {
+          "productId": "pipefix",
+          "serviceName": "pipefix",
+          "price": 599,
+          "quantity": 1,
+          "description": "kunal ne bna di jodi ",
+          "image": "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=500&auto=format&fit=crop",
+          "category": "Plumber"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "userPhone": "9999888877",
+      "userId": "9999888877",
+      "serviceName": "Tap / Faucet Repair & Replacement",
+      "price": 399,
+      "date": "2026-11-05",
+      "status": "Draft",
+      "bookingStatus": "draft",
+      "partnerName": null,
+      "partnerDistance": null,
+      "productId": "Tap / Faucet Repair & Replacement",
+      "description": "Is your tap dripping non-stop or not working properly?",
+      "timeSlot": "10:00 AM - 11:00 AM",
+      "address": {
+        "userPhone": "9999888877",
+        "type": "Home",
+        "houseNo": "Flat 402",
+        "society": "Galaxy Heights",
+        "floor": "",
+        "landmark": "Near City Mall",
+        "city": "Mumbai",
+        "locality": "Andheri West",
+        "pincode": "400053",
+        "latitude": null,
+        "longitude": null,
+        "name": "John Doe",
+        "alternateNumber": "9876543210",
+        "countryCode": "+91"
+      },
+      "payment": {
+        "paymentMethod": "Wallet",
+        "amountPaid": 399
+      },
+      "createdAt": 1793683500137,
+      "items": [
+        {
+          "productId": "Tap / Faucet Repair & Replacement",
+          "serviceName": "Tap / Faucet Repair & Replacement",
+          "price": 399,
+          "quantity": 1,
+          "description": "Is your tap dripping non-stop or not working properly?",
+          "image": "https://adminbackend-1-h03r.onrender.com/uploads/1782367955317-640918569.jpg",
+          "category": "Plumber"
+        }
+      ]
+    }
+  ],
   "referralsApplied": {},
   "categories": [
     {
@@ -816,7 +1032,72 @@
       "name": "Iron Works"
     }
   ],
-  "addresses": [],
+  "addresses": [
+    {
+      "userPhone": "6520549310",
+      "type": "Home",
+      "houseNo": "B-102",
+      "society": "Green Heights",
+      "floor": "1st",
+      "landmark": "Near City Park",
+      "city": "Delhi, Delhi",
+      "locality": "Rohini",
+      "pincode": "110085",
+      "latitude": null,
+      "longitude": null,
+      "name": "Rahul Sharma",
+      "alternateNumber": "9123456789",
+      "countryCode": "+91"
+    },
+    {
+      "userPhone": "9876543210",
+      "type": "Home",
+      "houseNo": "B-102",
+      "society": "Green Heights",
+      "floor": "1st",
+      "landmark": "Near City Park",
+      "city": "Delhi, Delhi",
+      "locality": "Rohini",
+      "pincode": "110085",
+      "latitude": null,
+      "longitude": null,
+      "name": "Rahul Sharma",
+      "alternateNumber": "9123456789",
+      "countryCode": "+91"
+    },
+    {
+      "userPhone": "9999888877",
+      "type": "Home",
+      "houseNo": "Flat 402",
+      "society": "Galaxy Heights",
+      "floor": "",
+      "landmark": "Near City Mall",
+      "city": "Mumbai",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": null,
+      "longitude": null,
+      "name": "John Doe",
+      "alternateNumber": "9876543210",
+      "countryCode": "+91"
+    },
+    {
+      "userPhone": "9999888877",
+      "type": "Home",
+      "houseNo": "Flat 402",
+      "society": "Galaxy Heights",
+      "floor": "",
+      "landmark": "Near City Mall",
+      "city": "Mumbai",
+      "locality": "Andheri West",
+      "pincode": "400053",
+      "latitude": null,
+      "longitude": null,
+      "name": "John Doe",
+      "alternateNumber": "9876543210",
+      "countryCode": "+91"
+    }
+  ],
   "contacts": [],
   "cart": [],
   "services": [

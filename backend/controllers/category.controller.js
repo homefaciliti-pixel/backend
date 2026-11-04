@@ -713,7 +713,7 @@ const getSubcategories = async (req, res) => {
       message: "Subcategories fetched successfully",
       total: subcats.length,
       subcategories: subcats,
-      data: subcats
+      // data: subcats
     });
   } catch (err) {
     console.error("Fetch subcategories failed:", err);
@@ -785,7 +785,7 @@ const getCategorySubcategories = async (req, res) => {
       category: matchName,
       total: subcats.length,
       subcategories: subcats,
-      data: subcats
+      // data: subcats
     });
   } catch (err) {
     console.error("Fetch category subcategories failed:", err);
