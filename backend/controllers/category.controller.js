@@ -689,6 +689,9 @@ const getSubcategories = async (req, res) => {
 
     let subcats = collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBaseUrl);
 
+
+
+
     // If DB has no explicit subcategories, generate 2 per main category
     if (subcats.length === 0) {
       const rootCats = dbCategories.filter(c => !c.parent || c.parent === 'Main Category' || c.parent === '');
@@ -719,6 +722,7 @@ const getSubcategories = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+
 const getCategorySubcategories = async (req, res) => {
   try {
     const { category } = req.params;
@@ -790,6 +794,7 @@ const getCategorySubcategories = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+
 const getBanners = async (req, res) => {
   let dbBanners = [];
   const host = req.get('host');
