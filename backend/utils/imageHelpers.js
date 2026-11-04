@@ -116,7 +116,9 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
   const reviewsCount = 50 + (parseInt(r.id) * 17) % 250; 
 
   let resolvedImage = r.image || "";
-  if (resolvedImage) {
+  if (!resolvedImage || resolvedImage === "1" || resolvedImage.endsWith("/1") || resolvedImage.includes("blob:")) {
+    resolvedImage = getHdFallbackServiceImageUrl(r.title || "", r.cat_name || r.category || "");
+  } else {
     if (resolvedImage.startsWith('/assets/')) {
       resolvedImage = `${serverBaseUrl}${resolvedImage}`;
     } else if (!resolvedImage.startsWith('http') && !resolvedImage.startsWith('https')) {
