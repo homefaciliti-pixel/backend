@@ -578,183 +578,269 @@ const getTrendingServicesAlt = async (req, res) => {
     }
   }
 
-  const allServices = Object.values(SERVICES_DATA).flat();
-  const trending = [acFreeService, ...shuffleArray(allServices).slice(0, 4)];
-  res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl).map(s => localizeService(s, req.lang)) });
-};
-
-const handleServiceDetail = async (req, res) => {
-  const title = req.params.title || req.query.title;
-  if (!title) {
-    return res.status(400).json({ success: false, error: "Service title is required" });
-  }
-
-  const host = req.get('host');
-  const protocol = req.protocol;
-  const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
-  const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
-
-  const statusParam = req.query.status || req.body.status;
-  const isAmcMode = statusParam === "AMC";
-
-  const normProduct = String(title).toLowerCase().replace(/[\s\-_]/g, '');
-  const prodStr = String(title).trim().toLowerCase();
-
-  // 1. Try Live Admin Services First
+ const handleServiceDetail = async (req, res) => {
   try {
-    const allServices = await getUnifiedServices(serverBaseUrl);
-    // Exact match first
-    let matched = allServices.find(s => {
-      const sId = String(s.id || s.serviceId || '');
-      const sTitle = String(s.title || s.name || '').trim().toLowerCase();
-      const sNorm = sTitle.replace(/[\s\-_]/g, '');
-      return sId === String(title) || sTitle === prodStr || sNorm === normProduct;
-    });
-    // Partial/fuzzy match if no exact match (handles slight title mismatches)
-    if (!matched) {
-      matched = allServices.find(s => {
-        const sTitle = String(s.title || s.name || '').trim().toLowerCase();
-        const sNorm = sTitle.replace(/[\s\-_]/g, '');
-        return sNorm.includes(normProduct) || normProduct.includes(sNorm);
+    const identifier =
+      req.params.serviceId ||
+      req.params.id ||
+      req.params.title ||
+      req.query.serviceId ||
+      req.query.id ||
+      req.query.title;
+
+    if (!identifier) {
+      return res.status(400).json({
+        success: false,
+        message: "Service ID or title is required",
       });
     }
 
-    if (matched) {
-      const enrichedService = { ...matched };
-      if (isAmcMode) {
-        enrichedService.price = 0;
-        enrichedService.status = "AMC";
-      }
-      return res.json({
-        success: true,
-        data: localizeService(enrichedService, req.lang),
-        service: localizeService(enrichedService, req.lang),
-        status: isAmcMode ? "AMC" : "Regular",
-        message: translate("service_details_retrieved", req.lang)
-      });
-    }
-  } catch (err) {
-    console.warn("[handleServiceDetail] Live admin search failed:", err.message);
-  }
+    const title = decodeURIComponent(
+      String(identifier).trim()
+    );
 
-  let hasActiveAmc = false;
-  let detectedCategory = null;
+    const normalize = (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/&/g, "and")
+        .replace(/[^a-z0-9]/g, "");
 
-  if (getDbMode() === "mysql" && getMysqlReady()) {
-    try {
-      const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
-      const [srvRows] = await getMysqlPool().query(
-        "SELECT * FROM node_services WHERE LOWER(title) = ? OR LOWER(title_hi) = ? OR id = ? OR REPLACE(REPLACE(REPLACE(LOWER(title), ' ', ''), '-', ''), '_', '') = ? OR REPLACE(REPLACE(REPLACE(LOWER(title_hi), ' ', ''), '-', ''), '_', '') = ?",
-        [title.toLowerCase(), title.toLowerCase(), isNaN(title) ? -1 : parseInt(title), cleanTitle, cleanTitle]
-      );
-      if (srvRows.length > 0) {
-        const r = srvRows[0];
-        const enrichedService = sanitizeServiceDbObj(r, serverBaseUrl);
-        
-        hasActiveAmc = statusParam === "AMC";
+    const normalizedTitle = normalize(title);
 
-        if (hasActiveAmc) {
-          enrichedService.price = 0;
-          enrichedService.status = "AMC";
+    const isNumericId = /^\d+$/.test(title);
+
+    const matchesService = (service) => {
+      if (!service) return false;
+
+      const fields = [
+        service.id,
+        service.serviceId,
+        service.service_id,
+        service.productId,
+        service.product_id,
+        service.title,
+        service.name,
+        service.slug,
+      ];
+
+      return fields.some((field) => {
+        if (field === undefined || field === null) {
+          return false;
         }
 
-        return res.json({
-          success: true,
-          service: localizeService(enrichedService, req.lang),
-          status: hasActiveAmc ? "AMC" : "Regular",
-          message: translate("service_details_retrieved", req.lang)
-        });
+        return (
+          String(field).trim() === title ||
+          normalize(field) === normalizedTitle
+        );
+      });
+    };
+
+    const host = req.get("host");
+    const protocol = req.protocol;
+
+    const isLocal =
+      host.includes("localhost") ||
+      host.includes("127.0.0.1") ||
+      host.includes("10.0.2.2");
+
+    const serverBaseUrl =
+      `${isLocal ? protocol : "https"}://${host}`;
+
+    const statusParam =
+      req.query.status || req.body?.status;
+
+    const isAmcMode = statusParam === "AMC";
+
+    let foundService = null;
+
+    // 1. Admin Backend
+    try {
+      const allServices =
+        await getUnifiedServices(serverBaseUrl);
+
+      if (Array.isArray(allServices)) {
+        foundService =
+          allServices.find(matchesService) || null;
       }
     } catch (err) {
-      console.warn("[DynamicServices] DB detail failed, falling back static:", err.message);
-    }
-  }
-
-  let foundService = null;
-  let foundCategory = null;
-
-  // Try loading from database.json first
-  try {
-    const data = readDataFromJsonDb();
-    if (data && data.services && data.services.length > 0) {
-      const cleanTitle = title.toLowerCase().replace(/[\s\-_]/g, '');
-      const match = data.services.find(s => 
-        s.title.toLowerCase() === title.toLowerCase() || 
-        s.id.toString() === title.toString() ||
-        s.title.toLowerCase().replace(/[\s\-_]/g, '') === cleanTitle
+      console.warn(
+        "[ServiceDetail] Admin error:",
+        err.message
       );
-      if (match) {
-        foundService = match;
-        // Resolve category name from ID
-        const cats = data.categories || [];
-        const catObj = cats.find(c => c.id.toString() === match.category.toString());
-        foundCategory = catObj ? catObj.name : match.category;
+    }
+
+    // 2. MySQL Database
+    if (!foundService && getMysqlReady()) {
+      try {
+        let query = `
+          SELECT *
+          FROM node_services
+          WHERE status IN (0, 1)
+        `;
+
+        let params = [];
+
+        if (isNumericId) {
+          query += " AND id = ?";
+          params.push(Number(title));
+        } else {
+          query += `
+            AND (
+              LOWER(title) = ?
+              OR LOWER(title_hi) = ?
+              OR REPLACE(
+                REPLACE(
+                  REPLACE(LOWER(title), ' ', ''),
+                  '-', ''
+                ),
+                '_', ''
+              ) = ?
+            )
+          `;
+
+          params.push(
+            title.toLowerCase(),
+            title.toLowerCase(),
+            normalizedTitle
+          );
+        }
+
+        query += " LIMIT 1";
+
+        const [rows] =
+          await getMysqlPool().query(query, params);
+
+        if (rows.length > 0) {
+          foundService = sanitizeServiceDbObj(
+            rows[0],
+            serverBaseUrl
+          );
+        }
+      } catch (err) {
+        console.warn(
+          "[ServiceDetail] MySQL error:",
+          err.message
+        );
       }
     }
+
+    // 3. JSON Database
+    if (!foundService) {
+      try {
+        const data = readDataFromJsonDb();
+
+        if (data && Array.isArray(data.services)) {
+          foundService =
+            data.services.find(matchesService) || null;
+
+          if (foundService) {
+            const categoryId =
+              foundService.categoryId ||
+              foundService.category_id ||
+              foundService.category;
+
+            const category = (
+              data.categories || []
+            ).find(
+              (c) =>
+                String(c.id) === String(categoryId)
+            );
+
+            foundService = {
+              ...foundService,
+              categoryId,
+              categoryName:
+                foundService.categoryName ||
+                category?.name ||
+                category?.title ||
+                "",
+            };
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "[ServiceDetail] JSON error:",
+          err.message
+        );
+      }
+    }
+
+    // 4. Static Services
+    if (!foundService) {
+      for (const [categoryName, services] of Object.entries(
+        SERVICES_DATA
+      )) {
+        const matched = services.find(matchesService);
+
+        if (matched) {
+          foundService = {
+            ...matched,
+            category: categoryName,
+            categoryName,
+          };
+
+          break;
+        }
+      }
+    }
+
+    // 5. Not Found
+    if (!foundService) {
+      return res.status(404).json({
+        success: false,
+        message: "Service data not found",
+        error: `Service '${title}' not found`,
+      });
+    }
+
+    // 6. Prepare Response
+    let service = {
+      ...foundService,
+    };
+
+    if (isAmcMode) {
+      service.price = 0;
+      service.status = "AMC";
+    } else {
+      service.status =
+        service.status || "Regular";
+    }
+
+    service = resolveServiceUrls(
+      [service],
+      serverBaseUrl
+    )[0];
+
+    const localizedService = localizeService(
+      service,
+      req.lang
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: translate(
+        "service_details_retrieved",
+        req.lang
+      ),
+      status: isAmcMode ? "AMC" : "Regular",
+      service: localizedService,
+      data: localizedService,
+    });
+
   } catch (err) {
-    console.warn("Failed to load service detail from JSON fallback:", err.message);
+    console.error(
+      "[ServiceDetail] Error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch service details",
+      error: err.message,
+    });
   }
-
-  // Fallback to static SERVICES_DATA if not found in database.json
-  if (!foundService) {
-    for (const [categoryName, services] of Object.entries(SERVICES_DATA)) {
-      const match = services.find(s => s.title.toLowerCase() === title.toLowerCase());
-      if (match) {
-        foundService = match;
-        foundCategory = categoryName;
-        break;
-      }
-    }
-  }
-
-  if (!foundService) {
-    // --- SMART DYNAMIC FALLBACK ---
-    // Instead of 404, generate a plausible service response so the Flutter app
-    // can show the detail screen (not "No Service Found").
-    // Infer category and price from the service title keywords.
-    const titleLower = title.toLowerCase();
-    let inferredCategory = 'Home Services';
-    let inferredPrice = 499;
-    let inferredDuration = '1-2 Hours';
-    let inferredImage = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&q=80';
-
-    if (titleLower.includes('bathroom') || titleLower.includes('toilet') || titleLower.includes('washroom')) {
-      inferredCategory = 'Cleaning'; inferredPrice = 499; inferredDuration = '2-3 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=500&q=80';
-    } else if (titleLower.includes('home') && titleLower.includes('clean') || titleLower.includes('deep clean')) {
-      inferredCategory = 'Cleaning'; inferredPrice = 2999; inferredDuration = '4-6 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&q=80';
-    } else if (titleLower.includes('clean')) {
-      inferredCategory = 'Cleaning'; inferredPrice = 799; inferredDuration = '2-3 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&q=80';
-    } else if (titleLower.includes('salon') || titleLower.includes('hair') || titleLower.includes('facial') || titleLower.includes('glow') || titleLower.includes('wax') || titleLower.includes('mehndi')) {
-      inferredCategory = 'Salon'; inferredPrice = 399; inferredDuration = '1-2 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&q=80';
-    } else if (titleLower.includes('spa') || titleLower.includes('massage')) {
-      inferredCategory = 'Spa'; inferredPrice = 1499; inferredDuration = '1-2 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=500&q=80';
-    } else if (titleLower.includes('electric') || titleLower.includes('fan') || titleLower.includes('switch') || titleLower.includes('wiring') || titleLower.includes('socket')) {
-      inferredCategory = 'Electrician'; inferredPrice = 199; inferredDuration = '1-2 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&q=80';
-    } else if (titleLower.includes('ac') || titleLower.includes('air condition')) {
-      inferredCategory = 'AC Repair'; inferredPrice = 599; inferredDuration = '1-2 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&q=80';
-    } else if (titleLower.includes('plumb') || titleLower.includes('tap') || titleLower.includes('pipe') || titleLower.includes('leak')) {
-      inferredCategory = 'Plumber'; inferredPrice = 299; inferredDuration = '1-2 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=500&q=80';
-    } else if (titleLower.includes('paint')) {
-      inferredCategory = 'Painter'; inferredPrice = 1999; inferredDuration = '4-6 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=500&q=80';
-    } else if (titleLower.includes('carpent') || titleLower.includes('wood')) {
-      inferredCategory = 'Carpenter'; inferredPrice = 499; inferredDuration = '1-2 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=500&q=80';
-    } else if (titleLower.includes('pest')) {
-      inferredCategory = 'Pest Control'; inferredPrice = 999; inferredDuration = '2-3 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&q=80';
-    } else if (titleLower.includes('car') || titleLower.includes('wash') || titleLower.includes('spa')) {
-      inferredCategory = 'Car Washing'; inferredPrice = 399; inferredDuration = '1-2 Hours';
-      inferredImage = 'https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?w=500&q=80';
-    }
+};
 
     // Try to find closest matching service in unified list (partial title match)
     try {
