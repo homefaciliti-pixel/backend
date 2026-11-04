@@ -685,15 +685,198 @@ const getCategoryById = async (req, res) => {
   }
 };
 
+// const getSubcategories = async (req, res) => {
+//   try {
+//     // 1. Read parent/category filter
+//     const parent =
+//       req.query.parent ||
+//       req.query.category_id ||
+//       req.query.categoryId ||
+//       req.query.category ||
+//       null;
+
 const getSubcategories = async (req, res) => {
   try {
-    // 1. Read parent/category filter
     const parent =
       req.query.parent ||
       req.query.category_id ||
       req.query.categoryId ||
-      req.query.category ||
-      null;
+      req.query.category;
+
+    const adminCats = await fetchAdminBackendCategories();
+    const adminSubcats = await fetchAdminBackendSubcategories();
+    const dbCategories = await DbLayer.getCategories();
+
+    const host = req.get("host");
+    const protocol = req.protocol;
+
+    const isLocal =
+      host.includes("localhost") ||
+      host.includes("127.0.0.1") ||
+      host.includes("10.0.2.2");
+
+    const serverBaseUrl = `${isLocal ? protocol : "https"}://${host}`;
+
+    // Collect subcategories from the available sources
+    let subcategories = collectAllSubcategories(
+      adminSubcats,
+      adminCats,
+      dbCategories,
+      serverBaseUrl
+    );
+
+    // Generate fallback subcategories only if no explicit data exists
+    if (!Array.isArray(subcategories) || subcategories.length === 0) {
+      const rootCategories = (dbCategories || []).filter((category) => {
+        const categoryParent = String(category.parent || "")
+          .toLowerCase()
+          .trim();
+
+        return (
+          !categoryParent ||
+          categoryParent === "main category" ||
+          categoryParent === "null" ||
+          categoryParent === "undefined"
+        );
+      });
+
+      rootCategories.forEach((category) => {
+        const image = resolveDynamicCategoryImageUrl(
+          category,
+          serverBaseUrl
+        );
+
+        const generated = generateSubcategoriesForCategory({
+          ...category,
+          image,
+        });
+
+        subcategories.push(...generated);
+      });
+    }
+
+    // Filter by parent/category if requested
+    if (parent !== undefined && parent !== null && String(parent).trim()) {
+      const parentNormalized = String(parent)
+        .toLowerCase()
+        .trim();
+
+      subcategories = subcategories.filter((subcategory) => {
+        const subParent = String(subcategory.parent || "")
+          .toLowerCase()
+          .trim();
+
+        const categoryId = String(
+          subcategory.categoryId ||
+          subcategory.category_id ||
+          subcategory.parent_id ||
+          ""
+        )
+          .toLowerCase()
+          .trim();
+
+        const categoryName = String(
+          subcategory.categoryName ||
+          subcategory.category_name ||
+          ""
+        )
+          .toLowerCase()
+          .trim();
+
+        return (
+          subParent === parentNormalized ||
+          categoryId === parentNormalized ||
+          categoryName === parentNormalized
+        );
+      });
+    }
+
+    // --------------------------------------------------
+    // Remove duplicate subcategories
+    // --------------------------------------------------
+    const uniqueSubcategories = new Map();
+
+    subcategories.forEach((subcategory) => {
+      const subcategoryName = String(
+        subcategory.subCategoryName ||
+        subcategory.name ||
+        subcategory.title ||
+        subcategory.sub_category_name ||
+        ""
+      )
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ");
+
+      const subcategoryId = String(
+        subcategory.subCategoryId ||
+        subcategory.sub_category_id ||
+        subcategory.id ||
+        ""
+      )
+        .toLowerCase()
+        .trim();
+
+      const categoryId = String(
+        subcategory.categoryId ||
+        subcategory.category_id ||
+        subcategory.parent_id ||
+        subcategory.parent ||
+        ""
+      )
+        .toLowerCase()
+        .trim();
+
+      const categoryName = String(
+        subcategory.categoryName ||
+        subcategory.category_name ||
+        ""
+      )
+        .toLowerCase()
+        .trim();
+
+      // Use category + subcategory name to catch duplicates
+      // coming from different data sources.
+      const parentKey = categoryId || categoryName;
+
+      const uniqueKey = subcategoryName
+        ? `${parentKey}|name:${subcategoryName}`
+        : subcategoryId
+          ? `${parentKey}|id:${subcategoryId}`
+          : null;
+
+      if (!uniqueKey) {
+        return;
+      }
+
+      // Keep the first occurrence
+      if (!uniqueSubcategories.has(uniqueKey)) {
+        uniqueSubcategories.set(uniqueKey, subcategory);
+      }
+    });
+
+    const finalSubcategories = Array.from(
+      uniqueSubcategories.values()
+    );
+
+    console.log("[getSubcategories] Before dedupe:", subcategories.length);
+    console.log("[getSubcategories] After dedupe:", finalSubcategories.length);
+
+    return res.json({
+      success: true,
+      message: "Subcategories fetched successfully",
+      total: finalSubcategories.length,
+      subcategories: finalSubcategories,
+    });
+  } catch (err) {
+    console.error("Fetch subcategories failed:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
 
     // 2. Fetch data from all available sources
     const adminCats = await fetchAdminBackendCategories();
