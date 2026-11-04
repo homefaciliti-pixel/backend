@@ -23,6 +23,7 @@ const createCategory = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const updateCategory = async (req, res) => {
   const { id } = req.params;
   try {
@@ -34,6 +35,7 @@ const updateCategory = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const deleteCategory = async (req, res) => {
   const { id } = req.params;
   try {
@@ -55,6 +57,7 @@ const createBanner = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const updateBanner = async (req, res) => {
   const { id } = req.params;
   try {
@@ -66,6 +69,7 @@ const updateBanner = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const deleteBanner = async (req, res) => {
   const { id } = req.params;
   try {
@@ -87,6 +91,7 @@ const createService = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const updateService = async (req, res) => {
   const { id } = req.params;
   try {
@@ -98,6 +103,7 @@ const updateService = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const deleteService = async (req, res) => {
   const { id } = req.params;
   try {
@@ -114,7 +120,7 @@ const getCategories = async (req, res) => {
     const adminCats = await fetchAdminBackendCategories();
     const adminSubcats = await fetchAdminBackendSubcategories();
     const dbCategories = await DbLayer.getCategories();
-    
+
     // Determine the base URL dynamically based on the incoming request headers
     const host = req.get('host');
     const protocol = req.protocol;
@@ -246,7 +252,7 @@ const getCategories = async (req, res) => {
       const catId = String(s.category_id || s.categoryId || s.category || '');
       const srvIdStr = String(s.id || s.serviceId || '');
       const varts = variantsBySrv[srvIdStr] || [];
-      
+
       const mappedService = {
           ...s,
           serviceId: srvIdStr,
@@ -305,7 +311,7 @@ const getCategories = async (req, res) => {
     (adminCats || []).forEach(ac => {
       const idKey = String(ac.id || ac.categoryId || '').trim();
       const titleKey = String(ac.title || ac.name || '').trim().toLowerCase();
-      
+
       let existingKey = null;
       if (idKey && catMap.has(idKey)) {
         existingKey = idKey;
@@ -357,7 +363,7 @@ const getCategories = async (req, res) => {
       if (!key) return;
       const k = String(key).toLowerCase().trim();
       if (!subCatsByCatKey[k]) subCatsByCatKey[k] = [];
-      const exists = subCatsByCatKey[k].some(s => 
+      const exists = subCatsByCatKey[k].some(s =>
         String(s.id || s.subCategoryId).toLowerCase() === String(subObj.id || subObj.subCategoryId).toLowerCase() ||
         String(s.name || s.title).toLowerCase().trim() === String(subObj.name || subObj.title).toLowerCase().trim()
       );
@@ -416,7 +422,7 @@ const getCategories = async (req, res) => {
       if (parentVal && parentVal !== 'Main Category' && parentVal !== 'null' && parentVal !== 'undefined') {
         const parentKey = parentVal.toLowerCase();
         if (!subCategoriesByParent[parentKey]) subCategoriesByParent[parentKey] = [];
-        
+
         const subCatObj = {
           ...c,
           subCategoryId: String(c.id || c.categoryId),
@@ -429,16 +435,16 @@ const getCategories = async (req, res) => {
       }
     });
 
-    // Attach subCategories array to every category (ensuring 2 subcategories per category for checking)
+    // Attach subCategories array to every category
     categoriesList.forEach(c => {
       const catIdStr = String(c.id || c.categoryId);
       const catNameStr = String(c.name || c.categoryName);
       const catIdLower = catIdStr.toLowerCase().trim();
       const catNameLower = catNameStr.toLowerCase().trim();
 
-      let subCats = subCategoriesByParent[catIdStr] || 
-                    subCategoriesByParent[catIdLower] || 
-                    subCategoriesByParent[catNameStr] || 
+      let subCats = subCategoriesByParent[catIdStr] ||
+                    subCategoriesByParent[catIdLower] ||
+                    subCategoriesByParent[catNameStr] ||
                     subCategoriesByParent[catNameLower] || [];
 
       // Collect all subcategories from admin backend and DB
@@ -456,7 +462,7 @@ const getCategories = async (req, res) => {
       ];
 
       groupedSubs.forEach(gs => {
-        const already = rawSubs.some(r => 
+        const already = rawSubs.some(r =>
           String(r.id || r.subCategoryId) === String(gs.id || gs.subCategoryId) ||
           String(r.name || r.title).toLowerCase().trim() === String(gs.name || gs.title).toLowerCase().trim()
         );
@@ -467,7 +473,7 @@ const getCategories = async (req, res) => {
         subCats = rawSubs.map((sub, idx) => {
           const subIdStr = String(sub.id || sub.subCategoryId || sub.sub_category_id || `${catIdStr}_sub_${idx + 1}`);
           const subTitle = String(sub.title || sub.name || sub.subCategoryName || '').trim();
-          
+
           let subImg = sub.image || sub.subCategoryImage || sub.photo || '';
           if (subImg && typeof subImg === 'string') {
             subImg = subImg.trim();
@@ -522,7 +528,7 @@ const getCategories = async (req, res) => {
 
     const isFlat = req.query.flat === 'true' || req.query.includeAll === 'true';
     let categories = isFlat ? categoriesList : (rootCategories.length > 0 ? rootCategories : categoriesList);
-    
+
     const page = parseInt(req.query.page);
     const limit = parseInt(req.query.limit);
 
@@ -530,9 +536,9 @@ const getCategories = async (req, res) => {
       const startIndex = (page - 1) * limit;
       const endIndex = page * limit;
       const paginatedCategories = categories.slice(startIndex, endIndex);
-      
-      return res.json({ 
-        success: true, 
+
+      return res.json({
+        success: true,
         categories: paginatedCategories,
         data: { categories: paginatedCategories },
         currentPage: page,
@@ -551,6 +557,7 @@ const getCategories = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const createCategoryAlt = async (req, res) => {
   const { name, id, image, parent } = req.body;
   if (!name) {
@@ -567,6 +574,7 @@ const createCategoryAlt = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const createSubcategory = async (req, res) => {
   const { name, image } = req.body;
   const parent = req.body.parent || req.body.category_id || req.body.categoryId;
@@ -586,6 +594,7 @@ const createSubcategory = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const getCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -675,51 +684,167 @@ const getCategoryById = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
 const getSubcategories = async (req, res) => {
   try {
-    const parent = req.query.parent || req.query.category_id || req.query.categoryId || req.query.category;
+    // 1. Read parent/category filter
+    const parent =
+      req.query.parent ||
+      req.query.category_id ||
+      req.query.categoryId ||
+      req.query.category ||
+      null;
+
+    // 2. Fetch data from all available sources
     const adminCats = await fetchAdminBackendCategories();
     const adminSubcats = await fetchAdminBackendSubcategories();
     const dbCategories = await DbLayer.getCategories();
-    
-    const host = req.get('host');
-    const protocol = req.protocol;
-    const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
-    const serverBaseUrl = `${isLocal ? protocol : 'https'}://${host}`;
 
-    let subcats = collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBaseUrl);
+    // 3. Build request-based image URL
+    const host = req.get("host") || "";
+    const protocol = req.protocol || "https";
+    const isLocal =
+      host.includes("localhost") ||
+      host.includes("127.0.0.1") ||
+      host.includes("10.0.2.2");
 
+    const serverBaseUrl = `${isLocal ? protocol : "https"}://${host}`;
 
+    // 4. Collect subcategories
+    let subcategories = collectAllSubcategories(
+      adminSubcats || [],
+      adminCats || [],
+      dbCategories || [],
+      serverBaseUrl
+    );
 
+    if (!Array.isArray(subcategories)) {
+      subcategories = [];
+    }
 
-    // If DB has no explicit subcategories, generate 2 per main category
-    if (subcats.length === 0) {
-      const rootCats = dbCategories.filter(c => !c.parent || c.parent === 'Main Category' || c.parent === '');
-      rootCats.forEach(c => {
-        const img = resolveDynamicCategoryImageUrl(c, serverBaseUrl);
-        const generated = generateSubcategoriesForCategory({ ...c, image: img });
-        subcats.push(...generated);
+    // 5. Fallback: generate subcategories if none exist
+    if (subcategories.length === 0) {
+      const rootCategories = (dbCategories || []).filter((category) => {
+        const categoryParent = String(category.parent || "")
+          .trim()
+          .toLowerCase();
+
+        return (
+          !categoryParent ||
+          categoryParent === "main category" ||
+          categoryParent === "null" ||
+          categoryParent === "undefined"
+        );
+      });
+
+      rootCategories.forEach((category) => {
+        const image = resolveDynamicCategoryImageUrl(
+          category,
+          serverBaseUrl
+        );
+
+        const generatedSubcategories = generateSubcategoriesForCategory({
+          ...category,
+          image,
+        });
+
+        if (Array.isArray(generatedSubcategories)) {
+          subcategories.push(...generatedSubcategories);
+        }
       });
     }
 
-    if (parent) {
-      const pNorm = String(parent).toLowerCase().trim();
-      subcats = subcats.filter(s => 
-        String(s.parent || '').toLowerCase().trim() === pNorm ||
-        String(s.categoryId || s.category_id || '').toLowerCase().trim() === pNorm ||
-        String(s.categoryName || '').toLowerCase().trim() === pNorm
-      );
+    // Normalize values for matching
+    const normalize = (value) =>
+      String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
+    // 6. Filter by requested parent/category
+    if (parent !== null && String(parent).trim() !== "") {
+      const requestedParent = normalize(parent);
+
+      subcategories = subcategories.filter((subcategory) => {
+        const possibleParentValues = [
+          subcategory.parent,
+          subcategory.categoryId,
+          subcategory.category_id,
+          subcategory.categoryName,
+          subcategory.category_name,
+          subcategory.parent_id,
+        ];
+
+        return possibleParentValues.some(
+          (value) => normalize(value) === requestedParent
+        );
+      });
     }
 
-    res.json({
+    // 7. Remove duplicates by parent + normalized subcategory name
+    const uniqueSubcategories = new Map();
+
+    subcategories.forEach((subcategory) => {
+      if (!subcategory || typeof subcategory !== "object") {
+        return;
+      }
+
+      const subcategoryId = String(
+        subcategory.id ||
+          subcategory.subCategoryId ||
+          subcategory.subcategory_id ||
+          subcategory.sub_category_id ||
+          ""
+      ).trim();
+
+      const subcategoryName = normalize(
+        subcategory.name ||
+          subcategory.title ||
+          subcategory.subCategoryName ||
+          subcategory.subcategory_name ||
+          ""
+      );
+
+      const parentKey = normalize(
+        subcategory.parent ||
+          subcategory.categoryId ||
+          subcategory.category_id ||
+          subcategory.categoryName ||
+          subcategory.category_name ||
+          ""
+      );
+
+      let uniqueKey;
+
+      if (subcategoryName) {
+        uniqueKey = `parent:${parentKey}|name:${subcategoryName}`;
+      } else if (subcategoryId) {
+        uniqueKey = `parent:${parentKey}|id:${subcategoryId}`;
+      } else {
+        return;
+      }
+
+      if (!uniqueSubcategories.has(uniqueKey)) {
+        uniqueSubcategories.set(uniqueKey, { ...subcategory });
+      }
+    });
+
+    const finalSubcategories = Array.from(uniqueSubcategories.values());
+
+    // 8. Return response
+    return res.status(200).json({
       success: true,
       message: "Subcategories fetched successfully",
-      total: subcats.length,
-      subcategories: subcats,
+      total: finalSubcategories.length,
+      subcategories: finalSubcategories,
     });
   } catch (err) {
     console.error("Fetch subcategories failed:", err);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
   }
 };
 
@@ -729,7 +854,7 @@ const getCategorySubcategories = async (req, res) => {
     const adminCats = await fetchAdminBackendCategories();
     const adminSubcats = await fetchAdminBackendSubcategories();
     const dbCategories = await DbLayer.getCategories();
-    
+
     const host = req.get('host');
     const protocol = req.protocol;
     const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes('10.0.2.2');
@@ -738,8 +863,8 @@ const getCategorySubcategories = async (req, res) => {
     const catNorm = String(category).toLowerCase().trim();
 
     const allCats = [...(adminCats || []), ...(dbCategories || [])];
-    const targetCat = allCats.find(c => 
-      String(c.id).toLowerCase().trim() === catNorm || 
+    const targetCat = allCats.find(c =>
+      String(c.id).toLowerCase().trim() === catNorm ||
       String(c.name || c.title || '').toLowerCase().trim() === catNorm
     );
 
@@ -859,8 +984,6 @@ const getBanners = async (req, res) => {
       url: b.image
     }));
   }
-
-
 
   res.json({
     success: true,
