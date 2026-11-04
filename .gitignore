@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Miscellaneous
 *.class
 *.log
@@ -43,3 +44,22 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+=======
+# Dependency directories
+node_modules/
+
+# Debug and server logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+server.log
+*.log
+
+# Environment variables & local secrets
+.env
+.env.local
+serviceAccountKey.json
+
+# Local mockup data
+database.json
+>>>>>>> 1349b13 (all backend code update)

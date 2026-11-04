@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  
+  body {
+    width: 1080px;
+    height: 540px;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .banner {
+    width: 1080px;
+    height: 540px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #020B1E 0%, #031535 40%, #062060 70%, #0A3080 100%);
+  }
+
+  /* Animated orbs */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+  }
+  .orb-1 {
+    width: 500px; height: 500px;
+    top: -120px; right: -80px;
+    background: radial-gradient(circle, rgba(0,140,255,0.35) 0%, transparent 70%);
+  }
+  .orb-2 {
+    width: 350px; height: 350px;
+    bottom: -100px; right: 250px;
+    background: radial-gradient(circle, rgba(0,80,200,0.3) 0%, transparent 70%);
+  }
+  .orb-3 {
+    width: 200px; height: 200px;
+    top: 50px; left: 50px;
+    background: radial-gradient(circle, rgba(0,200,255,0.15) 0%, transparent 70%);
+  }
+
+  /* Grid lines overlay */
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,140,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,140,255,0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Left content */
+  .content {
+    position: relative;
+    z-index: 10;
+    padding: 52px 60px;
+    max-width: 590px;
+    flex-shrink: 0;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(90deg, #0088FF, #0055CC);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 7px 16px;
+    border-radius: 100px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(0,160,255,0.5);
+    box-shadow: 0 0 20px rgba(0,140,255,0.4);
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: #00EEFF;
+    border-radius: 50%;
+    box-shadow: 0 0 6px #00EEFF;
+  }
+
+  .discount {
+    font-size: 88px;
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -3px;
+    background: linear-gradient(135deg, #FFFFFF 0%, #80D4FF 60%, #0099FF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  .service-name {
+    font-size: 36px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.92);
+    letter-spacing: -0.5px;
+    margin-bottom: 16px;
+  }
+
+  .description {
+    font-size: 15px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.55);
+    line-height: 1.6;
+    max-width: 420px;
+    margin-bottom: 32px;
+  }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(90deg, #0088FF, #0055EE);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 100px;
+    border: none;
+    box-shadow: 0 8px 32px rgba(0,100,255,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+    letter-spacing: 0.3px;
+  }
+  .cta-arrow {
+    width: 20px; height: 20px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+
+  /* Right illustration area */
+  .illustration {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* AC Unit illustration */
+  .ac-unit {
+    position: relative;
+    width: 380px;
+    height: 180px;
+    background: linear-gradient(180deg, #E8F0FF 0%, #D0DFFF 100%);
+    border-radius: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.15);
+    margin-top: -30px;
+  }
+  .ac-face {
+    position: absolute;
+    inset: 12px 12px 35px 12px;
+    background: linear-gradient(180deg, #C8D8F8 0%, #B0C8F0 100%);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .ac-grille {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .ac-grille-line {
+    height: 2px;
+    background: linear-gradient(90deg, rgba(60,100,200,0.3), rgba(60,100,200,0.6), rgba(60,100,200,0.3));
+    border-radius: 2px;
+  }
+  .ac-controls {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .ac-led {
+    width: 10px; height: 10px;
+    background: #00FF88;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00FF88;
+  }
+  .ac-btn {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(60,100,200,0.2);
+    border: 1.5px solid rgba(60,100,200,0.4);
+  }
+  .ac-vent {
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 35px;
+    background: linear-gradient(180deg, #B0C0E8 0%, #A0B0D8 100%);
+    border-radius: 0 0 20px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .vent-slot {
+    width: 40px; height: 5px;
+    background: rgba(60,80,160,0.3);
+    border-radius: 3px;
+  }
+
+  /* Cold air waves */
+  .air-waves {
+    position: absolute;
+    bottom: -100px;
+    left: 30px; right: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .wave-row {
+    display: flex;
+    gap: 24px;
+  }
+  .wave {
+    width: 50px;
+    height: 16px;
+    border: 2px solid rgba(0,180,255,0.4);
+    border-top: none;
+    border-radius: 0 0 50px 50px;
+  }
+
+  /* Floating icons */
+  .float-icon {
+    position: absolute;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 18px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    gap: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .float-icon .icon-emoji {
+    font-size: 24px;
+  }
+
+  /* Bottom rating strip */
+  .rating-strip {
+    position: absolute;
+    bottom: 36px;
+    left: 60px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .rating-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rating-num {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+  }
+  .rating-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 500;
+  }
+  .rating-sep {
+    width: 1px;
+    height: 24px;
+    background: rgba(255,255,255,0.15);
+  }
+
+  /* Stars */
+  .stars {
+    color: #FFD700;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div class="banner">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="grid"></div>
+
+  <div class="content">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      SPECIAL OFFER
+    </div>
+    <div class="discount">50% OFF</div>
+    <div class="service-name">AC Services</div>
+    <div class="description">
+      Professional AC filter cleaning, gas refill &amp; full diagnostic by certified technicians. Doorstep service.
+    </div>
+    <div class="cta">
+      Book Now
+      <span class="cta-arrow">→</span>
+    </div>
+  </div>
+
+  <div class="illustration">
+    <div style="position:relative;">
+      <div class="ac-unit">
+        <div class="ac-face">
+          <div class="ac-grille">
+            <div class="ac-grille-line"></div>
+            <div class="ac-grille-line"></div>
+            <div class="ac-grille-line"></div>
+            <div class="ac-grille-line"></div>
+            <div class="ac-grille-line"></div>
+            <div class="ac-grille-line"></div>
+          </div>
+          <div class="ac-controls">
+            <div class="ac-led"></div>
+            <div class="ac-btn"></div>
+            <div class="ac-btn"></div>
+          </div>
+        </div>
+        <div class="ac-vent">
+          <div class="vent-slot"></div>
+          <div class="vent-slot"></div>
+          <div class="vent-slot"></div>
+          <div class="vent-slot"></div>
+          <div class="vent-slot"></div>
+          <div class="vent-slot"></div>
+        </div>
+      </div>
+
+      <div class="air-waves">
+        <div class="wave-row">
+          <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+        </div>
+        <div class="wave-row" style="padding-left:12px;">
+          <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+        </div>
+        <div class="wave-row">
+          <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+        </div>
+      </div>
+
+      <!-- floating card: temp -->
+      <div class="float-icon" style="top:-50px; right:-30px;">
+        <span style="font-size:20px; color:#00EEFF;">❄</span>
+        <span style="font-size:22px; font-weight:900; color:white;">18°C</span>
+        <span style="color:rgba(255,255,255,0.5); font-size:10px;">Cooling</span>
+      </div>
+
+      <!-- floating card: certified -->
+      <div class="float-icon" style="bottom:-40px; right:-20px;">
+        <span style="font-size:20px;">✓</span>
+        <span style="color:rgba(255,255,255,0.7); font-size:10px; text-align:center;">Certified<br>Technician</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="rating-strip">
+    <div class="rating-item">
+      <div>
+        <div class="stars">★★★★★</div>
+        <div class="rating-num">4.9 <span class="rating-label">Rating</span></div>
+      </div>
+    </div>
+    <div class="rating-sep"></div>
+    <div class="rating-item">
+      <div>
+        <div class="rating-num">50K+ <span class="rating-label">Services Done</span></div>
+      </div>
+    </div>
+    <div class="rating-sep"></div>
+    <div class="rating-item">
+      <div>
+        <div class="rating-num">30 min <span class="rating-label">Response</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

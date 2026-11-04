@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 540px;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .banner {
+    width: 1080px; height: 540px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0A0800 0%, #1C1000 40%, #3A2000 65%, #5A3200 100%);
+  }
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(70px);
+  }
+  .orb-1 { width:540px;height:540px;top:-140px;right:-100px;background:radial-gradient(circle,rgba(255,140,0,0.28) 0%,transparent 70%); }
+  .orb-2 { width:380px;height:380px;bottom:-100px;right:230px;background:radial-gradient(circle,rgba(255,80,0,0.22) 0%,transparent 70%); }
+  .orb-3 { width:220px;height:220px;top:70px;left:30px;background:radial-gradient(circle,rgba(255,160,0,0.15) 0%,transparent 70%); }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,140,0,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,140,0,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  .content {
+    position: relative;
+    z-index: 10;
+    padding: 32px 60px;
+    max-width: 560px;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: linear-gradient(90deg, rgba(255,80,0,0.9), rgba(255,160,0,0.9));
+    color: white; font-size: 11px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 7px 16px; border-radius: 100px; margin-bottom: 12px;
+    box-shadow: 0 0 24px rgba(255,100,0,0.5);
+  }
+  .badge-dot { width:6px;height:6px;background:#FFE000;border-radius:50%;box-shadow:0 0 6px #FFE000; }
+
+  .eyebrow {
+    font-size: 14px; font-weight: 600;
+    color: rgba(255,200,100,0.8);
+    letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .title {
+    font-size: 46px; font-weight: 900;
+    line-height: 1.05; letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFE0AA 50%, #FFAA44 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+
+  .description {
+    font-size: 14px; font-weight: 400;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+    max-width: 420px;
+    margin-bottom: 16px;
+  }
+
+  /* Feature list */
+  .features {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-bottom: 20px;
+  }
+  .feature {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .feature-check {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(255,160,0,0.2);
+    border: 1.5px solid rgba(255,160,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #FFD700; flex-shrink: 0;
+  }
+  .feature-text {
+    font-size: 13px; font-weight: 500;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .cta {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: linear-gradient(90deg, #FF8C00, #FF5500);
+    color: white; font-size: 15px; font-weight: 700;
+    padding: 14px 28px; border-radius: 100px;
+    box-shadow: 0 8px 32px rgba(255,80,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+    letter-spacing: 0.3px;
+  }
+  .cta-arrow {
+    width:20px;height:20px; background:rgba(255,255,255,0.25);
+    border-radius:50%; display:flex;align-items:center;justify-content:center;font-size:11px;
+  }
+
+  /* Right: House illustration */
+  .illustration {
+    position: absolute; right: 0; top: 0; bottom: 0;
+    width: 520px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .house-wrap {
+    position: relative; width: 380px; height: 380px;
+  }
+
+  /* House */
+  .house-body {
+    position: absolute;
+    bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 260px; height: 190px;
+    background: linear-gradient(180deg, rgba(255,230,180,0.12) 0%, rgba(255,200,100,0.08) 100%);
+    border: 1.5px solid rgba(255,200,100,0.25);
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+  }
+  /* Roof */
+  .house-roof {
+    position: absolute;
+    bottom: 207px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 155px solid transparent;
+    border-right: 155px solid transparent;
+    border-bottom: 110px solid rgba(255,140,0,0.7);
+    filter: drop-shadow(0 8px 24px rgba(255,100,0,0.4));
+  }
+  .house-roof::after {
+    content: '';
+    position: absolute;
+    top: 20px; left: -140px;
+    width: 0; height: 0;
+    border-left: 140px solid transparent;
+    border-right: 140px solid transparent;
+    border-bottom: 90px solid rgba(255,160,30,0.5);
+  }
+
+  /* Door */
+  .house-door {
+    position: absolute;
+    bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 58px; height: 90px;
+    background: linear-gradient(180deg, rgba(255,160,50,0.6), rgba(200,100,20,0.5));
+    border-radius: 29px 29px 0 0;
+    border: 1.5px solid rgba(255,180,80,0.4);
+  }
+  .house-door-knob {
+    position: absolute;
+    right: 10px; top: 50%;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #FFD700;
+    box-shadow: 0 0 6px #FFD700;
+  }
+
+  /* Windows */
+  .house-window {
+    position: absolute;
+    width: 60px; height: 52px;
+    background: linear-gradient(135deg, rgba(100,180,255,0.35), rgba(60,120,220,0.25));
+    border: 1.5px solid rgba(150,200,255,0.4);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .win-cross-h {
+    position: absolute; top: 50%; left: 0; right: 0;
+    height: 1.5px; background: rgba(255,255,255,0.3);
+  }
+  .win-cross-v {
+    position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 1.5px; background: rgba(255,255,255,0.3);
+  }
+  .win-light {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent);
+  }
+
+  /* Shield badge */
+  .shield {
+    position: absolute;
+    top: 20px; left: 50%; transform: translateX(-50%);
+    width: 80px; height: 90px;
+  }
+  .shield-shape {
+    width: 80px; height: 90px;
+    background: linear-gradient(180deg, rgba(255,180,0,0.9), rgba(255,100,0,0.8));
+    clip-path: polygon(50% 0%, 100% 20%, 100% 60%, 50% 100%, 0% 60%, 0% 20%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    box-shadow: 0 0 30px rgba(255,140,0,0.6);
+  }
+
+  /* Floating glass cards */
+  .glass-card {
+    position: absolute;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 14px 18px;
+    color: white;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    display: flex; align-items: center; gap: 12px;
+    white-space: nowrap;
+  }
+  .gc-icon { width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px; }
+  .gc-title { font-size:13px;font-weight:700;color:white; }
+  .gc-sub { font-size:11px;color:rgba(255,255,255,0.5); }
+
+  /* Sparkle */
+  .sparkle { position:absolute;border-radius:50%;background:#FFD700;box-shadow:0 0 10px #FFD700; }
+
+  /* Bottom strip */
+  .bottom-strip {
+    position: absolute; bottom: 36px; left: 60px;
+    display: flex; align-items: center; gap: 24px;
+    z-index: 20;
+  }
+  .bs-item { display: flex; align-items: center; gap: 8px; }
+  .bs-num { font-size:14px;font-weight:700;color:white; }
+  .bs-label { font-size:11px;color:rgba(255,255,255,0.45);font-weight:500; }
+  .bs-sep { width:1px;height:24px;background:rgba(255,255,255,0.12); }
+</style>
+</head>
+<body>
+<div class="banner">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="grid"></div>
+
+  <div class="content">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      COMING SOON
+    </div>
+    <div class="title">Annual Maintenance<br>Contract (AMC)</div>
+    <div class="description">
+      Complete home care with scheduled service visits, guaranteed repairs, and priority support — all year round.
+    </div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-check">&#10003;</div>
+        <span class="feature-text">Unlimited repair visits included</span>
+      </div>
+      <div class="feature">
+        <div class="feature-check">&#10003;</div>
+        <span class="feature-text">Dedicated support &amp; priority booking</span>
+      </div>
+      <div class="feature">
+        <div class="feature-check">&#10003;</div>
+        <span class="feature-text">All appliances covered under one plan</span>
+      </div>
+    </div>
+    <div class="cta">
+      Notify Me
+      <span class="cta-arrow">→</span>
+    </div>
+  </div>
+
+  <div class="illustration">
+    <div class="house-wrap">
+      <!-- Roof -->
+      <div class="house-roof"></div>
+      <!-- Body -->
+      <div class="house-body">
+        <!-- Left window -->
+        <div class="house-window" style="top:24px;left:22px;">
+          <div class="win-cross-h"></div>
+          <div class="win-cross-v"></div>
+          <div class="win-light"></div>
+        </div>
+        <!-- Right window -->
+        <div class="house-window" style="top:24px;right:22px;">
+          <div class="win-cross-h"></div>
+          <div class="win-cross-v"></div>
+          <div class="win-light"></div>
+        </div>
+        <!-- Door -->
+        <div class="house-door">
+          <div class="house-door-knob"></div>
+        </div>
+      </div>
+      <!-- Shield -->
+      <div class="shield">
+        <div class="shield-shape">&#10003;</div>
+      </div>
+      <!-- Sparkles -->
+      <div class="sparkle" style="width:8px;height:8px;top:30px;left:60px;"></div>
+      <div class="sparkle" style="width:5px;height:5px;top:70px;right:30px;"></div>
+      <div class="sparkle" style="width:6px;height:6px;bottom:100px;left:20px;"></div>
+    </div>
+  </div>
+
+  <!-- Floating glass cards -->
+  <div class="glass-card" style="top:48px;right:40px;">
+    <div class="gc-icon" style="background:rgba(255,160,0,0.2);">🛡</div>
+    <div>
+      <div class="gc-title">Full Coverage</div>
+      <div class="gc-sub">All appliances</div>
+    </div>
+  </div>
+  <div class="glass-card" style="top:172px;right:28px;">
+    <div class="gc-icon" style="background:rgba(255,80,0,0.2);">📅</div>
+    <div>
+      <div class="gc-title">12 Scheduled</div>
+      <div class="gc-sub">Service visits/year</div>
+    </div>
+  </div>
+
+  <div class="bottom-strip">
+    <div class="bs-item">
+      <div>
+        <div class="bs-num">365 Days <span class="bs-label">coverage</span></div>
+      </div>
+    </div>
+    <div class="bs-sep"></div>
+    <div class="bs-item">
+      <div>
+        <div class="bs-num">All Appliances <span class="bs-label">included</span></div>
+      </div>
+    </div>
+    <div class="bs-sep"></div>
+    <div class="bs-item">
+      <div>
+        <div class="bs-num">Priority <span class="bs-label">support 24/7</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
