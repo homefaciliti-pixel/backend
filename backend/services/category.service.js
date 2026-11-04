@@ -261,28 +261,48 @@ async function getUnifiedServices(serverBaseUrl = 'https://backend-1-ux3b.onrend
           img = `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
         }
 
-        const price = parseFloat(as.price || 0);
-        const discount = parseFloat(as.discount || 0);
+        const price = Math.round(parseFloat(as.price || 0));
+        const discount = Math.round(parseFloat(as.discount || 0));
         const finalPrice = discount > 0 ? Math.max(0, price - discount) : price;
         const displayDiscount = price > 0 && discount > 0 ? Math.min(100, Math.round((discount / price) * 100)) : 0;
         const catId = String(as.category_id || as.categoryId || as.category || '');
         const catName = as.categoryName || as.category_name || catMap[catId] || as.cat_name || as.category || '';
         const srvId = String(as.id || as.serviceId || '');
 
+        // Standardize highlights to always be an Array of strings (Flutter crashes if highlights is a String)
+        let srvHighlights = [];
+        if (as.highlights) {
+          try {
+            srvHighlights = typeof as.highlights === 'string' ? JSON.parse(as.highlights) : as.highlights;
+          } catch (e) {
+            srvHighlights = [];
+          }
+        }
+        if (!Array.isArray(srvHighlights) || srvHighlights.length === 0) {
+          srvHighlights = [
+            "Includes background-checked & certified partner",
+            "30-day post-service warranty cover included",
+            "Equipped with premium professional-grade tools",
+            "100% safe, hygienic, and high-quality service execution"
+          ];
+        }
+
+        const resolvedDuration = as.duration || (as.time ? `${as.time} Hours` : "1-2 Hours");
+
         return {
           ...as,
           id: srvId,
           serviceId: srvId,
           productDbId: srvId,
-          productId: as.title || as.name || '',
+          productId: String(as.title || as.name || srvId),
           title: String(as.title || as.name || ''),
           name: String(as.title || as.name || ''),
           serviceName: String(as.title || as.name || ''),
           description: String(as.description || ''),
           image: img,
           imageUrl: img,
-          price: finalPrice,
-          cutPrice: price,
+          price: Math.round(finalPrice),
+          cutPrice: Math.round(price),
           discount: displayDiscount,
           rating: parseFloat(as.rating || 4.8),
           reviewsCount: 50 + (parseInt(srvId || 1) * 17) % 250,
@@ -291,6 +311,8 @@ async function getUnifiedServices(serverBaseUrl = 'https://backend-1-ux3b.onrend
           categoryId: catId,
           categoryName: catName,
           cat_name: catName,
+          duration: resolvedDuration,
+          highlights: srvHighlights,
           subCategoryId: as.subCategoryId || as.sub_category_id ? String(as.subCategoryId || as.sub_category_id) : (as.subCategory || as.sub_category ? String(as.subCategory || as.sub_category) : null),
           sub_category_id: as.sub_category_id || as.subCategoryId ? String(as.sub_category_id || as.subCategoryId) : (as.sub_category || as.subCategory ? String(as.sub_category || as.subCategory) : null),
           subCategory: as.subCategory || as.sub_category || null,
