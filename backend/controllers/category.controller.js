@@ -673,11 +673,31 @@ const getCategorySubcategories = async (req, res) => {
       subcats = generateSubcategoriesForCategory({ ...targetCat, image: img });
     }
 
+    // Strict deduplication by subCategoryId and subCategoryName
+    const dedupedMap = new Map();
+    (subcats || []).forEach(sub => {
+      if (!sub) return;
+      const subId = String(sub.id || sub.subCategoryId || sub.sub_category_id || '').trim();
+      const subName = String(sub.title || sub.name || sub.subCategoryName || '').toLowerCase().trim();
+      const key = subId && !subId.startsWith('sub_') ? ('id_' + subId) : ('name_' + subName);
+      
+      if (!dedupedMap.has(key)) {
+        dedupedMap.set(key, { ...sub });
+      } else {
+        const existing = dedupedMap.get(key);
+        if ((!existing.services || existing.services.length === 0) && Array.isArray(sub.services) && sub.services.length > 0) {
+          existing.services = sub.services;
+        }
+      }
+    });
+
+    const finalSubcats = Array.from(dedupedMap.values());
+
     res.json({
       success: true,
       category: matchName,
-      total: subcats.length,
-      subcategories: subcats,
+      total: finalSubcats.length,
+      subcategories: finalSubcats,
     });
   } catch (err) {
     console.error("Fetch category subcategories failed:", err);

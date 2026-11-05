@@ -118,19 +118,60 @@ function generateSubcategoriesForCategory(c) {
 
 function collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBaseUrl) {
   const allSubs = [];
-  const seen = new Set();
+  const subById = new Map();
+  const subByCatAndTitle = new Map();
+
+  const nameToCatId = new Map();
+  const idToCatName = new Map();
+
+  [...(adminCats || []), ...(dbCategories || [])].forEach(c => {
+    if (!c) return;
+    const cid = String(c.id || c.categoryId || '').trim();
+    const cname = String(c.name || c.title || c.categoryName || '').trim();
+    if (cid && cname) {
+      nameToCatId.set(cname.toLowerCase(), cid);
+      idToCatName.set(cid.toLowerCase(), cname);
+    }
+  });
 
   function addSub(sub, parentCat) {
+    if (!sub || typeof sub !== 'object') return;
     const subId = String(sub.id || sub.subCategoryId || sub.sub_category_id || '').trim();
     const subTitle = String(sub.title || sub.name || sub.subCategoryName || '').trim();
     if (!subTitle) return;
 
-    const catId = String(parentCat ? (parentCat.id || parentCat.categoryId) : (sub.category_id || sub.categoryId || sub.parent_id || sub.parent || '')).trim();
-    const catName = String(parentCat ? (parentCat.name || parentCat.title || parentCat.categoryName) : (sub.categoryName || sub.category_name || sub.parent || '')).trim();
+    // Resolve canonical category ID and category Name
+    let rawCatId = String(parentCat ? (parentCat.id || parentCat.categoryId) : (sub.category_id || sub.categoryId || sub.parent_id || sub.parent || '')).trim();
+    let rawCatName = String(parentCat ? (parentCat.name || parentCat.title || parentCat.categoryName) : (sub.categoryName || sub.category_name || sub.parent || '')).trim();
 
-    const dedupKey = `${subId}_${subTitle}_${catId}`.toLowerCase();
-    if (seen.has(dedupKey)) return;
-    seen.add(dedupKey);
+    let canonicalCatId = rawCatId;
+    let canonicalCatName = rawCatName;
+
+    // If rawCatId is actually a name like "Cleaning", map it to "7"
+    if (rawCatId && nameToCatId.has(rawCatId.toLowerCase())) {
+      canonicalCatId = nameToCatId.get(rawCatId.toLowerCase());
+      canonicalCatName = idToCatName.get(canonicalCatId.toLowerCase()) || rawCatId;
+    } else if (rawCatName && nameToCatId.has(rawCatName.toLowerCase())) {
+      canonicalCatId = nameToCatId.get(rawCatName.toLowerCase());
+      canonicalCatName = rawCatName;
+    } else if (rawCatId && idToCatName.has(rawCatId.toLowerCase())) {
+      canonicalCatName = idToCatName.get(rawCatId.toLowerCase());
+    }
+
+    if (!canonicalCatName && canonicalCatId) {
+      canonicalCatName = idToCatName.get(canonicalCatId.toLowerCase()) || 'Category';
+    }
+
+    const normTitle = subTitle.toLowerCase().trim();
+    const normCatKey = `${canonicalCatId || '0'}_${normTitle}`;
+
+    // Deduplicate by ID or (Category + Title)
+    let existing = null;
+    if (subId && !subId.startsWith('sub_') && subById.has(subId)) {
+      existing = subById.get(subId);
+    } else if (subByCatAndTitle.has(normCatKey)) {
+      existing = subByCatAndTitle.get(normCatKey);
+    }
 
     let subImg = sub.image || sub.subCategoryImage || sub.photo || '';
     if (subImg && typeof subImg === 'string') {
@@ -144,23 +185,51 @@ function collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBa
       subImg = parentCat ? resolveDynamicCategoryImageUrl(parentCat, serverBaseUrl) : `${serverBaseUrl}/assets/categories/1_Plumber.png`;
     }
 
-    allSubs.push({
-      id: subId || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      subCategoryId: subId || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      sub_category_id: subId || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      categoryId: catId,
-      category_id: isNaN(catId) ? catId : parseInt(catId),
+    const subServices = Array.isArray(sub.services) ? sub.services : [];
+
+    if (existing) {
+      // Merge richer data if existing is missing services or image
+      if ((!existing.services || existing.services.length === 0) && subServices.length > 0) {
+        existing.services = subServices;
+      }
+      if ((!existing.image || existing.image.includes('1_Plumber.png')) && subImg && !subImg.includes('1_Plumber.png')) {
+        existing.image = String(subImg);
+        existing.subCategoryImage = String(subImg);
+      }
+      // Ensure canonical category ID and Name are retained
+      if (canonicalCatId && (!existing.categoryId || isNaN(existing.categoryId))) {
+        existing.categoryId = canonicalCatId;
+        existing.category_id = isNaN(canonicalCatId) ? canonicalCatId : parseInt(canonicalCatId);
+        existing.categoryName = canonicalCatName;
+        existing.parent = canonicalCatName;
+      }
+      return;
+    }
+
+    const finalSubId = subId || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const finalObj = {
+      id: finalSubId,
+      subCategoryId: finalSubId,
+      sub_category_id: finalSubId,
+      categoryId: canonicalCatId || '1',
+      category_id: isNaN(canonicalCatId) ? canonicalCatId : parseInt(canonicalCatId),
       name: subTitle,
       title: subTitle,
       subCategoryName: subTitle,
-      categoryName: catName || 'Category',
+      categoryName: canonicalCatName || 'Category',
       image: String(subImg || ''),
       subCategoryImage: String(subImg || ''),
       categoryImage: parentCat ? resolveDynamicCategoryImageUrl(parentCat, serverBaseUrl) : String(subImg || ''),
-      parent: catName || 'Main Category',
+      parent: canonicalCatName || 'Main Category',
       status: (sub.status === 0 || sub.status === false || sub.status === 'inactive') ? 'inactive' : 'active',
-      services: Array.isArray(sub.services) ? sub.services : []
-    });
+      services: subServices
+    };
+
+    allSubs.push(finalObj);
+    if (finalSubId && !finalSubId.startsWith('sub_')) {
+      subById.set(finalSubId, finalObj);
+    }
+    subByCatAndTitle.set(normCatKey, finalObj);
   }
 
   (adminSubcats || []).forEach(sub => addSub(sub));
