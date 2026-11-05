@@ -962,18 +962,27 @@ const handleGetCheckout = async (req, res) => {
     if (isNaN(idParam) || idParam.length >= 8) {
       targetPhone = idParam === "me" ? user.phone : idParam;
       const pendingOrders = [];
-      let memDraft = draftOrders.get(targetPhone);
+      let memDraft = null;
+      for (const p of getPhoneVariants(targetPhone)) {
+        if (draftOrders.has(p)) {
+          memDraft = draftOrders.get(p);
+          break;
+        }
+      }
       if (!memDraft) {
         // Hydrate from DB if missing (e.g. server restart)
         try {
           const userOrders = await DbLayer.getOrdersByUserPhone(targetPhone);
-          const dbDraft = userOrders.find(o =>
+          const drafts = (userOrders || []).filter(o =>
             (o.bookingStatus === 'draft' || o.status === 'Draft')
           );
+          // Sort newest first
+          drafts.sort((a, b) => (b.createdAt || b.id || 0) - (a.createdAt || a.id || 0));
+          const dbDraft = drafts.find(o => !isTapRepairFallback(o.serviceName) && !isTapRepairFallback(o.productId)) || drafts[0];
           if (dbDraft) {
             memDraft = dbDraft;
-            draftOrders.set(targetPhone, memDraft);
-            console.log(`[GetCheckout] Hydrated in-memory draft from DB: #${dbDraft.id} for user ${targetPhone}`);
+            getPhoneVariants(targetPhone).forEach(p => draftOrders.set(p, memDraft));
+            console.log(`[GetCheckout] Hydrated in-memory draft from DB: #${dbDraft.id} (${dbDraft.serviceName}) for user ${targetPhone}`);
           }
         } catch (dbErr) {
           console.warn("[GetCheckout] Failed to hydrate draft from DB:", dbErr.message);
@@ -1618,16 +1627,21 @@ const handleGetCheckout = async (req, res) => {
       razorpayOrderId: (() => {
         const rid = order.razorpayOrderId;
         if (!rid) return null;
-        // mock order IDs are safe (not real Razorpay orders) — always pass them through
-        if (rid.startsWith('order_mock_')) return rid;
-        // For real Razorpay order IDs, check if the stored price matches current payable amount
+        // Never pass mock order IDs to Razorpay Flutter SDK — it causes SDK initialization errors
+        if (rid.startsWith('order_mock_')) return null;
+
+        // Check if the stored price matches current payable amount
         const storedRzpAmount = Number(order.razorpayAmount || order.razorpayAmountPaisa || 0);
         const currentAmountPaisa = Math.round(finalPayableAmount * 100);
-        if (storedRzpAmount > 0 && storedRzpAmount !== currentAmountPaisa) {
-          console.warn(`[GetCheckout] Clearing stale razorpayOrderId ${rid}: stored amount ${storedRzpAmount} paisa != current ${currentAmountPaisa} paisa`);
-          // Clear from order in-memory too so next POST creates a fresh one
+        // If stored amount doesn't match current amount, or stored amount was not verified/saved (0),
+        // clear the stale order ID so Razorpay dynamically charges the real finalPayableAmount
+        if (storedRzpAmount !== currentAmountPaisa) {
+          console.warn(`[GetCheckout] Clearing stale/unverified razorpayOrderId ${rid}: stored amount ${storedRzpAmount} paisa != current ${currentAmountPaisa} paisa`);
           order.razorpayOrderId = null;
-          if (order.userPhone) draftOrders.set(order.userPhone, order);
+          order.razorpayAmountPaisa = null;
+          if (order.userPhone) {
+            getPhoneVariants(order.userPhone).forEach(p => draftOrders.set(p, order));
+          }
           return null;
         }
         return rid;

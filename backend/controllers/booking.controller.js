@@ -175,7 +175,12 @@ const handlePostBooking = async (req, res) => {
 
   // Fallback to legacy single product booking if no items list was sent
   if (itemsList.length === 0 && productId) {
-    itemsList.push({ productId: productId, quantity: 1 });
+    itemsList.push({
+      productId: productId,
+      quantity: 1,
+      price: req.body.price,
+      serviceName: req.body.serviceName
+    });
   }
 
   if (itemsList.length === 0 || !date || !timeSlot) {
@@ -199,18 +204,30 @@ const handlePostBooking = async (req, res) => {
       if (!itemProdId) continue;
       
       const resolved = await resolveServiceDetails(itemProdId);
-      if (resolved) {
-        resolvedItems.push({
-          productId: resolved.productId,
-          serviceName: resolved.serviceName,
-          price: Number(resolved.price),
-          quantity: qty,
-          description: resolved.description || "",
-          image: resolved.image || "",
-          category: resolved.category || ""
-        });
-        totalPrice += Number(resolved.price) * qty;
+      
+      // Explicit client price takes highest precedence
+      let itemPrice = 0;
+      if (item.price !== undefined && item.price !== null && !isNaN(item.price) && Number(item.price) > 0) {
+        itemPrice = Number(item.price);
+      } else if (req.body.price !== undefined && req.body.price !== null && !isNaN(req.body.price) && Number(req.body.price) > 0) {
+        itemPrice = Number(req.body.price);
+      } else if (resolved && resolved.price !== undefined && resolved.price !== null && !isNaN(resolved.price)) {
+        itemPrice = Number(resolved.price);
       }
+
+      const itemTitle = (req.body.serviceName && req.body.serviceName.trim()) || (resolved && (resolved.serviceName || resolved.title)) || itemProdId;
+
+      resolvedItems.push({
+        productId: (resolved && resolved.productId) || itemProdId,
+        serviceName: itemTitle,
+        title: itemTitle,
+        price: itemPrice,
+        quantity: qty,
+        description: (resolved && resolved.description) || "",
+        image: (resolved && resolved.image) || "",
+        category: (resolved && resolved.category) || ""
+      });
+      totalPrice += itemPrice * qty;
     }
 
     if (resolvedItems.length === 0) {
@@ -364,7 +381,8 @@ const handlePostBooking = async (req, res) => {
       createdAt: Date.now(),
       items: resolvedItems
     };
-    draftOrders.set(user.phone, order);
+    order.razorpayOrderId = null;
+    getPhoneVariants(user.phone).forEach(p => draftOrders.set(p, order));
     console.log(`[handlePostBooking] Created new in-memory draft order #${order.id} for user ${user.phone} with ${resolvedItems.length} items`);
 
     // Always persist to DB so server restarts don't lose the draft (both created and updated drafts)

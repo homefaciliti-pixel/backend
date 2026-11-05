@@ -18,7 +18,7 @@ function safeJsonParse(str, fallback = null) {
 
 function parseOrderNumbers(row) {
   if (!row) return null;
-  row.price = row.price !== undefined && row.price !== null ? Math.round(Number(row.price)) : 299;
+  row.price = row.price !== undefined && row.price !== null ? Math.round(Number(row.price)) : 0;
   row.address = safeJsonParse(row.address);
   row.payment = safeJsonParse(row.payment);
   row.items = safeJsonParse(row.items) || [];

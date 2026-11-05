@@ -239,7 +239,7 @@ const handleVerifyPayment = async (req, res) => {
           razorpay_payment_id: paymentId || `pay_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
           razorpay_order_id: (order && order.razorpayOrderId) || `order_mock_${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
           status: "captured", // Mock captured status
-          amount: (order ? order.price : 299) * 100, // in paisa
+          amount: (order && order.price ? order.price : 0) * 100, // in paisa
           currency: "INR",
           method: "card",
           email: "user@example.com",
