@@ -291,7 +291,6 @@ const getCategories = async (req, res) => {
       const parent = String(category.parent || '').trim().toLowerCase();
       return !parent || parent === 'main category' || parent === 'null' || parent === 'undefined';
     });
-    });
 
     const isFlat = req.query.flat === 'true' || req.query.includeAll === 'true';
     let categories = isFlat ? categoriesList : (rootCategories.length > 0 ? rootCategories : categoriesList);
