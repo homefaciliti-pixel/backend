@@ -24,7 +24,6 @@ const createCategory = async (req, res) => {
   }
 };
 const updateCategory = async (req, res) => {
-const updateBanner = async (req, res) => {
   const { id } = req.params;
   try {
     const category = await DbLayer.updateCategory(id, req.body);
@@ -35,6 +34,7 @@ const updateBanner = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 const deleteCategory = async (req, res) => {
   const { id } = req.params;
   try {
@@ -56,6 +56,8 @@ const createBanner = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+const updateBanner = async (req, res) => {
   const { id } = req.params;
   try {
     const banner = await DbLayer.updateBanner(id, req.body);
