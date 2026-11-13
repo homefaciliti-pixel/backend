@@ -635,7 +635,7 @@ const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
     category: String(s.category || s.categoryId || s.category_id || '1'),
     categoryId: String(s.categoryId || s.category_id || s.category || '1'),
     category_id: String(s.category_id || s.categoryId || s.category || '1'),
-    duration: String(s.duration || (s.time ? `${s.time} Hours` : "1-2 Hours")),
+    duration: String(s.duration || (s.time ? `${s.time}` : "1-2 Hours")),
     rating: parseFloat(s.rating || 4.8),
     reviewsCount: parseInt(s.reviewsCount || 120),
     highlights: srvHighlights,
