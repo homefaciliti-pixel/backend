@@ -75,7 +75,7 @@ const getTrendingServices = async (req, res) => {
             serviceId: String(s.id),
             title: String(s.title || s.name || ''),
             name: String(s.name || s.title || ''),
-            price: Number(s.price || 0),
+            price: String(s.price ?? '0'),
             description: String(s.description || ''),
             categoryId: catId,
             category_id: catId,
@@ -309,7 +309,7 @@ const getCategoryServices = async (req, res) => {
 
   const finalServices = resolveServiceUrls(dbServices, serverBaseUrl).map(s => {
     if (isAmcMode) {
-      return { ...s, price: 0, status: "AMC" };
+     return { ...s, price: 0, status: "AMC" };
     }
     return s;
   });
@@ -583,9 +583,13 @@ const getTrendingServicesAlt = async (req, res) => {
   res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl).map(s => localizeService(s, req.lang)) });
 };
 
-const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
-  const srvPrice = isAmcMode ? 0 : Math.round(Number(s.price || 0));
-  const srvCutPrice = isAmcMode ? 0 : Math.round(Number(s.cutPrice || srvPrice || 0));
+const srvPrice = isAmcMode
+  ? "0"
+  : String(s.price ?? "0");
+
+const srvCutPrice = isAmcMode
+  ? "0"
+  : String(s.cutPrice ?? srvPrice);
 
   let srvHighlights = s.highlights;
   if (typeof srvHighlights === 'string') {
@@ -658,9 +662,9 @@ const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
     serviceName: srvTitle,
     productName: srvTitle,
     product_name: srvTitle,
-    price: srvPrice,
-    cutPrice: srvCutPrice,
-    discount: Math.round(Number(s.discount || 0)),
+    price: String(srvPrice),
+    cutPrice: String(srvCutPrice),
+     discount: Math.round(Number(s.discount || 0)),
     description: String(s.description || s.productDescription || `${srvTitle} provided by trusted, verified home service experts.`),
     image: img,
     imageUrl: img,
@@ -676,8 +680,10 @@ const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
 
   const localized = localizeService(sanitized, req.lang);
   // Guarantee exact Dart types: price must be int, highlights must be List<String>
-  localized.price = srvPrice;
-  localized.highlights = srvHighlights;
+ // Guarantee exact Dart types: price must be String
+   localized.price = String(srvPrice);
+   localized.cutPrice = String(srvCutPrice);
+   localized.highlights = srvHighlights;
   localized.productId = String(localized.productId || sanitized.productId);
   localized.category = String(localized.category || sanitized.category);
   localized.duration = String(localized.duration || sanitized.duration);
