@@ -225,7 +225,6 @@ const getAllServices = async (req, res) => {
   res.json({ success: true, services: resolveServiceUrls(list, serverBaseUrl).map(s => localizeService(s, req.lang)) });
 };
 
-  }
 
   if (dbServices.length === 0) {
     return res.status(404).json({
