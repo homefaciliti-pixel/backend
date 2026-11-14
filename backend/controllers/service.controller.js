@@ -615,6 +615,38 @@ const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
 
   const srvTitle = String(s.title || s.name || s.serviceName || req.params.title || 'Home Service').trim();
 
+
+    // Normalize duration and prevent duplicate units
+  let normalizedDuration = String(
+    s.duration || s.time || "1-2 Hours"
+  ).trim().replace(/\s+/g, ' ');
+
+  if (
+    !normalizedDuration ||
+    normalizedDuration.toLowerCase() === 'null' ||
+    normalizedDuration.toLowerCase() === 'undefined'
+  ) {
+    normalizedDuration = "1-2 Hours";
+  }
+
+  const durationUnitPattern =
+    /\b(hours?|hrs?|hr|minutes?|mins?|min)\b/i;
+
+  const duplicateDurationUnitPattern =
+    /\b(hours?|hrs?|hr|minutes?|mins?|min)\b\s+(?:and\s+)?\b(hours?|hrs?|hr|minutes?|mins?|min)\b\s*$/i;
+
+  while (duplicateDurationUnitPattern.test(normalizedDuration)) {
+    normalizedDuration = normalizedDuration.replace(
+      duplicateDurationUnitPattern,
+      '$1'
+    );
+  }
+
+  if (!durationUnitPattern.test(normalizedDuration)) {
+    normalizedDuration = `${normalizedDuration} Hours`;
+  }
+
+  
   const sanitized = {
     ...s,
     id: parseInt(s.id || s.serviceId || 1),
@@ -635,7 +667,7 @@ const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
     category: String(s.category || s.categoryId || s.category_id || '1'),
     categoryId: String(s.categoryId || s.category_id || s.category || '1'),
     category_id: String(s.category_id || s.categoryId || s.category || '1'),
-    duration: String(s.duration || (s.time ? `${s.time} Hours` : "1-2 Hours")),
+    duration: normalizedDuration,
     rating: parseFloat(s.rating || 4.8),
     reviewsCount: parseInt(s.reviewsCount || 120),
     highlights: srvHighlights,
