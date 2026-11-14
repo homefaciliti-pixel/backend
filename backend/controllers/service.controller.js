@@ -582,7 +582,7 @@ const getTrendingServicesAlt = async (req, res) => {
   const trending = [acFreeService, ...shuffleArray(allServices).slice(0, 4)];
   res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl).map(s => localizeService(s, req.lang)) });
 };
-
+const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
 const srvPrice = isAmcMode
   ? "0"
   : String(s.price ?? "0");
