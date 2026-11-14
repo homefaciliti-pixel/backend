@@ -23,7 +23,7 @@
     total: localizedFinalServices.length,
     services: localizedFinalServices
   });
-};
+
 const getAllServices = async (req, res) => {
   const category = req.query.category || req.query.category_id || req.query.categoryId;
   const subCategory = req.query.sub_category_id || req.query.subCategoryId || req.query.subcategory_id;
