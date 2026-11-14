@@ -251,7 +251,7 @@ const getAllServices = async (req, res) => {
     total: localizedFinalServices.length,
     services: localizedFinalServices
   });
-};
+
 const getAllServices = async (req, res) => {
   const category = req.query.category || req.query.category_id || req.query.categoryId;
   const subCategory = req.query.sub_category_id || req.query.subCategoryId || req.query.subcategory_id;
@@ -504,7 +504,6 @@ const getTrendingServicesAlt = async (req, res) => {
       console.warn("[DynamicServices] DB trending failed, falling back static:", err.message);
     }
   }
-  ```javascript
   const allServices = Object.values(SERVICES_DATA).flat();
   const trending = [acFreeService, ...shuffleArray(allServices).slice(0, 4)];
   res.json({ success: true, services: resolveServiceUrls(trending, serverBaseUrl).map(s => localizeService(s, req.lang)) });
@@ -550,11 +549,15 @@ const formatServiceDetailResponse = (s, req, serverBaseUrl, isAmcMode) => {
     s.duration || s.time || "1-2 Hours"
   ).trim().replace(/\s+/g, ' ');
 
+  if (!normalizedDuration || normalizedDuration === 'null' || normalizedDuration === 'undefined') {
+    normalizedDuration = '1-2 Hours';
+  }
+
   const durationUnitPattern =
     /\b(hours?|hrs?|hr|minutes?|mins?|min)\b/i;
 
   const duplicateDurationUnitPattern =
-    /\b(hours?|hrs?|hr|minutes?|mins?|min)\b\s+\b(hours?|hrs?|hr|minutes?|mins?|min)\b\s*$/i;
+    /\b(hours?|hrs?|hr|minutes?|mins?|min)\b\s+(?:and\s+)?\1\b\s*$/i;
 
   while (duplicateDurationUnitPattern.test(normalizedDuration)) {
     normalizedDuration = normalizedDuration.replace(
