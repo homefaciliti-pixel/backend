@@ -364,7 +364,13 @@ const getAllServices = async (req, res) => {
       }
       return res.json({
         success: true,
-        services: resolveServiceUrls(filtered, serverBaseUrl).map(s => localizeService(s, req.lang))
+        services: resolveServiceUrls(filtered, serverBaseUrl).map(s => {
+          const localized = localizeService(s, req.lang);
+          return {
+            ...localized,
+            price: localized.price !== undefined && localized.price !== null ? String(localized.price) : ""
+          };
+        })
       });
     }
   } catch (err) {
@@ -464,7 +470,13 @@ const getAllServices = async (req, res) => {
 
       return res.json({
         success: true,
-        services: resolveServiceUrls(mergedServices, serverBaseUrl).map(s => localizeService(s, req.lang))
+        services: resolveServiceUrls(mergedServices, serverBaseUrl).map(s => {
+          const localized = localizeService(s, req.lang);
+          return {
+            ...localized,
+            price: localized.price !== undefined && localized.price !== null ? String(localized.price) : ""
+          };
+        })
       });
     } catch (err) {
       console.warn("[DynamicServices] DB query all failed, falling back to static:", err.message);
@@ -522,7 +534,16 @@ const getAllServices = async (req, res) => {
       String(s.sub_category_id || s.subCategoryId || '').toLowerCase().includes(subNorm)
     );
   }
-  res.json({ success: true, services: resolveServiceUrls(list, serverBaseUrl).map(s => localizeService(s, req.lang)) });
+  res.json({
+    success: true,
+    services: resolveServiceUrls(list, serverBaseUrl).map(s => {
+      const localized = localizeService(s, req.lang);
+      return {
+        ...localized,
+        price: localized.price !== undefined && localized.price !== null ? String(localized.price) : ""
+      };
+    })
+  });
 };
 const getTrendingServicesAlt = async (req, res) => {
   const host = req.get('host');
