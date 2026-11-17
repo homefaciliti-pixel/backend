@@ -198,25 +198,6 @@ const getCategoryServices = async (req, res) => {
     console.warn("[getCategoryServices] Admin fetch failed, falling back:", err.message);
   }
 
-  // 1b. If no main-category match, try to find a matching SUBCATEGORY from admin backend
-  if (dbServices.length === 0) {
-    try {
-      const { fetchAdminBackendSubcategories } = require('../services/adminBackend.service');
-      const adminSubcats = await fetchAdminBackendSubcategories();
-      const matchedSubcat = (adminSubcats || []).find(sc => {
-        const scName = normCatStr(sc.name || sc.title || '');
-        const scId = String(sc.id || sc.subCategoryId || '');
-        return scName === cleanCategory || scId === category.trim();
-      });
-      if (matchedSubcat && Array.isArray(matchedSubcat.services) && matchedSubcat.services.length > 0) {
-        dbServices = matchedSubcat.services;
-        matchedCatTitle = matchedSubcat.name || matchedSubcat.title || mappedCatName;
-      }
-    } catch (err) {
-      console.warn('[getCategoryServices] Subcategory lookup failed:', err.message);
-    }
-  }
-
   // 2. Check MySQL if available and admin returned nothing
   if (dbServices.length === 0 && getMysqlReady()) {
     try {
