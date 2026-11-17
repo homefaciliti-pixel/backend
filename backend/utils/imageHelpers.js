@@ -248,8 +248,12 @@ function resolveServiceUrls(services, serverBaseUrl) {
     let img = s.image || s.serviceImage || s.productImage || s.photo || "";
     if (!img || img.endsWith('/uploads/1') || img === '1') {
       img = getHdFallbackServiceImageUrl(s.title || s.name || '', s.category || '');
+    } else if (img.includes('adminbackend-1-h03r.onrender.com/uploads/')) {
+      // Route through our own backend /uploads/ proxy — images are cached locally in repo
+      const filename = img.split('/uploads/').pop();
+      img = `${serverBaseUrl}/uploads/${filename}`;
     } else if (img.startsWith('http://') || img.startsWith('https://')) {
-      // Valid HTTP/HTTPS image URL — keep as-is (Flutter loads directly)
+      // Other valid HTTP/HTTPS image URL — keep as-is
     } else if (img.startsWith('/assets/')) {
       img = `${serverBaseUrl}${img}`;
     } else {
