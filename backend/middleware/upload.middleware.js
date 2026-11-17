@@ -115,7 +115,7 @@ const uploadsProxyMiddleware = async (req, res, next) => {
     const adminUrl = `https://adminbackend-1-h03r.onrender.com/uploads/${encodeURIComponent(relPath)}`;
 
     const proxied = await new Promise((resolve) => {
-      const pReq = https.get(adminUrl, { timeout: 3500 }, (pRes) => {
+      const pReq = https.get(adminUrl, { timeout: 8000 }, (pRes) => {
         if (pRes.statusCode === 200) {
           res.setHeader('Content-Type', pRes.headers['content-type'] || 'image/jpeg');
           try {
