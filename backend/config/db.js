@@ -39,6 +39,16 @@ async function initMySqlDb() {
       keepAliveInitialDelay: 10000, // Send keepalive after 10s of idle
     });
 
+    if (mysqlPool && mysqlPool.pool) {
+      mysqlPool.pool.on('connection', (connection) => {
+        connection.on('error', (err) => {
+          if (err && (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT')) {
+            console.warn('[MySQL Pool Connection Event]:', err.code || err.message);
+          }
+        });
+      });
+    }
+
     const conn = await mysqlPool.getConnection();
     console.log("Successfully connected to MySQL. Creating tables if not exist...");
 

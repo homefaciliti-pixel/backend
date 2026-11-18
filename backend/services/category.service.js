@@ -124,7 +124,8 @@ function collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBa
   const nameToCatId = new Map();
   const idToCatName = new Map();
 
-  [...(adminCats || []), ...(dbCategories || [])].forEach(c => {
+  const activeCats = (adminCats && adminCats.length > 0) ? adminCats : (dbCategories || []);
+  activeCats.forEach(c => {
     if (!c) return;
     const cid = String(c.id || c.categoryId || '').trim();
     const cname = String(c.name || c.title || c.categoryName || '').trim();
@@ -176,9 +177,12 @@ function collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBa
     let subImg = sub.image || sub.subCategoryImage || sub.photo || '';
     if (subImg && typeof subImg === 'string') {
       subImg = subImg.trim();
-      if (!subImg.startsWith('http://') && !subImg.startsWith('https://')) {
+      if (subImg.includes('adminbackend-1-h03r.onrender.com/uploads/')) {
+        const clean = subImg.split('/uploads/').pop();
+        subImg = `${serverBaseUrl}/uploads/${clean}`;
+      } else if (!subImg.startsWith('http://') && !subImg.startsWith('https://')) {
         const clean = subImg.replace(/^\/+/, '').replace(/^uploads\//, '');
-        subImg = `https://adminbackend-1-h03r.onrender.com/uploads/${clean}`;
+        subImg = `${serverBaseUrl}/uploads/${clean}`;
       }
     }
     if (!subImg || subImg === '1') {
@@ -239,12 +243,14 @@ function collectAllSubcategories(adminSubcats, adminCats, dbCategories, serverBa
     nested.forEach(sub => addSub(sub, ac));
   });
 
-  (dbCategories || []).forEach(c => {
-    const parentVal = String(c.parent || '').trim();
-    if (parentVal && parentVal !== 'Main Category' && parentVal !== 'null' && parentVal !== 'undefined') {
-      addSub(c);
-    }
-  });
+  if (!adminSubcats || adminSubcats.length === 0) {
+    (dbCategories || []).forEach(c => {
+      const parentVal = String(c.parent || '').trim();
+      if (parentVal && parentVal !== 'Main Category' && parentVal !== 'null' && parentVal !== 'undefined') {
+        addSub(c);
+      }
+    });
+  }
 
   return allSubs;
 }

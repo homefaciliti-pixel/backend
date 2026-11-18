@@ -53,6 +53,10 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
   let img = c.image || c.categoryImage || c.photo || c.icon || '';
   if (img && typeof img === 'string') {
     img = img.trim();
+    if (img.includes('adminbackend-1-h03r.onrender.com/uploads/')) {
+      const cleanFilename = img.split('/uploads/').pop();
+      return `${serverBaseUrl}/uploads/${cleanFilename}`;
+    }
     if (img.startsWith('http://') || img.startsWith('https://')) {
       return img;
     }
@@ -61,7 +65,7 @@ const resolveDynamicCategoryImageUrl = (c, serverBaseUrl) => {
     }
     if (img !== '1' && img !== 'null' && img !== 'undefined' && img.length > 2) {
       const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-      return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+      return `${serverBaseUrl}/uploads/${cleanFilename}`;
     }
   }
   // Static 3D icons fallback from assets/categories
@@ -73,7 +77,8 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
   if (!img) return getLocalBannerAssetUrl(b.title || '', serverBaseUrl);
   
   if (img.includes('adminbackend-1-h03r.onrender.com')) {
-    return img;
+    const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '').split('/uploads/').pop();
+    return `${serverBaseUrl}/uploads/${cleanFilename}`;
   }
   if (img.startsWith('http://') || img.startsWith('https://')) {
     return img;
@@ -82,7 +87,7 @@ const resolveDynamicBannerImageUrl = (b, serverBaseUrl) => {
     return `${serverBaseUrl}${img}`;
   }
   const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-  return `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+  return `${serverBaseUrl}/uploads/${cleanFilename}`;
 };
 
 const sanitizeServiceDbObj = (r, serverBaseUrl) => {
@@ -119,11 +124,14 @@ const sanitizeServiceDbObj = (r, serverBaseUrl) => {
   if (!resolvedImage || resolvedImage === "1" || resolvedImage.endsWith("/1") || resolvedImage.includes("blob:")) {
     resolvedImage = getHdFallbackServiceImageUrl(r.title || "", r.cat_name || r.category || "");
   } else {
-    if (resolvedImage.startsWith('/assets/')) {
+    if (resolvedImage.includes('adminbackend-1-h03r.onrender.com/uploads/')) {
+      const clean = resolvedImage.split('/uploads/').pop();
+      resolvedImage = `${serverBaseUrl}/uploads/${clean}`;
+    } else if (resolvedImage.startsWith('/assets/')) {
       resolvedImage = `${serverBaseUrl}${resolvedImage}`;
     } else if (!resolvedImage.startsWith('http') && !resolvedImage.startsWith('https')) {
       if (!resolvedImage.includes('/')) {
-        resolvedImage = `https://adminbackend-1-h03r.onrender.com/uploads/${resolvedImage}`;
+        resolvedImage = `${serverBaseUrl}/uploads/${resolvedImage}`;
       } else {
         resolvedImage = `${serverBaseUrl.includes('localhost') || serverBaseUrl.includes('127.0.0.1') || serverBaseUrl.includes('10.0.2.2') ? 'https://homefaciliti.com' : serverBaseUrl}/uploads/services/${resolvedImage}`;
       }

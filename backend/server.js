@@ -4,6 +4,13 @@ const { PORT } = require('./config/constants');
 const { initMySqlDbWithRetry, initJsonDb, getMysqlReady, getMysqlPool, setDbMode, setMysqlReady } = require('./config/db');
 const { runContentI18nMigration } = require('./helpers/contentI18n');
 
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Unhandled Rejection Caught]:', reason && reason.message ? reason.message : reason);
+});
+process.on('uncaughtException', (err) => {
+  console.warn('[Uncaught Exception Caught]:', err && err.message ? err.message : err);
+});
+
 (async () => {
   const mysqlSuccess = await initMySqlDbWithRetry();
   if (!mysqlSuccess) {

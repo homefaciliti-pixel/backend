@@ -138,11 +138,14 @@ const getCategories = async (req, res) => {
           let img = String(as.image || as.photo || '').trim();
           if (!img || img === '1') {
             img = getHdFallbackServiceImageUrl(as.title || as.name || '', '');
+          } else if (img.includes('adminbackend-1-h03r.onrender.com/uploads/')) {
+            const cleanFilename = img.split('/uploads/').pop();
+            img = `${serverBaseUrl}/uploads/${cleanFilename}`;
           } else if (img.startsWith('http://') || img.startsWith('https://')) {
             // valid URL, keep as is
           } else {
             const cleanFilename = img.replace(/^\/+/, '').replace(/^uploads\//, '');
-            img = `https://adminbackend-1-h03r.onrender.com/uploads/${cleanFilename}`;
+            img = `${serverBaseUrl}/uploads/${cleanFilename}`;
           }
 
           const price = parseFloat(as.price || 0);
@@ -268,7 +271,7 @@ const getCategories = async (req, res) => {
       servicesByCat[catId].push(mappedService);
     });
 
-    const allCategories = [...(adminCats || []), ...(dbCategories || [])];
+    const allCategories = (adminCats && adminCats.length > 0) ? adminCats : (dbCategories || []);
     const categoryMap = new Map();
     allCategories.forEach(category => {
       const id = String(category.id || category.categoryId || '');
@@ -373,7 +376,7 @@ const getCategoryById = async (req, res) => {
     const serverBaseUrl = (isLocal ? protocol : 'https') + '://' + host;
 
     const idNorm = String(id).toLowerCase().trim();
-    const allCats = [...(adminCats || []), ...(dbCategories || [])];
+    const allCats = (adminCats && adminCats.length > 0) ? adminCats : (dbCategories || []);
     const found = allCats.find(c =>
       String(c.id).toLowerCase().trim() === idNorm ||
       String(c.title || c.name || '').toLowerCase().trim() === idNorm
@@ -628,7 +631,7 @@ const getCategorySubcategories = async (req, res) => {
 
     const catNorm = String(category).toLowerCase().trim();
 
-    const allCats = [...(adminCats || []), ...(dbCategories || [])];
+    const allCats = (adminCats && adminCats.length > 0) ? adminCats : (dbCategories || []);
     const targetCat = allCats.find(c => 
       String(c.id).toLowerCase().trim() === catNorm || 
       String(c.name || c.title || '').toLowerCase().trim() === catNorm
